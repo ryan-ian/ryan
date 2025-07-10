@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "name": "Admin User",
+    "email": "admin@conferencehub.com",
+    "password": "$2a$10$rOzJqQjQjQjQjQjQjQjQjO",
+    "role": "admin",
+    "department": "IT",
+    "position": "System Administrator",
+    "phone": "+1-555-0101",
+    "dateCreated": "2024-01-01T00:00:00Z",
+    "lastLogin": "2024-12-01T10:00:00Z"
+  },
+  {
+    "id": "2",
+    "name": "John Smith",
+    "email": "john.smith@company.com",
+    "password": "$2a$10$rOzJqQjQjQjQjQjQjQjQjO",
+    "role": "user",
+    "department": "Marketing",
+    "position": "Marketing Manager",
+    "phone": "+1-555-0102",
+    "dateCreated": "2024-01-15T00:00:00Z",
+    "lastLogin": "2024-12-01T09:30:00Z"
+  },
+  {
+    "id": "3",
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@company.com",
+    "password": "$2a$10$rOzJqQjQjQjQjQjQjQjQjO",
+    "role": "manager",
+    "department": "Sales",
+    "position": "Sales Director",
+    "phone": "+1-555-0103",
+    "dateCreated": "2024-02-01T00:00:00Z",
+    "lastLogin": "2024-12-01T08:45:00Z"
+  },
+  {
+    "id": "4",
+    "name": "Mike Davis",
+    "email": "mike.davis@company.com",
+    "password": "$2a$10$rOzJqQjQjQjQjQjQjQjQjO",
+    "role": "user",
+    "department": "Engineering",
+    "position": "Software Engineer",
+    "phone": "+1-555-0104",
+    "dateCreated": "2024-02-15T00:00:00Z",
+    "lastLogin": "2024-12-01T11:15:00Z"
+  },
+  {
+    "id": "5",
+    "name": "Emily Chen",
+    "email": "emily.chen@company.com",
+    "password": "$2a$10$rOzJqQjQjQjQjQjQjQjQjO",
+    "role": "user",
+    "department": "HR",
+    "position": "HR Specialist",
+    "phone": "+1-555-0105",
+    "dateCreated": "2024-03-01T00:00:00Z",
+    "lastLogin": "2024-12-01T10:30:00Z"
+  }
+]

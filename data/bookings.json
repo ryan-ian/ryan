@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "roomId": "1",
+    "userId": "2",
+    "title": "Marketing Strategy Meeting",
+    "description": "Q1 marketing strategy planning session",
+    "startTime": "2024-12-02T09:00:00Z",
+    "endTime": "2024-12-02T11:00:00Z",
+    "attendees": ["john.smith@company.com", "sarah.johnson@company.com"],
+    "status": "confirmed",
+    "resources": ["1", "2"],
+    "createdAt": "2024-12-01T10:00:00Z",
+    "updatedAt": "2024-12-01T10:00:00Z"
+  },
+  {
+    "id": "2",
+    "roomId": "2",
+    "userId": "4",
+    "title": "Sprint Planning",
+    "description": "Development team sprint planning for next iteration",
+    "startTime": "2024-12-02T14:00:00Z",
+    "endTime": "2024-12-02T16:00:00Z",
+    "attendees": ["mike.davis@company.com", "team@company.com"],
+    "status": "confirmed",
+    "resources": ["3"],
+    "createdAt": "2024-12-01T11:00:00Z",
+    "updatedAt": "2024-12-01T11:00:00Z"
+  },
+  {
+    "id": "3",
+    "roomId": "3",
+    "userId": "3",
+    "title": "All Hands Meeting",
+    "description": "Monthly company-wide update meeting",
+    "startTime": "2024-12-03T10:00:00Z",
+    "endTime": "2024-12-03T12:00:00Z",
+    "attendees": ["all@company.com"],
+    "status": "pending",
+    "resources": ["1", "4"],
+    "createdAt": "2024-12-01T12:00:00Z",
+    "updatedAt": "2024-12-01T12:00:00Z"
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "1",
+    "name": "Wireless Projector",
+    "type": "Presentation",
+    "status": "available",
+    "description": "High-resolution wireless projector with HDMI and USB-C connectivity"
+  },
+  {
+    "id": "2",
+    "name": "Video Conference Kit",
+    "type": "Communication",
+    "status": "available",
+    "description": "Professional video conferencing system with 4K camera and noise-canceling microphones"
+  },
+  {
+    "id": "3",
+    "name": "Interactive Whiteboard",
+    "type": "Collaboration",
+    "status": "available",
+    "description": "Smart interactive whiteboard with touch capabilities and digital sharing"
+  },
+  {
+    "id": "4",
+    "name": "Audio System",
+    "type": "Presentation",
+    "status": "in-use",
+    "description": "Professional audio system with wireless microphones and speakers"
+  },
+  {
+    "id": "5",
+    "name": "Catering Setup",
+    "type": "Service",
+    "status": "available",
+    "description": "Complete catering setup including tables, linens, and serving equipment"
+  }
+]

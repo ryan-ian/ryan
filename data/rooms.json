@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "name": "Executive Boardroom",
+    "location": "Floor 10, East Wing",
+    "capacity": 12,
+    "features": ["Projector", "Video Conferencing", "Whiteboard", "Coffee Station"],
+    "status": "available",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Premium boardroom with panoramic city views, perfect for executive meetings and presentations."
+  },
+  {
+    "id": "2",
+    "name": "Innovation Lab",
+    "location": "Floor 5, West Wing",
+    "capacity": 8,
+    "features": ["Smart TV", "Wireless Presentation", "Collaborative Workspace"],
+    "status": "available",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Modern collaborative space designed for brainstorming and creative sessions."
+  },
+  {
+    "id": "3",
+    "name": "Conference Room A",
+    "location": "Floor 3, Central",
+    "capacity": 20,
+    "features": ["Projector", "Audio System", "Video Conferencing", "Catering Setup"],
+    "status": "available",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Large conference room suitable for company-wide meetings and presentations."
+  },
+  {
+    "id": "4",
+    "name": "Meeting Pod 1",
+    "location": "Floor 2, North",
+    "capacity": 4,
+    "features": ["Smart TV", "Wireless Charging"],
+    "status": "available",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Intimate meeting space perfect for small team discussions."
+  },
+  {
+    "id": "5",
+    "name": "Training Room",
+    "location": "Floor 1, South Wing",
+    "capacity": 30,
+    "features": ["Projector", "Audio System", "Flipchart", "Training Setup"],
+    "status": "available",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Spacious training facility with flexible seating arrangements."
+  },
+  {
+    "id": "6",
+    "name": "Quiet Zone",
+    "location": "Floor 4, East",
+    "capacity": 6,
+    "features": ["Soundproof", "Whiteboard", "Comfortable Seating"],
+    "status": "maintenance",
+    "image": "/placeholder.svg?height=200&width=300",
+    "description": "Soundproof room ideal for confidential discussions and focused work."
+  }
+]

@@ -26,11 +26,12 @@ export default function AdminLoginPage() {
     setLoading(true)
     setError("")
 
-    const success = await login(email, password)
+    // Pass isAdmin=true to enforce admin role check
+    const success = await login(email, password, true)
     if (success) {
       router.push("/admin")
     } else {
-      setError("Invalid credentials. Please try again.")
+      setError("Invalid credentials or insufficient permissions. Please try again.")
     }
     setLoading(false)
   }
@@ -82,14 +83,6 @@ export default function AdminLoginPage() {
             <Link href="/" className="text-primary hover:underline">
               ← Back to Home
             </Link>
-          </div>
-          <div className="mt-4 p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-2">Demo Credentials:</p>
-            <p className="text-xs text-muted-foreground">
-              Email: admin@conferencehub.com
-              <br />
-              Password: any password
-            </p>
           </div>
         </CardContent>
       </Card>

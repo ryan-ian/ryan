@@ -26,6 +26,7 @@ export default function UserLoginPage() {
     setLoading(true)
     setError("")
 
+    // Regular user login (no admin check)
     const success = await login(email, password)
     if (success) {
       router.push("/conference-room-booking")
@@ -78,21 +79,16 @@ export default function UserLoginPage() {
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm space-y-2">
-            <Link href="/signup" className="text-primary hover:underline block">
-              Don't have an account? Sign up
-            </Link>
-            <Link href="/" className="text-muted-foreground hover:underline block">
-              ← Back to Home
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 mb-2">Don't have an account?</p>
+            <Link href="/signup" className="text-primary hover:underline">
+              Create Account
             </Link>
           </div>
-          <div className="mt-4 p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-2">Demo Credentials:</p>
-            <p className="text-xs text-muted-foreground">
-              Email: john.smith@company.com
-              <br />
-              Password: any password
-            </p>
+          <div className="mt-6 text-center text-sm">
+            <Link href="/" className="text-primary hover:underline">
+              ← Back to Home
+            </Link>
           </div>
         </CardContent>
       </Card>

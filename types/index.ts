@@ -2,8 +2,7 @@ export interface User {
   id: string
   name: string
   email: string
-  password: string // Hashed
-  role: "admin" | "manager" | "user"
+  role: "admin" | "user"
   department: string
   position: string
   phone?: string
@@ -50,7 +49,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
-  role: "admin" | "manager" | "user"
+  role: "admin" | "user"
   department: string
   position: string
 }

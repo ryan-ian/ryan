@@ -32,19 +32,28 @@ export default function BookingsPage() {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch("/api/bookings")
+      // Get the auth token from localStorage
+      const token = localStorage.getItem("auth-token")
+      
+      // Use the user-specific bookings endpoint
+      const response = await fetch(`/api/bookings/user?user_id=${user?.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      
       const bookingsData = await response.json()
-      const bookingsArray = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
-
-      // Filter bookings for current user
-      const userBookings = bookingsArray.filter((booking: Booking) => booking.userId === user?.id)
-      setBookings(userBookings)
+      
+      // Set the bookings directly from the response
+      // No need to filter by user since the API already returns user-specific bookings
+      setBookings(bookingsData)
     } catch (error) {
       console.error("Failed to fetch bookings:", error)
     } finally {
       setLoading(false)
     }
   }
+  
 
   const fetchRooms = async () => {
     try {
@@ -56,7 +65,7 @@ export default function BookingsPage() {
       console.error("Failed to fetch rooms:", error)
     }
   }
-
+  
   const filterBookings = () => {
     let filtered = bookings
 
@@ -65,7 +74,7 @@ export default function BookingsPage() {
       filtered = filtered.filter(
         (booking) =>
           booking.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          getRoomName(booking.roomId).toLowerCase().includes(searchTerm.toLowerCase()),
+          getRoomName(booking.room_id).toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
@@ -82,21 +91,21 @@ export default function BookingsPage() {
       switch (dateFilter) {
         case "today":
           filtered = filtered.filter((booking) => {
-            const bookingDate = new Date(booking.date || booking.startTime)
+            const bookingDate = new Date(booking.start_time)
             return bookingDate >= today && bookingDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
           })
           break
         case "upcoming":
-          filtered = filtered.filter((booking) => new Date(booking.date || booking.startTime) > now)
+          filtered = filtered.filter((booking) => new Date(booking.start_time) > now)
           break
         case "past":
-          filtered = filtered.filter((booking) => new Date(booking.date || booking.startTime) < now)
+          filtered = filtered.filter((booking) => new Date(booking.start_time) < now)
           break
       }
     }
 
     // Sort by date (newest first)
-    filtered.sort((a, b) => new Date(b.date || b.startTime).getTime() - new Date(a.date || a.startTime).getTime())
+    filtered.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
 
     setFilteredBookings(filtered)
   }
@@ -126,9 +135,9 @@ export default function BookingsPage() {
 
   const getBookingStats = () => {
     const now = new Date()
-    const upcoming = bookings.filter((b) => new Date(b.date || b.startTime) > now && b.status === "confirmed")
+    const upcoming = bookings.filter((b) => new Date(b.start_time) > now && b.status === "confirmed")
     const today = bookings.filter((b) => {
-      const bookingDate = new Date(b.date || b.startTime)
+      const bookingDate = new Date(b.start_time)
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
       return bookingDate >= todayStart && bookingDate < todayEnd && b.status === "confirmed"
@@ -304,35 +313,35 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Building className="h-4 w-4" />
-                      <span>{getRoomName(booking.roomId)}</span>
+                      <span>{getRoomName(booking.room_id)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      <span>{getRoomLocation(booking.roomId)}</span>
+                      <span>{getRoomLocation(booking.room_id)}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(booking.date || booking.startTime).toLocaleDateString()}</span>
+                      <span>{new Date(booking.start_time).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {booking.startTime
-                          ? new Date(booking.startTime).toLocaleTimeString([], {
+                        {booking.start_time
+                          ? new Date(booking.start_time).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })
-                          : booking.startTime}{" "}
+                          : booking.start_time}{" "}
                         -{" "}
-                        {booking.endTime
-                          ? new Date(booking.endTime).toLocaleTimeString([], {
+                        {booking.end_time
+                          ? new Date(booking.end_time).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })
-                          : booking.endTime}
+                          : booking.end_time}
                       </span>
                     </div>
                   </div>

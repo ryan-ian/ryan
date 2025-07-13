@@ -1,0 +1,315 @@
+---
+alwaysApply: true
+---
+
+# Application Architecture
+
+This document outlines the architecture of the Conference Hub application, providing guidance on how different components interact and how to maintain architectural integrity when implementing new features.
+
+## High-Level Architecture
+
+The Conference Hub application follows a modern web application architecture using Next.js with the App Router pattern. The architecture can be broken down into these key layers:
+
+1. **Presentation Layer** - React components and UI
+2. **Application Layer** - Business logic and state management
+3. **Data Access Layer** - API interactions and data fetching
+4. **Backend Services** - Supabase for authentication and database
+
+## Component Structure
+
+```
+┌─────────────────────────────┐
+│        UI Components        │
+│  (Shadcn UI, Custom Comps)  │
+├─────────────────────────────┤
+│      Page Components        │
+│   (Next.js App Router)      │
+├─────────────────────────────┤
+│     Application Logic       │
+│  (Context, Hooks, Utils)    │
+├─────────────────────────────┤
+│      Data Access Layer      │
+│  (API Clients, Data Utils)  │
+├─────────────────────────────┤
+│       Supabase Client       │
+└─────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────┐
+│      Supabase Services      │
+│  (Auth, Database, Storage)  │
+└─────────────────────────────┘
+```
+
+## Key Architectural Components
+
+### 1. Next.js App Router
+
+The application uses Next.js App Router for routing and page organization:
+
+- `/app` - Contains all pages and layouts
+  - `/app/conference-room-booking` - User-facing booking interface
+  - `/app/admin` - Admin dashboard and management interfaces
+  - `/app/api` - API routes for data operations
+
+### 2. Authentication and Authorization
+
+Authentication is handled through Supabase Auth:
+
+- `contexts/auth-context.tsx` - React context for authentication state
+- `lib/auth.ts` - Authentication utility functions
+- Protected routes using the `protected-route.tsx` component
+
+Authorization follows these principles:
+- Role-based access control (admin vs. user)
+- Component-level access control for UI elements
+- API-level authorization checks
+- Database-level security through Row Level Security (RLS)
+
+### 3. Data Access Layer
+
+The data access layer is primarily implemented in:
+
+- `lib/supabase-data.ts` - Functions for interacting with Supabase
+- `lib/data.ts` - Additional data utility functions
+
+This layer follows these patterns:
+- Separation of concerns between data access and business logic
+- Error handling and logging for all database operations
+- Type safety through TypeScript interfaces
+- Consistent API for CRUD operations
+
+### 4. State Management
+
+State management uses React's built-in mechanisms:
+
+- React Context for global state (auth, themes)
+- React useState/useReducer for component state
+- React Query patterns for data fetching and caching
+
+### 5. UI Component Library
+
+The application uses Shadcn UI components with Tailwind CSS:
+
+- `/components/ui` - Core UI components
+- Custom components built on top of the core library
+
+## Data Flow
+
+1. **User Interaction Flow**
+   - User interacts with UI component
+   - Component calls hook or context function
+   - Function calls data access layer
+   - Data layer interacts with Supabase
+   - Response flows back up the chain
+   - UI updates to reflect changes
+
+2. **Server-Side Rendering Flow**
+   - Next.js server renders page
+   - Server components fetch initial data
+   - Page is sent to client with data
+   - Client hydrates the page
+   - Client-side interactions begin
+
+## Security Architecture
+
+1. **Authentication Security**
+   - JWT-based authentication via Supabase
+   - Secure token storage and handling
+   - Protected routes and components
+
+2. **Data Security**
+   - Row Level Security (RLS) policies in Supabase
+   - API route protection
+   - Input validation and sanitization
+
+3. **Frontend Security**
+   - No sensitive data in client-side code
+   - XSS protection through React's escaping
+   - CSRF protection via Supabase tokens
+
+## Architectural Principles
+
+When extending or modifying the application, adhere to these principles:
+
+1. **Separation of Concerns**
+   - Keep UI logic separate from business logic
+   - Keep business logic separate from data access
+   - Use appropriate abstractions for each layer
+
+2. **Type Safety**
+   - Use TypeScript interfaces for all data models
+   - Ensure proper typing for function parameters and returns
+   - Avoid using `any` type
+
+3. **Error Handling**
+   - Handle errors at appropriate levels
+   - Provide meaningful error messages
+   - Log errors for debugging
+
+4. **Performance Considerations**
+   - Optimize data fetching with pagination and filtering
+   - Use appropriate caching strategies
+   - Consider component rendering performance
+
+5. **Code Organization**
+   - Follow the established project structure
+   - Group related functionality together
+   - Use consistent naming conventions
+
+By following these architectural guidelines, you'll maintain the integrity and quality of the Conference Hub application while extending its functionality. # Application Architecture
+
+This document outlines the architecture of the Conference Hub application, providing guidance on how different components interact and how to maintain architectural integrity when implementing new features.
+
+## High-Level Architecture
+
+The Conference Hub application follows a modern web application architecture using Next.js with the App Router pattern. The architecture can be broken down into these key layers:
+
+1. **Presentation Layer** - React components and UI
+2. **Application Layer** - Business logic and state management
+3. **Data Access Layer** - API interactions and data fetching
+4. **Backend Services** - Supabase for authentication and database
+
+## Component Structure
+
+```
+┌─────────────────────────────┐
+│        UI Components        │
+│  (Shadcn UI, Custom Comps)  │
+├─────────────────────────────┤
+│      Page Components        │
+│   (Next.js App Router)      │
+├─────────────────────────────┤
+│     Application Logic       │
+│  (Context, Hooks, Utils)    │
+├─────────────────────────────┤
+│      Data Access Layer      │
+│  (API Clients, Data Utils)  │
+├─────────────────────────────┤
+│       Supabase Client       │
+└─────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────┐
+│      Supabase Services      │
+│  (Auth, Database, Storage)  │
+└─────────────────────────────┘
+```
+
+## Key Architectural Components
+
+### 1. Next.js App Router
+
+The application uses Next.js App Router for routing and page organization:
+
+- `/app` - Contains all pages and layouts
+  - `/app/conference-room-booking` - User-facing booking interface
+  - `/app/admin` - Admin dashboard and management interfaces
+  - `/app/api` - API routes for data operations
+
+### 2. Authentication and Authorization
+
+Authentication is handled through Supabase Auth:
+
+- `contexts/auth-context.tsx` - React context for authentication state
+- `lib/auth.ts` - Authentication utility functions
+- Protected routes using the `protected-route.tsx` component
+
+Authorization follows these principles:
+- Role-based access control (admin vs. user)
+- Component-level access control for UI elements
+- API-level authorization checks
+- Database-level security through Row Level Security (RLS)
+
+### 3. Data Access Layer
+
+The data access layer is primarily implemented in:
+
+- `lib/supabase-data.ts` - Functions for interacting with Supabase
+- `lib/data.ts` - Additional data utility functions
+
+This layer follows these patterns:
+- Separation of concerns between data access and business logic
+- Error handling and logging for all database operations
+- Type safety through TypeScript interfaces
+- Consistent API for CRUD operations
+
+### 4. State Management
+
+State management uses React's built-in mechanisms:
+
+- React Context for global state (auth, themes)
+- React useState/useReducer for component state
+- React Query patterns for data fetching and caching
+
+### 5. UI Component Library
+
+The application uses Shadcn UI components with Tailwind CSS:
+
+- `/components/ui` - Core UI components
+- Custom components built on top of the core library
+
+## Data Flow
+
+1. **User Interaction Flow**
+   - User interacts with UI component
+   - Component calls hook or context function
+   - Function calls data access layer
+   - Data layer interacts with Supabase
+   - Response flows back up the chain
+   - UI updates to reflect changes
+
+2. **Server-Side Rendering Flow**
+   - Next.js server renders page
+   - Server components fetch initial data
+   - Page is sent to client with data
+   - Client hydrates the page
+   - Client-side interactions begin
+
+## Security Architecture
+
+1. **Authentication Security**
+   - JWT-based authentication via Supabase
+   - Secure token storage and handling
+   - Protected routes and components
+
+2. **Data Security**
+   - Row Level Security (RLS) policies in Supabase
+   - API route protection
+   - Input validation and sanitization
+
+3. **Frontend Security**
+   - No sensitive data in client-side code
+   - XSS protection through React's escaping
+   - CSRF protection via Supabase tokens
+
+## Architectural Principles
+
+When extending or modifying the application, adhere to these principles:
+
+1. **Separation of Concerns**
+   - Keep UI logic separate from business logic
+   - Keep business logic separate from data access
+   - Use appropriate abstractions for each layer
+
+2. **Type Safety**
+   - Use TypeScript interfaces for all data models
+   - Ensure proper typing for function parameters and returns
+   - Avoid using `any` type
+
+3. **Error Handling**
+   - Handle errors at appropriate levels
+   - Provide meaningful error messages
+   - Log errors for debugging
+
+4. **Performance Considerations**
+   - Optimize data fetching with pagination and filtering
+   - Use appropriate caching strategies
+   - Consider component rendering performance
+
+5. **Code Organization**
+   - Follow the established project structure
+   - Group related functionality together
+   - Use consistent naming conventions
+
+By following these architectural guidelines, you'll maintain the integrity and quality of the Conference Hub application while extending its functionality. 

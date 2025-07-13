@@ -7,47 +7,72 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, MapPin, Users, Plus, TrendingUp, Building, CheckCircle } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import Link from "next/link"
-import type { Room, Booking } from "@/types"
+import type { Room, Booking, BookingWithDetails } from "@/types"
+import { useAuth } from "@/contexts/auth-context"
 
 interface DashboardData {
   totalRooms: number
   availableRooms: number
   todayBookings: number
   upcomingBookings: number
-  recentBookings: Booking[]
+  recentBookings: BookingWithDetails[]
   popularRooms: Room[]
 }
 
-async function fetchDashboardData(): Promise<DashboardData> {
+async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
   try {
-    const [bookingsRes, roomsRes] = await Promise.all([fetch("/api/bookings"), fetch("/api/rooms")])
+    const [roomsRes] = await Promise.all([fetch("/api/rooms")])
 
-    const bookingsData = await bookingsRes.json()
     const roomsData = await roomsRes.json()
 
     // Normalize data - ensure we always have arrays
-    const bookings = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
     const rooms = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
-
-    const today = new Date().toISOString().split("T")[0]
-    const todayBookings = bookings.filter((booking: Booking) => booking.date === today)
-
-    const upcomingBookings = bookings.filter((booking: Booking) => new Date(booking.date) > new Date())
 
     const availableRooms = rooms.filter((room: Room) => room.status === "available")
 
-    // Get recent bookings (last 5)
-    const recentBookings = bookings
-      .sort(
-        (a: Booking, b: Booking) =>
-          new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime(),
-      )
+    // Get user's bookings if userId is available
+    let userBookings: BookingWithDetails[] = []
+    
+    if (userId) {
+      const token = localStorage.getItem("auth-token")
+      const userBookingsRes = await fetch(`/api/bookings/user?user_id=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      userBookings = await userBookingsRes.json()
+    }
+
+    // Calculate today's bookings
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayBookings = userBookings.filter((booking) => {
+      const bookingDate = new Date(booking.start_time)
+      bookingDate.setHours(0, 0, 0, 0)
+      return bookingDate.getTime() === today.getTime()
+    })
+
+    // Calculate upcoming bookings
+    const upcomingBookings = userBookings.filter((booking) => {
+      return new Date(booking.start_time) > today
+    })
+
+    // Get recent bookings from last 5 days
+    const fiveDaysAgo = new Date()
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
+    
+    const recentBookings = userBookings
+      .filter((booking) => {
+        const bookingDate = new Date(booking.start_time)
+        return bookingDate >= fiveDaysAgo && bookingDate <= new Date()
+      })
+      .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
       .slice(0, 5)
 
     // Get popular rooms (rooms with most bookings)
     const roomBookingCounts = rooms.map((room: Room) => ({
       ...room,
-      bookingCount: bookings.filter((booking: Booking) => booking.roomId === room.id).length,
+      bookingCount: userBookings.filter((booking) => booking.room_id === room.id).length,
     }))
     const popularRooms = roomBookingCounts.sort((a, b) => b.bookingCount - a.bookingCount).slice(0, 4)
 
@@ -73,15 +98,16 @@ async function fetchDashboardData(): Promise<DashboardData> {
 }
 
 export default function ConferenceRoomBookingPage() {
+  const { user } = useAuth()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData().then((data) => {
+    fetchDashboardData(user?.id).then((data) => {
       setDashboardData(data)
       setLoading(false)
     })
-  }, [])
+  }, [user?.id])
 
   if (loading) {
     return (
@@ -194,7 +220,7 @@ export default function ConferenceRoomBookingPage() {
                 <Clock className="h-5 w-5" />
                 <span>Recent Bookings</span>
               </CardTitle>
-              <CardDescription>Your latest room reservations</CardDescription>
+              <CardDescription>Your bookings from the last 5 days</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {dashboardData.recentBookings.length > 0 ? (
@@ -203,17 +229,18 @@ export default function ConferenceRoomBookingPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">Room {booking.roomId}</span>
+                        <span className="font-medium">{booking.rooms?.name || `Room ${booking.room_id}`}</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          <span>{booking.date}</span>
+                          <span>{new Date(booking.start_time).toLocaleDateString()}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {booking.startTime} - {booking.endTime}
+                            {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                            {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       </div>
@@ -222,7 +249,14 @@ export default function ConferenceRoomBookingPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-center text-muted-foreground py-4">No recent bookings</p>
+                <p className="text-center text-muted-foreground py-4">No recent bookings from the last 5 days</p>
+              )}
+              {dashboardData.recentBookings.length > 0 && (
+                <div className="pt-2">
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href="/conference-room-booking/bookings">View all bookings</Link>
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>

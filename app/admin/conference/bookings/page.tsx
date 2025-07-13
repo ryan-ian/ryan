@@ -6,41 +6,31 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react"
-import type { Booking, Room, User } from "@/types"
+import { Search, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle, ArrowUpDown } from "lucide-react"
+import type { BookingWithDetails } from "@/types"
+
+type SortField = "title" | "room" | "organizer" | "date" | "duration" | "status"
+type SortDirection = "asc" | "desc"
 
 export default function BookingManagement() {
-  const [bookings, setBookings] = useState<Booking[]>([])
-  const [rooms, setRooms] = useState<Room[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
+  const [bookings, setBookings] = useState<BookingWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [filteredBookings, setFilteredBookings] = useState<BookingWithDetails[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortField, setSortField] = useState<SortField>("date")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [bookingsRes, roomsRes, usersRes] = await Promise.all([
-          fetch("/api/bookings", {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("auth-token")}`,
-            },
-          }),
-          fetch("/api/rooms"),
-          fetch("/api/users", {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("auth-token")}`,
-            },
-          }),
-        ])
+        const bookingsRes = await fetch("/api/bookings", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth-token")}`,
+          },
+        })
 
         const bookingsData = await bookingsRes.json()
-        const roomsData = await roomsRes.json()
-        const usersData = await usersRes.json()
-
         setBookings(bookingsData)
-        setRooms(roomsData)
-        setUsers(usersData)
         setFilteredBookings(bookingsData)
       } catch (error) {
         console.error("Failed to fetch data:", error)
@@ -54,18 +44,66 @@ export default function BookingManagement() {
 
   useEffect(() => {
     const filtered = bookings.filter((booking) => {
-      const room = rooms.find((r) => r.id === booking.roomId)
-      const user = users.find((u) => u.id === booking.userId)
-
       return (
         booking.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        room?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.rooms?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.users?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         booking.status.toLowerCase().includes(searchTerm.toLowerCase())
       )
     })
-    setFilteredBookings(filtered)
-  }, [searchTerm, bookings, rooms, users])
+    
+    // Sort the filtered bookings
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortField) {
+        case "title":
+          return sortDirection === "asc" 
+            ? a.title.localeCompare(b.title)
+            : b.title.localeCompare(a.title)
+        case "room":
+          return sortDirection === "asc"
+            ? (a.rooms?.name || "").localeCompare(b.rooms?.name || "")
+            : (b.rooms?.name || "").localeCompare(a.rooms?.name || "")
+        case "organizer":
+          return sortDirection === "asc"
+            ? (a.users?.name || "").localeCompare(b.users?.name || "")
+            : (b.users?.name || "").localeCompare(a.users?.name || "")
+        case "date":
+          return sortDirection === "asc"
+            ? new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+            : new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+        case "duration":
+          const aDuration = new Date(a.end_time).getTime() - new Date(a.start_time).getTime()
+          const bDuration = new Date(b.end_time).getTime() - new Date(b.start_time).getTime()
+          return sortDirection === "asc" ? aDuration - bDuration : bDuration - aDuration
+        case "status":
+          return sortDirection === "asc"
+            ? a.status.localeCompare(b.status)
+            : b.status.localeCompare(a.status)
+        default:
+          return 0
+      }
+    })
+    
+    setFilteredBookings(sorted)
+  }, [searchTerm, bookings, sortField, sortDirection])
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField === field) {
+      return (
+        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+      )
+    }
+    return null
+  }
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -91,16 +129,6 @@ export default function BookingManagement() {
       default:
         return null
     }
-  }
-
-  const getRoomName = (roomId: string) => {
-    const room = rooms.find((r) => r.id === roomId)
-    return room?.name || "Unknown Room"
-  }
-
-  const getUserName = (userId: string) => {
-    const user = users.find((u) => u.id === userId)
-    return user?.name || "Unknown User"
   }
 
   if (loading) {
@@ -132,7 +160,7 @@ export default function BookingManagement() {
   const pendingBookings = bookings.filter((b) => b.status === "pending")
   const cancelledBookings = bookings.filter((b) => b.status === "cancelled")
   const todayBookings = bookings.filter((b) => {
-    const bookingDate = new Date(b.startTime)
+    const bookingDate = new Date(b.start_time)
     const today = new Date()
     return bookingDate.toDateString() === today.toDateString()
   })
@@ -210,20 +238,43 @@ export default function BookingManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Room</TableHead>
-                  <TableHead>Organizer</TableHead>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("title")}>
+                    Title {getSortIcon("title")}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("room")}>
+                    Room {getSortIcon("room")}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("organizer")}>
+                    Organizer {getSortIcon("organizer")}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("date")}>
+                    Date & Time {getSortIcon("date")}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("duration")}>
+                    Duration {getSortIcon("duration")}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => toggleSort("status")}>
+                    Status {getSortIcon("status")}
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBookings.map((booking) => {
-                  const startTime = new Date(booking.startTime)
-                  const endTime = new Date(booking.endTime)
-                  const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60 * 100)) / 10
+                  
+                  const startTime = new Date(booking.start_time)
+                  const endTime = new Date(booking.end_time)
+                  const createdAt = new Date(booking.created_at)
+                  
+                  
+                  // Calculate duration in hours and minutes
+                  const durationMs = endTime.getTime() - startTime.getTime()
+                  const durationHours = Math.floor(durationMs / (1000 * 60 * 60))
+                  const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
+                  const durationFormatted = durationHours > 0 
+                    ? `${durationHours}h${durationMinutes > 0 ? ` ${durationMinutes}m` : ''}`
+                    : `${durationMinutes}m`
+                    
 
                   return (
                     <TableRow key={booking.id}>
@@ -231,24 +282,32 @@ export default function BookingManagement() {
                       <TableCell>
                         <div className="flex items-center">
                           <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
-                          {getRoomName(booking.roomId)}
+                          {booking.rooms?.name || "Unknown Room"}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <Users className="h-3 w-3 mr-1 text-muted-foreground" />
-                          {getUserName(booking.userId)}
+                          {booking.users?.name || "Unknown User"}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <div className="text-sm font-medium">{startTime.toLocaleDateString()}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          <div className="text-sm font-medium">{startTime.toLocaleDateString('en-US', { 
+                            weekday: 'short',
+                            month: 'short', 
+                            day: 'numeric'
+                          })}</div>
+                          {/* <div className="text-xs text-muted-foreground">
+                            {startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                            {endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </div>
+                          <div className="text-xs text-muted-foreground">
+                            Created: {createdAt.toLocaleDateString()}
+                          </div> */}
                         </div>
                       </TableCell>
-                      <TableCell>{duration}h</TableCell>
+                      <TableCell>{durationFormatted}</TableCell>
                       <TableCell>
                         <Badge
                           variant={getStatusBadgeVariant(booking.status)}
@@ -282,7 +341,10 @@ export default function BookingManagement() {
           {filteredBookings.length === 0 && (
             <div className="text-center py-8">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No bookings found matching your search.</p>
+              <p className="text-lg font-medium mb-2">No bookings found</p>
+              <p className="text-muted-foreground">
+                {searchTerm ? "Try adjusting your search terms." : "There are no bookings in the system yet."}
+              </p>
             </div>
           )}
         </CardContent>

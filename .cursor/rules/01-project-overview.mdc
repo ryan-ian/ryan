@@ -1,0 +1,115 @@
+---
+alwaysApply: true
+---
+
+# Conference Hub - Project Overview
+
+## Application Purpose
+
+Conference Hub is a comprehensive room booking and resource management system designed to streamline the process of reserving and managing meeting spaces within an organization. The application serves two primary user groups:
+
+1. **Regular Users** - Employees who need to book rooms for meetings and events
+2. **Administrators** - Facilities managers who oversee the room inventory and booking system
+
+The system aims to solve common problems in office space management:
+- Double-bookings and scheduling conflicts
+- Inefficient use of available meeting spaces
+- Lack of visibility into room availability and features
+- Difficulty in finding appropriate rooms based on specific requirements
+- Tracking resource usage and allocation
+
+## Core Features
+
+- **Room Booking System** - Allow users to reserve rooms based on availability, capacity, and features
+- **Resource Management** - Track and allocate resources (projectors, whiteboards, etc.) to rooms
+- **User Authentication** - Role-based access control for regular users and administrators
+- **Booking Management** - Create, view, update, and cancel bookings
+- **Room Administration** - Add, update, and manage room inventory and status
+- **Availability Checking** - Prevent double-bookings and show available time slots
+- **User Interface** - Separate interfaces for regular users and administrators
+
+## Technology Stack
+
+- **Frontend**: Next.js with React, TypeScript, Tailwind CSS, Shadcn UI components
+- **Backend**: Next.js API routes, Supabase for authentication and database
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth with JWT tokens
+- **Deployment**: Vercel
+
+## Project Structure
+
+The project follows a standard Next.js application structure with additional organization:
+
+- `/app` - Next.js App Router pages and layouts
+- `/components` - Reusable UI components
+- `/contexts` - React context providers (e.g., auth context)
+- `/hooks` - Custom React hooks
+- `/lib` - Utility functions and API clients
+- `/types` - TypeScript type definitions
+- `/public` - Static assets
+- `/styles` - Global CSS styles
+
+## Development Status
+
+The application has implemented core functionality including:
+- User authentication and authorization
+- Room and resource data models
+- Basic booking creation and management
+- Admin interfaces for managing rooms and resources
+
+Future development will focus on enhancing the user experience, adding advanced booking features, and implementing analytics and reporting capabilities. # Conference Hub - Project Overview
+
+## Application Purpose
+
+Conference Hub is a comprehensive room booking and resource management system designed to streamline the process of reserving and managing meeting spaces within an organization. The application serves two primary user groups:
+
+1. **Regular Users** - Employees who need to book rooms for meetings and events
+2. **Administrators** - Facilities managers who oversee the room inventory and booking system
+
+The system aims to solve common problems in office space management:
+- Double-bookings and scheduling conflicts
+- Inefficient use of available meeting spaces
+- Lack of visibility into room availability and features
+- Difficulty in finding appropriate rooms based on specific requirements
+- Tracking resource usage and allocation
+
+## Core Features
+
+- **Room Booking System** - Allow users to reserve rooms based on availability, capacity, and features
+- **Resource Management** - Track and allocate resources (projectors, whiteboards, etc.) to rooms
+- **User Authentication** - Role-based access control for regular users and administrators
+- **Booking Management** - Create, view, update, and cancel bookings
+- **Room Administration** - Add, update, and manage room inventory and status
+- **Availability Checking** - Prevent double-bookings and show available time slots
+- **User Interface** - Separate interfaces for regular users and administrators
+
+## Technology Stack
+
+- **Frontend**: Next.js with React, TypeScript, Tailwind CSS, Shadcn UI components
+- **Backend**: Next.js API routes, Supabase for authentication and database
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth with JWT tokens
+- **Deployment**: Vercel
+
+## Project Structure
+
+The project follows a standard Next.js application structure with additional organization:
+
+- `/app` - Next.js App Router pages and layouts
+- `/components` - Reusable UI components
+- `/contexts` - React context providers (e.g., auth context)
+- `/hooks` - Custom React hooks
+- `/lib` - Utility functions and API clients
+- `/types` - TypeScript type definitions
+- `/public` - Static assets
+- `/styles` - Global CSS styles
+
+## Development Status
+
+The application has implemented core functionality including:
+- User authentication and authorization
+- Room and resource data models
+- Basic booking creation and management
+- Admin interfaces for managing rooms and resources
+
+Future development will focus on enhancing the user experience, adding advanced booking features, and implementing analytics and reporting capabilities. 

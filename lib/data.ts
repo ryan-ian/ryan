@@ -27,19 +27,19 @@ export function getBookingById(id: string): Booking | undefined {
 }
 
 export function getBookingsByUserId(userId: string): Booking[] {
-  return bookings.filter((booking) => booking.userId === userId)
+  return bookings.filter((booking) => booking.user_id === userId)
 }
 
 export function getBookingsByRoomId(roomId: string): Booking[] {
-  return bookings.filter((booking) => booking.roomId === roomId)
+  return bookings.filter((booking) => booking.room_id === roomId)
 }
 
-export function getAvailableRooms(startTime: string, endTime: string): Room[] {
+export function getAvailableRooms(start_time: string, end_time: string): Room[] {
   const conflictingBookings = bookings.filter((booking) => {
-    const bookingStart = new Date(booking.startTime)
-    const bookingEnd = new Date(booking.endTime)
-    const requestStart = new Date(startTime)
-    const requestEnd = new Date(endTime)
+    const bookingStart = new Date(booking.start_time)
+    const bookingEnd = new Date(booking.end_time)
+    const requestStart = new Date(start_time)
+    const requestEnd = new Date(end_time)
 
     return (
       booking.status === "confirmed" &&
@@ -49,6 +49,6 @@ export function getAvailableRooms(startTime: string, endTime: string): Room[] {
     )
   })
 
-  const bookedRoomIds = new Set(conflictingBookings.map((b) => b.roomId))
+  const bookedRoomIds = new Set(conflictingBookings.map((b) => b.room_id))
   return rooms.filter((room) => room.status === "available" && !bookedRoomIds.has(room.id))
 }

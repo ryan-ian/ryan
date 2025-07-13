@@ -1,0 +1,60 @@
+# Conference Hub Framework Documentation
+
+This folder contains comprehensive documentation and guidelines for the Conference Hub application. It serves as a reference for developers, AI assistants, and stakeholders to understand the application's architecture, design principles, and development standards.
+
+## Purpose
+
+The primary purposes of this framework documentation are:
+
+1. **Knowledge Preservation** - Capture and maintain the core knowledge about the application's design and implementation
+2. **Development Guidance** - Provide clear guidelines for implementing new features and maintaining existing code
+3. **Onboarding** - Help new developers quickly understand the application's architecture and patterns
+4. **Context for AI Agents** - Provide structured context for AI assistants working on the codebase
+
+## Documents Overview
+
+The framework documentation is organized into the following documents:
+
+1. **[01-project-overview.md](./01-project-overview.md)** - High-level overview of the application, its purpose, and core features
+2. **[02-user-personas.md](./02-user-personas.md)** - Detailed description of user personas and key user journeys
+3. **[03-data-models.md](./03-data-models.md)** - Documentation of the application's data models and relationships
+4. **[04-architecture.md](./04-architecture.md)** - Explanation of the application's architecture and component structure
+5. **[05-development-roadmap.md](./05-development-roadmap.md)** - Current development status and future plans
+6. **[06-coding-standards.md](./06-coding-standards.md)** - Coding standards and best practices for the project
+7. **[07-supabase-integration.md](./07-supabase-integration.md)** - Details on how Supabase is integrated into the application
+8. **[08-feature-implementation-guide.md](./08-feature-implementation-guide.md)** - Step-by-step guide for implementing new features
+
+## How to Use This Framework
+
+### For Developers
+
+1. Start with the Project Overview to understand the application's purpose
+2. Review the User Personas to understand the target users and their needs
+3. Study the Architecture document to understand how the application is structured
+4. Follow the Coding Standards when writing new code
+5. Use the Feature Implementation Guide when adding new features
+
+### For AI Assistants
+
+1. Use these documents to build a comprehensive understanding of the application
+2. Reference specific sections when providing guidance or implementing features
+3. Ensure recommendations align with the established architecture and patterns
+4. Adhere to the coding standards when generating code
+5. Update these documents when significant changes are made to the application
+
+### For Project Managers
+
+1. Use the Project Overview to communicate the application's purpose to stakeholders
+2. Reference the User Personas when discussing feature priorities
+3. Consult the Development Roadmap for planning and status updates
+4. Ensure new feature requests align with the established architecture
+
+## Maintaining This Documentation
+
+This framework documentation should be treated as a living resource that evolves with the application. When making significant changes to the application:
+
+1. Update the relevant documentation to reflect the changes
+2. Add new documents as needed for new major features or architectural changes
+3. Review the documentation periodically to ensure it remains accurate and useful
+
+By maintaining this documentation, we ensure that the Conference Hub application remains maintainable, scalable, and aligned with its original purpose and design principles. 

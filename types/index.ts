@@ -6,9 +6,9 @@ export interface User {
   department: string
   position: string
   phone?: string
-  profileImage?: string
-  dateCreated: string
-  lastLogin: string
+  profile_image?: string
+  date_created: string
+  last_login: string
 }
 
 export interface Room {
@@ -25,17 +25,31 @@ export interface Room {
 
 export interface Booking {
   id: string
-  roomId: string
-  userId: string
+  room_id: string
+  user_id: string
   title: string
   description?: string
-  startTime: string
-  endTime: string
+  start_time: string
+  end_time: string
   attendees?: string[]
   status: "pending" | "confirmed" | "cancelled"
   resources?: string[]
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BookingWithDetails extends Booking {
+  rooms: {
+    id: string
+    name: string
+    location: string
+    capacity: number
+  }
+  users: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 export interface Resource {

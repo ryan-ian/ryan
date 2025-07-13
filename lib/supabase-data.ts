@@ -1,5 +1,5 @@
 import { supabase, createAdminClient } from './supabase'
-import type { AuthUser, User, Room, Booking, Resource } from '@/types'
+import type { AuthUser, User, Room, Booking, Resource, BookingWithDetails } from '@/types'
 
 // Users
 export async function getUsers(): Promise<User[]> {
@@ -216,6 +216,51 @@ export async function getBookings(): Promise<Booking[]> {
   }
 }
 
+export async function getBookingsWithDetails(): Promise<BookingWithDetails[]> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms:room_id(id, name, location, capacity),
+        users:user_id(id, name, email)
+      `)
+      
+    if (error) {
+      console.error('Error fetching bookings with details:', error)
+      throw error
+    }
+    
+    return data || []
+  } catch (error) {
+    console.error('Exception in getBookingsWithDetails:', error)
+    throw error
+  }
+}
+
+export async function getUserBookingsWithDetails(userId: string): Promise<BookingWithDetails[]> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms:room_id(id, name, location, capacity),
+        users:user_id(id, name, email)
+      `)
+      .eq('user_id', userId)
+      
+    if (error) {
+      console.error(`Error fetching bookings with details for user ${userId}:`, error)
+      throw error
+    }
+    
+    return data || []
+  } catch (error) {
+    console.error('Exception in getUserBookingsWithDetails:', error)
+    throw error
+  }
+}
+
 export async function getBookingsByUserId(userId: string): Promise<Booking[]> {
   try {
     const { data, error } = await supabase
@@ -255,7 +300,7 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   }
 }
 
-export async function createBooking(bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>): Promise<Booking> {
+export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_at' | 'updated_at'>): Promise<Booking> {
   try {
     const newBooking = {
       ...bookingData,
@@ -465,20 +510,20 @@ export async function adminGetAllBookings(): Promise<Booking[]> {
 
 // Check for booking conflicts
 export async function checkBookingConflicts(
-  roomId: string, 
-  startTime: string, 
-  endTime: string, 
+  room_id: string, 
+  start_time: string, 
+  end_time: string, 
   excludeBookingId?: string
 ): Promise<boolean> {
   try {
     let query = supabase
       .from('bookings')
       .select('id')
-      .eq('room_id', roomId)
+      .eq('room_id', room_id)
       .eq('status', 'confirmed')
-      .or(`start_time.gte.${startTime},end_time.gt.${startTime}`)
-      .or(`start_time.lt.${endTime},end_time.lte.${endTime}`)
-      .or(`start_time.lte.${startTime},end_time.gte.${endTime}`)
+      .or(`start_time.gte.${start_time},end_time.gt.${start_time}`)
+      .or(`start_time.lt.${end_time},end_time.lte.${end_time}`)
+      .or(`start_time.lte.${start_time},end_time.gte.${end_time}`)
     
     if (excludeBookingId) {
       query = query.neq('id', excludeBookingId)
@@ -499,7 +544,7 @@ export async function checkBookingConflicts(
 }
 
 // Get available rooms for a time period
-export async function getAvailableRooms(startTime: string, endTime: string): Promise<Room[]> {
+export async function getAvailableRooms(start_time: string, end_time: string): Promise<Room[]> {
   try {
     // First get all rooms
     const { data: rooms, error: roomsError } = await supabase
@@ -521,9 +566,9 @@ export async function getAvailableRooms(startTime: string, endTime: string): Pro
       .from('bookings')
       .select('room_id')
       .eq('status', 'confirmed')
-      .or(`start_time.gte.${startTime},end_time.gt.${startTime}`)
-      .or(`start_time.lt.${endTime},end_time.lte.${endTime}`)
-      .or(`start_time.lte.${startTime},end_time.gte.${endTime}`)
+      .or(`start_time.gte.${start_time},end_time.gt.${start_time}`)
+      .or(`start_time.lt.${end_time},end_time.lte.${end_time}`)
+      .or(`start_time.lte.${start_time},end_time.gte.${end_time}`)
     
     if (bookingsError) {
       console.error('Error fetching conflicting bookings:', bookingsError)

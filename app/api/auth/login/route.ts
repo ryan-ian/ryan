@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getUserByEmail } from "@/lib/data"
-import { comparePassword, generateToken } from "@/lib/auth"
+import { supabase } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,25 +9,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
-    const user = getUserByEmail(email)
-    if (!user || !comparePassword(password, user.password)) {
+    // Sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (error) {
+      console.error("Login error:", error.message)
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    const authUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      position: user.position,
+    if (!data.session) {
+      return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
     }
 
-    const token = generateToken(authUser)
+    // Get user profile data
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', data.user.id)
+      .single()
+
+    if (userError) {
+      console.error("Error fetching user data:", userError)
+      return NextResponse.json({ error: "Error fetching user data" }, { status: 500 })
+    }
 
     return NextResponse.json({
-      token,
-      user: authUser,
+      token: data.session.access_token,
+      user: userData
     })
   } catch (error) {
     console.error("Login error:", error)

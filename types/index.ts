@@ -20,6 +20,7 @@ export interface Room {
   status: "available" | "maintenance" | "reserved"
   image?: string
   description?: string
+  resources?: string[]
 }
 
 export interface Booking {

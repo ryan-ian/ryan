@@ -240,14 +240,28 @@ export default function ConferenceRoomBookingPage() {
               {dashboardData.popularRooms.length > 0 ? (
                 dashboardData.popularRooms.map((room) => (
                   <div key={room.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {room.image ? (
+                        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+                          <img 
+                            src={room.image} 
+                            alt={`${room.name} room`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                          <Building className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Building className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{room.name}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-3 w-3" />
                         <span>Capacity: {room.capacity}</span>
+                        </div>
                       </div>
                     </div>
                     <Badge variant="outline">{(room as any).bookingCount || 0} bookings</Badge>

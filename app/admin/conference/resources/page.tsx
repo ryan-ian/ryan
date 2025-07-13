@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,7 @@ import Link from "next/link"
 import type { Resource } from "@/types"
 
 export default function ResourceManagement() {
+  const router = useRouter()
   const [resources, setResources] = useState<Resource[]>([])
   const [filteredResources, setFilteredResources] = useState<Resource[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -208,10 +210,24 @@ export default function ResourceManagement() {
                     <TableCell>{resource.description || "No description available"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/conference/resources/${resource.id}`}>
+                            View
+                          </Link>
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/conference/resources/${resource.id}/edit`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive"
+                          onClick={() => {
+                            router.push(`/admin/conference/resources/${resource.id}`);
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

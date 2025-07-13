@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getUserByEmail, users } from "@/lib/data"
-import { hashPassword } from "@/lib/auth"
+import { supabase } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,27 +9,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "All required fields must be provided" }, { status: 400 })
     }
 
-    if (getUserByEmail(email)) {
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single()
+
+    if (existingUser) {
       return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
     }
 
-    const newUser = {
-      id: (users.length + 1).toString(),
-      name,
+    // Register with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
       email,
-      password: hashPassword(password),
-      role: "user" as const,
-      department,
-      position,
-      phone: phone || undefined,
-      dateCreated: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
+      password,
+      options: {
+        data: {
+          name,
+          department,
+          position,
+          role: 'user'
+        }
+      }
+    })
+
+    if (error) {
+      console.error("Registration error:", error.message)
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    // In a real app, this would save to a database
-    users.push(newUser)
+    if (!data.user) {
+      return NextResponse.json({ error: "Failed to create user" }, { status: 500 })
+    }
 
-    return NextResponse.json({ message: "User created successfully" }, { status: 201 })
+    // The database trigger will create the user profile automatically
+    return NextResponse.json({ 
+      message: "User created successfully",
+      userId: data.user.id
+    }, { status: 201 })
   } catch (error) {
     console.error("Registration error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

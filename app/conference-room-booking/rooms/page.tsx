@@ -227,7 +227,22 @@ export default function RoomsPage() {
       {/* Rooms Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredRooms.map((room) => (
-          <Card key={room.id} className="hover:shadow-md transition-shadow">
+          <Card key={room.id} className="hover:shadow-md transition-shadow overflow-hidden">
+            <Link href={`/conference-room-booking/rooms/${room.id}`} className="block">
+              <div className="aspect-video w-full overflow-hidden">
+                {room.image ? (
+                  <img 
+                    src={room.image} 
+                    alt={`${room.name} room`}
+                    className="w-full h-full object-cover transition-transform hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <Building className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            </Link>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>

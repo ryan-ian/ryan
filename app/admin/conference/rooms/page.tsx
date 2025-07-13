@@ -5,30 +5,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2, Building, Users, MapPin } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Building, Users, MapPin, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import type { Room } from "@/types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function RoomManagement() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { toast } = useToast()
+
+  const fetchRooms = async () => {
+    try {
+      const response = await fetch("/api/rooms")
+      const data = await response.json()
+      setRooms(data)
+      setFilteredRooms(data)
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch rooms. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const response = await fetch("/api/rooms")
-        const data = await response.json()
-        setRooms(data)
-        setFilteredRooms(data)
-      } catch (error) {
-        console.error("Failed to fetch rooms:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchRooms()
   }, [])
 
@@ -52,6 +72,50 @@ export default function RoomManagement() {
         return "secondary"
       default:
         return "outline"
+    }
+  }
+
+  const handleDeleteClick = (room: Room) => {
+    setRoomToDelete(room)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!roomToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch(`/api/rooms?id=${roomToDelete.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete room")
+      }
+
+      toast({
+        title: "Room Deleted",
+        description: `${roomToDelete.name} has been deleted successfully.`,
+      })
+      
+      // Refresh the rooms list
+      fetchRooms()
+    } catch (error) {
+      console.error("Error deleting room:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete room. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setRoomToDelete(null)
     }
   }
 
@@ -163,16 +227,18 @@ export default function RoomManagement() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredRooms.map((room) => (
               <Card key={room.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{room.name}</CardTitle>
-                    <Badge variant={getStatusBadgeVariant(room.status)}>{room.status}</Badge>
-                  </div>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {room.location}
-                  </div>
-                </CardHeader>
+                <Link href={`/admin/conference/rooms/${room.id}`} className="block">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{room.name}</CardTitle>
+                      <Badge variant={getStatusBadgeVariant(room.status)}>{room.status}</Badge>
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {room.location}
+                    </div>
+                  </CardHeader>
+                </Link>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-sm">
@@ -182,6 +248,14 @@ export default function RoomManagement() {
                   </div>
 
                   {room.description && <p className="text-sm text-muted-foreground line-clamp-2">{room.description}</p>}
+
+                  <div className="flex justify-between items-center mt-4">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/admin/conference/rooms/${room.id}`}>
+                        View Details
+                      </Link>
+                    </Button>
+                  </div>
 
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Features:</p>
@@ -200,11 +274,18 @@ export default function RoomManagement() {
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/admin/conference/rooms/${room.id}/edit`}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Link>
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive"
+                      onClick={() => handleDeleteClick(room)}
+                    >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Delete
                     </Button>
@@ -222,6 +303,36 @@ export default function RoomManagement() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Delete Room
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {roomToDelete && (
+                <>
+                  Are you sure you want to delete <strong>{roomToDelete.name}</strong>? This action cannot be undone.
+                  <br /><br />
+                  Note: Rooms with existing bookings cannot be deleted.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

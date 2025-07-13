@@ -247,12 +247,22 @@ export default function RoomDetailPage() {
               <CardTitle>Room Gallery</CardTitle>
             </CardHeader>
             <CardContent>
+              {room.image ? (
+                <div className="aspect-video rounded-lg overflow-hidden">
+                  <img 
+                    src={room.image} 
+                    alt={`${room.name} room`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
               <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                 <div className="text-center">
                   <Building className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Room photos coming soon</p>
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         </div>

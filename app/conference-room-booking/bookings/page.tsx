@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Clock, MapPin, Search, Filter, Plus, Eye, Edit, Trash2, Building } from "lucide-react"
+import { Calendar, Clock, MapPin, Search, Filter, Plus, Eye, Edit, Trash2, Building, CheckCircle, AlertCircle, XCircle } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import type { Booking, Room } from "@/types"
@@ -123,13 +123,39 @@ export default function BookingsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800 border-green-300"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
       case "cancelled":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800 border-red-300"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return <CheckCircle className="h-3 w-3" />
+      case "pending":
+        return <AlertCircle className="h-3 w-3" />
+      case "cancelled":
+        return <XCircle className="h-3 w-3" />
+      default:
+        return null
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return "This booking has been approved by an administrator."
+      case "pending":
+        return "This booking is awaiting administrator approval."
+      case "cancelled":
+        return "This booking has been cancelled or rejected."
+      default:
+        return ""
     }
   }
 
@@ -306,7 +332,10 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold">{booking.title || "Meeting"}</h3>
                     <Badge className={getStatusColor(booking.status)} variant="secondary">
-                      {booking.status}
+                      <span className="flex items-center gap-1">
+                        {getStatusIcon(booking.status)}
+                        {booking.status}
+                      </span>
                     </Badge>
                   </div>
 
@@ -347,6 +376,8 @@ export default function BookingsPage() {
                   </div>
 
                   {booking.description && <p className="text-sm text-muted-foreground">{booking.description}</p>}
+                  
+                  <p className="text-xs italic text-muted-foreground mt-2">{getStatusText(booking.status)}</p>
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">

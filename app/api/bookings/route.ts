@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Note: Authentication check would go here
-    // For simplicity, we're assuming the token is valid and user_id is "user_1"
-    const user_id = "user_1" // In a real app, this would come from the authenticated user
+    // For simplicity, we're assuming the token is valid
 
     const bookingData = await request.json()
-    console.log(bookingData)
+    console.log("Received booking data:", bookingData)
+    
     // Check if room exists and is available
     const room = await getRoomById(bookingData.room_id)
     if (!room || room.status !== "available") {
@@ -54,13 +54,13 @@ export async function POST(request: NextRequest) {
     // Create the booking
     const newBooking = await createBooking({
       room_id: bookingData.room_id,
-      user_id: user_id,
+      user_id: bookingData.user_id,
       title: bookingData.title,
       description: bookingData.description || null,
       start_time: start_time,
       end_time: end_time,
       attendees: bookingData.attendees || null,
-      status: "confirmed",
+      status: bookingData.status || "pending",
       resources: bookingData.resources || null
     })
 

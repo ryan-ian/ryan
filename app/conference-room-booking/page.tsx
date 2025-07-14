@@ -57,16 +57,20 @@ async function fetchDashboardData(userId: string | undefined): Promise<Dashboard
       return new Date(booking.start_time) > today
     })
 
-    // Get recent bookings from last 5 days
+    // Get recent bookings from last 5 days (including today)
     const fiveDaysAgo = new Date()
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
+    fiveDaysAgo.setHours(0, 0, 0, 0) // Set to beginning of the day 5 days ago
+
+    const now = new Date()
     
     const recentBookings = userBookings
       .filter((booking) => {
-        const bookingDate = new Date(booking.start_time)
-        return bookingDate >= fiveDaysAgo && bookingDate <= new Date()
+        const createdDate = new Date(booking.created_at)
+        // Include all bookings from beginning of 5 days ago until now (including today)
+        return createdDate >= fiveDaysAgo && createdDate <= now
       })
-      .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
 
     // Get popular rooms (rooms with most bookings)
@@ -220,36 +224,45 @@ export default function ConferenceRoomBookingPage() {
                 <Clock className="h-5 w-5" />
                 <span>Recent Bookings</span>
               </CardTitle>
-              <CardDescription>Your bookings from the last 5 days</CardDescription>
+              <CardDescription>Bookings created today and in the last 5 days</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {dashboardData.recentBookings.length > 0 ? (
                 dashboardData.recentBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{booking.rooms?.name || `Room ${booking.room_id}`}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(booking.start_time).toLocaleDateString()}</span>
+                  <Link 
+                    href={`/conference-room-booking/bookings/${booking.id}`} 
+                    key={booking.id} 
+                    className="block hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{booking.rooms?.name || `Room ${booking.room_id}`}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
-                            {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(booking.start_time).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                              {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                              {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Created: {new Date(booking.created_at).toLocaleDateString()}
                         </div>
                       </div>
+                      <Badge variant={booking.status === "confirmed" ? "default" : "secondary"}>{booking.status}</Badge>
                     </div>
-                    <Badge variant={booking.status === "confirmed" ? "default" : "secondary"}>{booking.status}</Badge>
-                  </div>
+                  </Link>
                 ))
               ) : (
-                <p className="text-center text-muted-foreground py-4">No recent bookings from the last 5 days</p>
+                <p className="text-center text-muted-foreground py-4">No bookings created in the last 5 days</p>
               )}
               {dashboardData.recentBookings.length > 0 && (
                 <div className="pt-2">

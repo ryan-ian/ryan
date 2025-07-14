@@ -6,35 +6,28 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Building, Users, MapPin, Search, Filter, Wifi, Monitor, Coffee, Car, Calendar, Clock } from "lucide-react"
+import { Building, Users, MapPin, Search, Filter, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
-import type { Room } from "@/types"
-
-const amenityIcons = {
-  wifi: Wifi,
-  projector: Monitor,
-  whiteboard: Monitor,
-  coffee: Coffee,
-  parking: Car,
-}
+import type { Room, Resource } from "@/types"
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [capacityFilter, setCapacityFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
+  const [selectedResource, setSelectedResource] = useState("")
 
   useEffect(() => {
     fetchRooms()
+    fetchResources()
   }, [])
 
   useEffect(() => {
     filterRooms()
-  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedAmenities])
+  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedResource])
 
   const fetchRooms = async () => {
     try {
@@ -46,6 +39,17 @@ export default function RoomsPage() {
       console.error("Failed to fetch rooms:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchResources = async () => {
+    try {
+      const response = await fetch("/api/resources")
+      const resourcesData = await response.json()
+      const resourcesArray = Array.isArray(resourcesData) ? resourcesData : resourcesData.resources || []
+      setResources(resourcesArray)
+    } catch (error) {
+      console.error("Failed to fetch resources:", error)
     }
   }
 
@@ -72,20 +76,14 @@ export default function RoomsPage() {
       filtered = filtered.filter((room) => room.status === statusFilter)
     }
 
-    // Amenities filter
-    if (selectedAmenities.length > 0) {
-      filtered = filtered.filter((room) => selectedAmenities.every((amenity) => room.amenities?.includes(amenity)))
+    // Resource filter
+    if (selectedResource && selectedResource !== "none") {
+      filtered = filtered.filter((room) => 
+        room.resources && room.resources.includes(selectedResource)
+      )
     }
 
     setFilteredRooms(filtered)
-  }
-
-  const handleAmenityChange = (amenity: string, checked: boolean) => {
-    if (checked) {
-      setSelectedAmenities((prev) => [...prev, amenity])
-    } else {
-      setSelectedAmenities((prev) => prev.filter((a) => a !== amenity))
-    }
   }
 
   const getStatusColor = (status: string) => {
@@ -197,21 +195,20 @@ export default function RoomsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Amenities</label>
-              <div className="space-y-2">
-                {["wifi", "projector", "whiteboard", "coffee"].map((amenity) => (
-                  <div key={amenity} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={amenity}
-                      checked={selectedAmenities.includes(amenity)}
-                      onCheckedChange={(checked) => handleAmenityChange(amenity, checked as boolean)}
-                    />
-                    <label htmlFor={amenity} className="text-sm capitalize">
-                      {amenity}
-                    </label>
-                  </div>
-                ))}
-              </div>
+              <label className="text-sm font-medium">Resources</label>
+              <Select value={selectedResource} onValueChange={setSelectedResource}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any resources" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Any resources</SelectItem>
+                  {resources.map((resource) => (
+                    <SelectItem key={resource.id} value={resource.id}>
+                      {resource.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -250,7 +247,7 @@ export default function RoomsPage() {
                     <Building className="h-5 w-5" />
                     <span>{room.name}</span>
                   </CardTitle>
-                  <CardDescription className="flex items-center gap-1 mt-1">
+                  <CardDescription className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     <span>{room.location}</span>
                   </CardDescription>
@@ -258,71 +255,34 @@ export default function RoomsPage() {
                 <Badge className={getStatusColor(room.status)}>{room.status}</Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>{room.capacity} people</span>
-                </div>
-                {room.hourlyRate && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>${room.hourlyRate}/hr</span>
-                  </div>
-                )}
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span>Capacity: {room.capacity}</span>
               </div>
-
-              {room.amenities && room.amenities.length > 0 && (
+              
+              {room.resources && room.resources.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {room.amenities.slice(0, 4).map((amenity) => {
-                    const IconComponent = amenityIcons[amenity as keyof typeof amenityIcons] || Monitor
-                    return (
-                      <div key={amenity} className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded">
-                        <IconComponent className="h-3 w-3" />
-                        <span className="capitalize">{amenity}</span>
-                      </div>
-                    )
+                  {room.resources.map((resourceId) => {
+                    const resource = resources.find(r => r.id === resourceId);
+                    return resource ? (
+                      <Badge key={resourceId} variant="outline">
+                        {resource.name}
+                      </Badge>
+                    ) : null;
                   })}
-                  {room.amenities.length > 4 && (
-                    <div className="text-xs bg-muted px-2 py-1 rounded">+{room.amenities.length - 4} more</div>
-                  )}
                 </div>
               )}
-
-              <div className="flex gap-2 pt-2">
-                <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                  <Link href={`/conference-room-booking/rooms/${room.id}`}>View Details</Link>
-                </Button>
-                {room.status === "available" && (
-                  <Button asChild size="sm" className="flex-1">
-                    <Link href={`/conference-room-booking/bookings/new?roomId=${room.id}`}>Book Now</Link>
-                  </Button>
-                )}
-              </div>
+              
+              <Button asChild size="sm" className="w-full">
+                <Link href={`/conference-room-booking/bookings/new?room=${room.id}`}>
+                  Book Now
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         ))}
       </div>
-
-      {filteredRooms.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No rooms found</h3>
-            <p className="text-muted-foreground mb-4">Try adjusting your filters to find more rooms.</p>
-            <Button
-              onClick={() => {
-                setSearchTerm("")
-                setCapacityFilter("")
-                setStatusFilter("")
-                setSelectedAmenities([])
-              }}
-            >
-              Clear Filters
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

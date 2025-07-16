@@ -49,7 +49,7 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
         setRoom(roomData)
 
         // If room has resources, fetch them
-        if (roomData.resources && roomData.resources.length > 0) {
+        if (roomData.room_resources && roomData.room_resources.length > 0) {
           const token = localStorage.getItem("auth-token")
           const resourcesResponse = await fetch("/api/resources", {
             headers: {
@@ -61,7 +61,7 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
             const allResources = await resourcesResponse.json()
             // Filter to only the resources that are associated with this room
             const roomResources = allResources.filter((resource: Resource) => 
-              roomData.resources.includes(resource.id)
+              roomData.room_resources && roomData.room_resources.includes(resource.id)
             )
             setResources(roomResources)
           }
@@ -237,23 +237,10 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
               <p className="mt-1">{room.description || "No description available"}</p>
             </div>
             
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Features</p>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {room.features.length > 0 ? (
-                  room.features.map((feature, index) => (
-                    <Badge key={index} variant="outline">
-                      {feature}
-                    </Badge>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No features listed</p>
-                )}
-              </div>
-            </div>
+            {/* Room features section removed as it's now handled by resources */}
 
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Resources</p>
+              <p className="text-sm font-medium text-muted-foreground">Room Resources</p>
               <div className="flex flex-wrap gap-3 mt-2">
                 {resources.length > 0 ? (
                   resources.map((resource) => (
@@ -261,19 +248,16 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
                       <ResourceIcon 
                         type={resource.type} 
                         name={resource.name}
-                        image={resource.image}
                         size="md"
                       />
                       <div>
                         <p className="text-sm font-medium">{resource.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {resource.quantity > 1 ? `Quantity: ${resource.quantity}` : 'Quantity: 1'}
-                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">{resource.type}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No resources assigned</p>
+                  <p className="text-sm text-muted-foreground">No resources assigned to this room</p>
                 )}
               </div>
             </div>

@@ -20,36 +20,39 @@ import {
   ArrowLeft, 
   ArrowRight,
   Check, 
-  AlertCircle,
-  Projector,
-  Wifi,
-  Monitor,
-  Mic,
-  VideoIcon
+  AlertCircle
 } from "lucide-react"
 import { format, addDays } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Room, Resource } from "@/types"
+import { ProtectedRoute } from "@/components/protected-route"
+import { ResourceIcon } from "@/components/ui/resource-icon"
+import { supabase } from "@/lib/supabase"
 
 // Step indicators component
-const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
+const StepIndicator = ({ currentStep, steps }: { currentStep: number; steps: string[] }) => {
   return (
-    <div className="flex items-center justify-center space-x-2 mb-6">
-      {Array.from({ length: totalSteps }).map((_, index) => (
+    <div className="flex items-center justify-center space-x-4 mb-8">
+      {steps.map((step, index) => (
+        <div key={index} className="flex items-center gap-2">
         <div
-          key={index}
           className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+              "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
             index === currentStep
-              ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground scale-110"
               : index < currentStep
-              ? "bg-primary/20 text-primary"
+                ? "bg-primary/80 text-primary-foreground"
               : "bg-muted text-muted-foreground"
           )}
         >
-          {index + 1}
+            {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
+          </div>
+          <span className={cn(
+            "hidden md:block text-sm font-medium",
+            index === currentStep ? "text-primary" : "text-muted-foreground"
+          )}>{step}</span>
         </div>
       ))}
     </div>
@@ -61,19 +64,21 @@ const ResourceItem = ({ resource, selected, onToggle }: { resource: Resource; se
   return (
     <div 
       className={cn(
-        "flex items-center space-x-3 p-3 border rounded-md cursor-pointer transition-colors",
-        selected ? "border-primary bg-primary/5" : "border-border"
+        "flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-all duration-300",
+        selected ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50"
       )}
       onClick={onToggle}
     >
-      <Checkbox checked={selected} onCheckedChange={onToggle} />
-      <div className="flex-1">
-        <p className="font-medium">{resource.name}</p>
-        <p className="text-sm text-muted-foreground">{resource.description}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0">
+          <ResourceIcon type={resource.type || 'default'} name={resource.name} size="lg" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-foreground">{resource.name}</p>
+          <p className="text-sm text-muted-foreground">{resource.description}</p>
+        </div>
       </div>
-      <Badge variant={resource.status === "available" ? "outline" : "secondary"}>
-        {resource.status}
-      </Badge>
+      <Checkbox checked={selected} className="h-5 w-5" />
     </div>
   )
 }
@@ -91,12 +96,12 @@ const RoomCard = ({
   return (
     <Card 
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md",
-        selected ? "border-primary ring-2 ring-primary/20" : ""
+        "cursor-pointer transition-all duration-300 hover:shadow-xl overflow-hidden",
+        selected ? "border-primary ring-2 ring-primary/30" : "border-border/50"
       )}
       onClick={onSelect}
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-t-lg">
+      <div className="relative aspect-video w-full">
         {room.image ? (
           <img
             src={room.image}
@@ -105,37 +110,26 @@ const RoomCard = ({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-muted">
-            <Building className="h-10 w-10 text-muted-foreground" />
+            <Building className="h-12 w-12 text-muted-foreground" />
+          </div>
+        )}
+        {selected && (
+          <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full p-1.5">
+            <Check className="h-4 w-4" />
           </div>
         )}
       </div>
       <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-semibold">{room.name}</h3>
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
+        <h3 className="font-bold text-lg text-foreground">{room.name}</h3>
+        <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+          <MapPin className="h-4 w-4" />
               {room.location}
             </p>
+        <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Users className="h-4 w-4" />
+            <span>{room.capacity} people</span>
           </div>
-          {selected && (
-            <Badge className="bg-primary">Selected</Badge>
-          )}
-        </div>
-        <div className="mt-2 space-y-1 text-sm">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span>Capacity: {room.capacity} people</span>
-          </div>
-          {room.room_resources && room.room_resources.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {room.room_resources.map((resourceId) => (
-                <Badge key={resourceId} variant="outline" className="text-xs">
-                  {resourceId}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -155,23 +149,30 @@ const TimeSlot = ({
   onSelect: () => void 
 }) => {
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        "px-3 py-2 rounded-md text-sm transition-all",
-        isSelected ? "bg-primary text-primary-foreground" : 
-        isAvailable ? "bg-background hover:bg-muted border cursor-pointer" : 
-        "bg-muted/30 text-muted-foreground cursor-not-allowed opacity-60 blur-[0.3px] border-dashed border-muted"
+        "h-10 w-full rounded-md text-center transition-all duration-200 border",
+        isSelected 
+          ? "bg-primary text-primary-foreground border-primary shadow-sm font-medium scale-105" 
+          : isAvailable 
+            ? "bg-background hover:bg-accent hover:text-accent-foreground border-input" 
+            : "bg-muted/50 text-muted-foreground cursor-not-allowed opacity-60 border-muted",
       )}
       onClick={() => isAvailable && onSelect()}
-      title={isAvailable ? `Select ${time}` : `Already booked at ${time}`}
+      disabled={!isAvailable}
+      title={isAvailable ? `Select ${time}` : `Booked at ${time}`}
     >
-      {time}
-      {!isAvailable && (
-        <div className="flex items-center justify-center mt-1">
-          <span className="text-[10px] text-muted-foreground">Booked</span>
-        </div>
-      )}
-    </div>
+      <div className="flex flex-col items-center justify-center">
+        <span className={cn("text-sm", isSelected && "font-medium")}>{time}</span>
+        {!isAvailable && (
+          <span className="text-[10px] flex items-center gap-1 mt-0.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive/70 animate-pulse"></span>
+            <span className="tracking-tight">Booked</span>
+          </span>
+        )}
+      </div>
+    </button>
   )
 }
 
@@ -248,16 +249,65 @@ export default function NewBookingPage() {
           }
         }
       } catch (error) {
-        console.error("Failed to fetch data:", error)
+        console.error("Failed to fetch initial data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load rooms and resources. Please try again later.",
+          variant: "destructive"
+        })
       } finally {
         setLoading(false)
       }
     }
-    
     fetchData()
-  }, [preselectedRoomId])
+  }, [preselectedRoomId, toast])
 
-  // Filter rooms based on selected resources and capacity
+  // Fetch booked slots when date or room changes
+  useEffect(() => {
+    if (formData.date && formData.room_id) {
+      const fetchBookedSlots = async () => {
+        try {
+          const formattedDate = format(formData.date, "yyyy-MM-dd")
+          const response = await fetch(`/api/bookings?roomId=${formData.room_id}&date=${formattedDate}`)
+          
+          if (!response.ok) {
+            throw new Error(`API returned status ${response.status}`)
+          }
+          
+          const bookings = await response.json()
+          
+          if (Array.isArray(bookings)) {
+            const bookedSlots = bookings.flatMap(booking => {
+              const start = new Date(booking.start_time)
+              const end = new Date(booking.end_time)
+              const slots = []
+              for (let d = new Date(start); d < end; d.setMinutes(d.getMinutes() + 30)) {
+                slots.push(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }))
+              }
+              return slots
+            })
+            setBookedTimeSlots(bookedSlots)
+          } else {
+            console.error("Fetched bookings is not an array:", bookings)
+            setBookedTimeSlots([])
+          }
+        } catch (error) {
+          console.error("Failed to fetch booked slots:", error)
+          toast({
+            title: "Error",
+            description: "Could not fetch booked time slots for the selected room and date.",
+            variant: "destructive",
+          })
+          setBookedTimeSlots([])
+        }
+      }
+      fetchBookedSlots()
+    } else {
+      setBookedTimeSlots([])
+    }
+  }, [formData.date, formData.room_id, toast])
+  
+  // Filter rooms based on capacity and resources
   useEffect(() => {
     const attendeesCount = parseInt(formData.attendees) || 0
     
@@ -270,9 +320,9 @@ export default function NewBookingPage() {
       // Resources check
       if (formData.selectedResources.length > 0) {
         if (!room.room_resources) return false
-        return formData.selectedResources.every((resourceId) => 
+      return formData.selectedResources.every((resourceId) => 
           room.room_resources?.includes(resourceId)
-        )
+      )
       }
       
       return true
@@ -281,79 +331,62 @@ export default function NewBookingPage() {
     setFilteredRooms(filtered)
   }, [formData.selectedResources, formData.attendees, rooms])
 
-  // Generate time slots for selected date and room
+  // Generate time slots
   useEffect(() => {
-    if (formData.date && formData.room_id) {
-      // Generate all possible time slots from 8 AM to 6 PM
-      const allTimeSlots: string[] = []
-      for (let hour = 8; hour <= 18; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-          allTimeSlots.push(timeString)
-        }
-      }
-      
-      // Fetch actual booked slots from API
-      const fetchBookedSlots = async () => {
-        try {
-          const formattedDate = format(formData.date!, 'yyyy-MM-dd')
-          
-          // Construct the date range for the selected day (from 00:00 to 23:59)
-          const startOfDay = `${formattedDate}T00:00:00`
-          const endOfDay = `${formattedDate}T23:59:59`
-          
-          const response = await fetch(`/api/bookings?roomId=${formData.room_id}&start=${startOfDay}&end=${endOfDay}`)
-          
-          if (!response.ok) {
-            throw new Error('Failed to fetch bookings')
-          }
-          
-          const bookings = await response.json()
-          
-          // Extract booked time slots from bookings
-          const bookedSlots: string[] = []
-          
-          for (const booking of bookings) {
-            if (booking.status === 'confirmed' || booking.status === 'pending') {
-              // Extract just the time part (HH:MM) from the datetime strings
-              const startTime = booking.start_time.split('T')[1].substring(0, 5)
-              const endTime = booking.end_time.split('T')[1].substring(0, 5)
-              
-              // Add all time slots between start and end time
-              let currentSlot = startTime
-              while (currentSlot < endTime) {
-                bookedSlots.push(currentSlot)
-                
-                // Move to next 30-minute slot
-                const [hours, minutes] = currentSlot.split(':').map(Number)
-                let newMinutes = minutes + 30
-                let newHours = hours
-                
-                if (newMinutes >= 60) {
-                  newMinutes = 0
-                  newHours += 1
-                }
-                
-                currentSlot = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`
-              }
-            }
-          }
-          
-          setAvailableTimeSlots(allTimeSlots.filter(slot => !bookedSlots.includes(slot)))
-          setBookedTimeSlots(bookedSlots)
-        } catch (error) {
-          console.error('Error fetching booked slots:', error)
-          // Fallback to showing all slots as available
-          setAvailableTimeSlots(allTimeSlots)
-          setBookedTimeSlots([])
-        }
-      }
-      
-      fetchBookedSlots()
+    const slots = []
+    for (let i = 8; i < 18; i++) {
+      slots.push(`${String(i).padStart(2, '0')}:00`)
+      slots.push(`${String(i).padStart(2, '0')}:30`)
     }
-  }, [formData.date, formData.room_id])
+    setAvailableTimeSlots(slots)
+  }, [])
 
-  // Handle form input changes
+// Check if a time slot is booked
+const isTimeSlotBooked = (time: string) => {
+  return bookedTimeSlots.includes(time);
+}
+
+// Check if a time range has any conflicts
+const hasTimeRangeConflict = (start: string, end: string) => {
+  if (!start || !end) return false;
+  
+  const startTime = timeToMinutes(start);
+  const endTime = timeToMinutes(end);
+  
+  // Check each 30-minute slot in the range
+  for (let time = startTime; time < endTime; time += 30) {
+    const timeStr = minutesToTimeString(time);
+    if (isTimeSlotBooked(timeStr)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Check if meeting duration is valid (at least 30 minutes)
+const isValidDuration = (start: string, end: string) => {
+  if (!start || !end) return false;
+  
+  const startTime = timeToMinutes(start);
+  const endTime = timeToMinutes(end);
+  
+  return endTime - startTime >= 30;
+}
+
+// Convert time string (HH:MM) to minutes since midnight
+const timeToMinutes = (timeStr: string) => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+// Convert minutes since midnight to time string (HH:MM)
+const minutesToTimeString = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     
@@ -363,7 +396,6 @@ export default function NewBookingPage() {
     }
   }
 
-  // Toggle resource selection
   const toggleResource = (resourceId: string) => {
     setFormData((prev) => {
       const selectedResources = prev.selectedResources.includes(resourceId)
@@ -374,246 +406,186 @@ export default function NewBookingPage() {
     })
   }
 
-  // Validate current step
   const validateStep = () => {
     const newErrors: Record<string, string> = {}
-    
     switch (currentStep) {
-      case 0: // Meeting Details
-        if (!formData.title.trim()) {
-          newErrors.title = "Meeting title is required"
-        }
-        
-        if (!formData.date) {
-          newErrors.date = "Please select a date"
+      case 0:
+        if (!formData.title) newErrors.title = "Meeting title is required."
+        if (!formData.attendees) newErrors.attendees = "Number of attendees is required."
+        else if (isNaN(parseInt(formData.attendees)) || parseInt(formData.attendees) <= 0) {
+          newErrors.attendees = "Please enter a valid number of attendees."
         }
         break
-        
-      case 1: // Resource Selection
-        // No validation needed
+      case 2:
+        if (!formData.room_id) newErrors.room = "Please select a room."
         break
-        
-      case 2: // Room Selection
-        if (!formData.room_id) {
-          newErrors.room_id = "Please select a room"
-        }
-        break
-        
-      case 3: // Time Selection
-        if (!formData.start_time) {
-          newErrors.start_time = "Please select a start time"
-        }
-        
-        if (!formData.end_time) {
-          newErrors.end_time = "Please select an end time"
-        }
+      case 3:
+        if (!formData.date) newErrors.date = "Please select a date."
+        if (!formData.start_time) newErrors.start_time = "Please select a start time."
+        if (!formData.end_time) newErrors.end_time = "Please select an end time."
         
         if (formData.start_time && formData.end_time) {
-          const start = formData.start_time
-          const end = formData.end_time
+          const startMinutes = timeToMinutes(formData.start_time);
+          const endMinutes = timeToMinutes(formData.end_time);
           
-          if (end <= start) {
-            newErrors.end_time = "End time must be after start time"
+          if (endMinutes <= startMinutes) {
+            newErrors.end_time = "End time must be after start time.";
+          } else if (!isValidDuration(formData.start_time, formData.end_time)) {
+            newErrors.end_time = "Meeting must be at least 30 minutes long.";
+          } else if (hasTimeRangeConflict(formData.start_time, formData.end_time)) {
+            newErrors.time_conflict = "Your selected time range includes already booked slots.";
           }
         }
         break
+      default:
+        break
     }
-    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  // Navigate to next step
   const nextStep = () => {
     if (validateStep()) {
-      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1))
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep(currentStep + 1)
+      }
     }
   }
 
-  // Navigate to previous step
   const prevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0))
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+    }
   }
 
-  // Handle form submission
+  // Update the handleSubmit function to fix the booking data format
   const handleSubmit = async () => {
+    if (!validateStep()) return
+
     setSubmitting(true)
     
     try {
-      // Check if user exists
-      if (!user || !user.id) {
-        toast({
-          title: "Authentication Error",
-          description: "You must be logged in to create a booking.",
-          variant: "destructive",
-        })
-        setSubmitting(false)
-        return
+      if (!formData.date || !formData.start_time || !formData.end_time) {
+        throw new Error("Please select a date, start time, and end time.");
       }
       
-      // Format the date and time for the API
-      const formattedDate = format(formData.date!, 'yyyy-MM-dd')
-      const startDateTime = `${formattedDate}T${formData.start_time}:00`
-      const endDateTime = `${formattedDate}T${formData.end_time}:00`
+      if (!isValidDuration(formData.start_time, formData.end_time)) {
+        throw new Error("Meeting must be at least 30 minutes long.");
+      }
       
+      if (hasTimeRangeConflict(formData.start_time, formData.end_time)) {
+        throw new Error("Selected time range includes already booked slots.");
+      }
+      
+      // Get authentication session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error("You must be logged in to book a room. Please log in and try again.");
+      }
+      
+      // Create the date objects directly from the date string
+      if (!formData.date) {
+        throw new Error("Date is required");
+      }
+      const dateStr = format(formData.date, 'yyyy-MM-dd');
+      const startTime = new Date(`${dateStr}T${formData.start_time}:00`);
+      const endTime = new Date(`${dateStr}T${formData.end_time}:00`);
+      
+      // Format attendees as a string array to match schema
+      const attendeesArray = formData.attendees ? [formData.attendees] : [];
+        
       const bookingData = {
-        room_id: formData.room_id,
-        user_id: user.id,
         title: formData.title,
         description: formData.description || null,
-        start_time: startDateTime,
-        end_time: endDateTime,
-        attendees: formData.attendees ? [formData.attendees] : [],
-        status: "pending", // All new bookings start as pending
-        resources: formData.selectedResources
-      }
+        user_id: user?.id,
+        room_id: formData.room_id,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        attendees: attendeesArray,
+        status: "pending",
+        resources: formData.selectedResources.length > 0 ? formData.selectedResources : null,
+      };
+    
+      console.log("Submitting booking data:", bookingData);
       
-      console.log("Sending booking data:", bookingData)
-      
-      // Make the actual API call to create a booking
       const response = await fetch("/api/bookings", {
         method: "POST",
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer token` // In a real app, use an actual token
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(bookingData)
-      })
+        body: JSON.stringify(bookingData),
+      });
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create booking")
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || "Failed to create booking.");
       }
       
-      toast({
-        title: "Booking Request Submitted",
-        description: "Your booking request has been submitted and is pending approval.",
-      })
-      
-      router.push("/conference-room-booking/bookings")
-    } catch (error) {
-      console.error("Failed to submit booking:", error)
+      const result = await response.json();
+      console.log("Booking created successfully:", result);
       
       toast({
-        title: "Error",
-        description: "Failed to submit booking. Please try again.",
+        title: "Booking Confirmed!",
+        description: `Your booking for ${formData.title} is pending approval from the administrator.`,
+      });
+      
+      router.push("/conference-room-booking/bookings");
+    } catch (error: any) {
+      console.error("Booking submission failed:", error);
+      toast({
+        title: "Booking Failed",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="h-4 bg-muted rounded w-1/2"></div>
-          <div className="h-64 bg-muted rounded"></div>
-        </div>
-      </div>
-    )
-  }
-
-  // Render step content based on current step
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0: // Meeting Details
+      case 0:
         return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Meeting Title *</Label>
+          <div className="space-y-6">
+            <div>
+              <Label htmlFor="title">Meeting Title</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => handleChange("title", e.target.value)}
-                placeholder="Enter meeting title"
-                className={errors.title ? "border-red-500" : ""}
+                placeholder="e.g., Quarterly Review" 
               />
-              {errors.title && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.title}
-                </p>
-              )}
+              {errors.title && <p className="text-sm text-destructive mt-1">{errors.title}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="Describe the purpose of your meeting"
-                rows={3}
+                placeholder="Briefly describe the purpose of the meeting."
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="attendees">Expected Attendees</Label>
+            <div>
+              <Label htmlFor="attendees">Number of Attendees</Label>
               <Input
                 id="attendees"
                 type="number"
                 value={formData.attendees}
                 onChange={(e) => handleChange("attendees", e.target.value)}
-                placeholder="Number of people"
-                min="1"
+                placeholder="e.g., 10" 
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.date && "text-muted-foreground",
-                      errors.date && "border-red-500"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.date ? format(formData.date, "PPP") : "Select a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.date}
-                    onSelect={(date) => handleChange("date", date)}
-                    disabled={(date) => date < new Date() || date > addDays(new Date(), 30)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              {errors.date && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.date}
-                </p>
-              )}
+              {errors.attendees && <p className="text-sm text-destructive mt-1">{errors.attendees}</p>}
             </div>
           </div>
         )
-        
-      case 1: // Resource Selection
+      case 1:
         return (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Select the resources you need for your meeting. Only rooms with these resources will be shown in the next step.
-            </p>
-            
-            {resources.length > 0 ? (
-              <div className="grid gap-3">
-                {resources.map((resource) => (
+            {resources.map(resource => (
                   <ResourceItem
                     key={resource.id}
                     resource={resource}
@@ -621,26 +593,12 @@ export default function NewBookingPage() {
                     onToggle={() => toggleResource(resource.id)}
                   />
                 ))}
-              </div>
-            ) : (
-              <p className="text-center py-4 text-muted-foreground">
-                No resources available
-              </p>
-            )}
           </div>
         )
-        
-      case 2: // Room Selection
+      case 2:
         return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Select a room for your meeting. 
-              {formData.selectedResources.length > 0 && " Only rooms with your selected resources are shown."}
-            </p>
-            
-            {filteredRooms.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {filteredRooms.map((room) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRooms.map(room => (
                   <RoomCard
                     key={room.id}
                     room={room}
@@ -648,246 +606,265 @@ export default function NewBookingPage() {
                     onSelect={() => handleChange("room_id", room.id)}
                   />
                 ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 border rounded-lg">
-                <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  No rooms available with the selected resources.
-                </p>
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => setCurrentStep(1)}
-                >
-                  Adjust Resource Selection
-                </Button>
-              </div>
-            )}
-            
-            {errors.room_id && (
-              <p className="text-sm text-red-500 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.room_id}
-              </p>
-            )}
+            {errors.room && <p className="text-sm text-destructive mt-1 col-span-full">{errors.room}</p>}
           </div>
         )
-        
-      case 3: // Time Selection
+      case 3:
         return (
-          <div className="space-y-6">
-            <p className="text-sm text-muted-foreground">
-              Select a start and end time for your meeting. Booked time slots are blurred out and unavailable.
-            </p>
-            
-            <div className="bg-muted/20 p-4 rounded-md">
-              <div className="flex items-center mb-2 text-sm">
-                <div className="flex items-center mr-4">
-                  <div className="w-3 h-3 bg-background border rounded-sm mr-1"></div>
-                  <span>Available</span>
-                </div>
-                <div className="flex items-center mr-4">
-                  <div className="w-3 h-3 bg-primary rounded-sm mr-1"></div>
-                  <span>Selected</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-muted/30 blur-[0.3px] border-dashed border-muted rounded-sm mr-1"></div>
-                  <span>Booked</span>
-                </div>
-              </div>
+          <div className="flex flex-col gap-6">
+            <div className="bg-card rounded-lg p-4 border shadow-sm">
+              <h4 className="font-semibold mb-3 text-foreground">Select Date</h4>
+              <Calendar
+                mode="single"
+                selected={formData.date}
+                onSelect={(date) => handleChange("date", date)}
+                disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                className="rounded-md"
+                modifiers={{ selected: formData.date ? [formData.date] : [] }}
+                modifiersStyles={{
+                  selected: { 
+                    backgroundColor: "hsl(var(--primary))",
+                    color: "hsl(var(--primary-foreground))",
+                    fontWeight: "bold"
+                  }
+                }}
+                weekStartsOn={1} // Start week on Monday
+                showOutsideDays={false} // Don't show days from previous/next months
+                fromDate={new Date()} // Only allow selection from today onwards
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex w-full justify-between",
+                  head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem] text-center",
+                  row: "flex w-full mt-2 justify-between",
+                  cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
+                  day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground",
+                  day_outside: "text-muted-foreground opacity-50",
+                  day_disabled: "text-muted-foreground opacity-50",
+                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                  day_hidden: "invisible",
+                }}
+              />
+              {errors.date && <p className="text-sm text-destructive mt-1">{errors.date}</p>}
             </div>
             
-            <div className="space-y-6">
-              <div>
-                <Label className="text-base font-medium">Start Time *</Label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mt-3">
-                  {availableTimeSlots.map((time) => (
-                    <TimeSlot
-                      key={`start-${time}`}
-                      time={time}
-                      isAvailable={!bookedTimeSlots.includes(time)}
-                      isSelected={formData.start_time === time}
-                      onSelect={() => handleChange("start_time", time)}
-                    />
-                  ))}
-                </div>
-                {errors.start_time && (
-                  <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.start_time}
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <Label className="text-base font-medium">End Time *</Label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mt-3">
-                  {availableTimeSlots.map((time) => (
-                    <TimeSlot
-                      key={`end-${time}`}
-                      time={time}
-                      isAvailable={
-                        !bookedTimeSlots.includes(time) && 
-                        (formData.start_time ? time > formData.start_time : true)
-                      }
-                      isSelected={formData.end_time === time}
-                      onSelect={() => handleChange("end_time", time)}
-                    />
-                  ))}
-                </div>
-                {errors.end_time && (
-                  <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.end_time}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-        
-      case 4: // Confirmation
-        const selectedRoom = rooms.find((room) => room.id === formData.room_id)
-        const selectedResourceIds = formData.selectedResources
-        const selectedResourcesData = resources.filter((resource) => 
-          selectedResourceIds.includes(resource.id)
-        )
-        
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="font-medium">Meeting Details</h3>
-              <div className="bg-muted/50 p-4 rounded-md space-y-2">
-                <p><span className="font-medium">Title:</span> {formData.title}</p>
-                {formData.description && (
-                  <p><span className="font-medium">Description:</span> {formData.description}</p>
-                )}
-                <p>
-                  <span className="font-medium">Date:</span>{" "}
-                  {formData.date ? format(formData.date, "PPP") : ""}
-                </p>
-                <p>
-                  <span className="font-medium">Time:</span>{" "}
-                  {formData.start_time} - {formData.end_time}
-                </p>
-                {formData.attendees && (
-                  <p>
-                    <span className="font-medium">Attendees:</span> {formData.attendees}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-medium">Selected Room</h3>
-              {selectedRoom ? (
-                <div className="bg-muted/50 p-4 rounded-md">
-                  <p className="font-medium">{selectedRoom.name}</p>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {selectedRoom.location}
-                  </p>
-                  <div className="mt-2 text-sm">
-                    <span className="font-medium">Capacity:</span> {selectedRoom.capacity} people
+            {formData.date && (
+              <div className="bg-card rounded-lg p-4 border shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-foreground">Select Time</h4>
+                  <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" />
+                    <span>Minimum duration: 30 minutes</span>
                   </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground">No room selected</p>
-              )}
-            </div>
-            
-            {selectedResourcesData.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-medium">Selected Resources</h3>
-                <div className="bg-muted/50 p-4 rounded-md">
-                  <ul className="space-y-1">
-                    {selectedResourcesData.map((resource) => (
-                      <li key={resource.id} className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        {resource.name}
-                      </li>
-                    ))}
-                  </ul>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-medium">Start Time</h5>
+                      {formData.start_time && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                          Selected: {formData.start_time}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {availableTimeSlots.map(time => (
+                        <TimeSlot
+                          key={`start-${time}`}
+                          time={time}
+                          isAvailable={!isTimeSlotBooked(time) && (!formData.end_time || timeToMinutes(time) < timeToMinutes(formData.end_time))}
+                          isSelected={formData.start_time === time}
+                          onSelect={() => {
+                            handleChange("start_time", time);
+                            // If end time is before start time, clear it
+                            if (formData.end_time && timeToMinutes(time) >= timeToMinutes(formData.end_time)) {
+                              handleChange("end_time", "");
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {errors.start_time && <p className="text-sm text-destructive mt-2">{errors.start_time}</p>}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-medium">End Time</h5>
+                      {formData.end_time && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                          Selected: {formData.end_time}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {availableTimeSlots.map(time => {
+                        // Check if this time is valid as an end time (at least 30 minutes after start time)
+                        const isValidEndTime = formData.start_time ? 
+                          timeToMinutes(time) >= timeToMinutes(formData.start_time) + 30 : 
+                          true;
+                          
+                        return (
+                          <TimeSlot
+                            key={`end-${time}`}
+                            time={time}
+                            isAvailable={!isTimeSlotBooked(time) && isValidEndTime}
+                            isSelected={formData.end_time === time}
+                            onSelect={() => handleChange("end_time", time)}
+                          />
+                        );
+                      })}
+                    </div>
+                    {errors.end_time && <p className="text-sm text-destructive mt-2">{errors.end_time}</p>}
+                  </div>
                 </div>
+                
+                {errors.time_conflict && (
+                  <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="text-sm">{errors.time_conflict}</p>
+                  </div>
+                )}
+                
+                {formData.start_time && formData.end_time && !errors.time_conflict && (
+                  <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" />
+                    <p className="text-sm">
+                      Your booking will be from <span className="font-medium">{formData.start_time}</span> to <span className="font-medium">{formData.end_time}</span>
+                      {formData.start_time && formData.end_time && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({Math.round((timeToMinutes(formData.end_time) - timeToMinutes(formData.start_time)) / 30) * 30} minutes)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-md">
-              <p className="text-sm text-yellow-800 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                Your booking will be submitted with <strong>pending</strong> status. An administrator will review and approve your request.
-              </p>
+            {!formData.date && (
+              <div className="flex items-center justify-center h-40 bg-muted/30 rounded-md border border-dashed">
+                <p className="text-muted-foreground">Please select a date first</p>
+              </div>
+            )}
+          </div>
+        )
+      case 4:
+        const selectedRoom = rooms.find(r => r.id === formData.room_id)
+        return (
+          <div className="space-y-6 text-sm">
+            <h3 className="text-xl font-bold text-foreground">Confirm Your Booking</h3>
+            <div className="p-6 bg-muted/50 rounded-lg space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold text-muted-foreground">Meeting Title</p>
+                  <p className="text-foreground">{formData.title}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground">Attendees</p>
+                  <p className="text-foreground">{formData.attendees}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground">Date</p>
+                  <p className="text-foreground">{formData.date ? format(formData.date as Date, 'PPP') : 'Not selected'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground">Time</p>
+                  <p className="text-foreground">
+                    {formData.start_time} - {formData.end_time}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="font-semibold text-muted-foreground">Room</p>
+                  <p className="text-foreground">{selectedRoom?.name} ({selectedRoom?.location})</p>
+                </div>
+                {formData.selectedResources.length > 0 && (
+                  <div className="md:col-span-2">
+                    <p className="font-semibold text-muted-foreground">Selected Resources</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {formData.selectedResources.map(id => {
+                        const resource = resources.find(r => r.id === id)
+                        return resource ? <Badge key={id} variant="secondary">{resource.name}</Badge> : null
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {formData.description && (
+                <div>
+                  <p className="font-semibold text-muted-foreground">Description</p>
+                  <p className="text-foreground whitespace-pre-wrap">{formData.description}</p>
+                </div>
+              )}
             </div>
           </div>
         )
+      default:
+        return null
     }
   }
 
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="p-6 text-center">
+          <p>Loading...</p>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      </div>
-
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Book a Room</h1>
-        <p className="text-muted-foreground">Reserve a conference room for your meeting</p>
-      </div>
-
-      <Card className="overflow-hidden">
+    <ProtectedRoute>
+      <div className="p-6">
+        <Card className="max-w-4xl mx-auto bg-card border-border/50">
         <CardHeader>
-          <CardTitle>{steps[currentStep]}</CardTitle>
-          <CardDescription>
-            Step {currentStep + 1} of {totalSteps}
+            <StepIndicator currentStep={currentStep} steps={steps} />
+            <CardTitle className="text-center text-2xl font-bold text-foreground">
+              {steps[currentStep]}
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
+              {
+                currentStep === 0 ? "Let's start with the basic details of your meeting." :
+                currentStep === 1 ? "Select any additional resources you'll need." :
+                currentStep === 2 ? "Choose a room that fits your needs." :
+                currentStep === 3 ? "Select a date and time for your meeting." :
+                "Please review and confirm your booking details."
+              }
           </CardDescription>
-          <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
         </CardHeader>
-        
         <CardContent>
           {renderStepContent()}
         </CardContent>
-        
-        <CardFooter className="flex justify-between border-t bg-muted/50 p-4">
+          <CardFooter className="flex justify-between">
           <Button
             variant="outline"
             onClick={prevStep}
             disabled={currentStep === 0}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Previous
+              <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
-          
-          {currentStep === totalSteps - 1 ? (
-            <Button 
-              onClick={handleSubmit} 
-              disabled={submitting}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {submitting ? (
-                <>
-                  <Clock className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Submit Booking
-                </>
-              )}
+            {currentStep < totalSteps - 1 ? (
+              <Button onClick={nextStep}>
+                Next <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={nextStep}>
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <Button onClick={handleSubmit} disabled={submitting}>
+                {submitting ? "Submitting..." : "Confirm Booking"}
             </Button>
           )}
         </CardFooter>
       </Card>
     </div>
+    </ProtectedRoute>
   )
 }

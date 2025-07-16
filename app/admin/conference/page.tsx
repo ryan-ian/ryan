@@ -1,9 +1,24 @@
 "use client"
 
 import { useAuth } from "@/contexts/auth-context"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Building, Calendar, BarChart3, AlertTriangle, CheckCircle } from "lucide-react"
+import { 
+  Users, 
+  Building, 
+  Calendar, 
+  BarChart3, 
+  AlertTriangle, 
+  CheckCircle, 
+  ArrowRight, 
+  ArrowUpRight, 
+  Clock,
+  Layers,
+  Activity,
+  Package,
+  Settings,
+  PlusCircle
+} from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import type { User, Room, Booking } from "@/types"
@@ -104,13 +119,18 @@ export default function ConferenceDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(8)].map((_, i) => (
-            <Card key={i}>
+      <div className="space-y-8">
+        <div className="flex flex-col gap-3">
+          <div className="h-8 bg-muted rounded-lg w-1/3 animate-pulse" />
+          <div className="h-4 bg-muted rounded-lg w-1/4 animate-pulse" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <div className="h-2 bg-primary/10 w-full" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <div className="h-4 bg-muted rounded w-20 animate-pulse" />
-                <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+                <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
               </CardHeader>
               <CardContent>
                 <div className="h-8 bg-muted rounded w-12 animate-pulse mb-2" />
@@ -124,98 +144,189 @@ export default function ConferenceDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Conference Management Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your Conference Hub system</p>
+        <h2 className="text-3xl font-bold tracking-tight mb-2">Conference Management Dashboard</h2>
+        <p className="text-muted-foreground">Welcome back, {user?.name}. Here's an overview of your Conference Hub system.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      {/* Stats Overview */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-blue-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+              <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">Registered users</p>
+            <p className="text-xs text-muted-foreground mt-1">Registered system users</p>
           </CardContent>
+          <CardFooter className="pt-0 pb-3 px-6">
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+              <Link href="/admin/conference/users">
+                View all users
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-green-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Rooms</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Conference Rooms</CardTitle>
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+              <Building className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalRooms}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.availableRooms} available, {stats.maintenanceRooms} maintenance
-            </p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 dark:text-green-400 font-medium">{stats.availableRooms}</span> available
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-red-600 dark:text-red-400 font-medium">{stats.maintenanceRooms}</span> maintenance
+              </p>
+            </div>
           </CardContent>
+          <CardFooter className="pt-0 pb-3 px-6">
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs gap-1 text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20">
+              <Link href="/admin/conference/rooms">
+                View all rooms
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-purple-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+              <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.todayBookings}</div>
-            <p className="text-xs text-muted-foreground">{stats.activeBookings} currently active</p>
+            <div className="flex items-center gap-1 mt-1">
+              <Clock className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+              <p className="text-xs text-muted-foreground">
+                <span className="text-purple-600 dark:text-purple-400 font-medium">{stats.activeBookings}</span> currently active
+              </p>
+            </div>
           </CardContent>
+          <CardFooter className="pt-0 pb-3 px-6">
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs gap-1 text-purple-600 dark:text-purple-400 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+              <Link href="/admin/conference/bookings">
+                View all bookings
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-amber-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pendingBookings}</div>
-            <p className="text-xs text-muted-foreground">Require attention</p>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+              Require your attention
+            </p>
           </CardContent>
+          <CardFooter className="pt-0 pb-3 px-6">
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs gap-1 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+              <Link href="/admin/conference/bookings">
+                Review pending
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
+        <Card className="md:col-span-1 lg:col-span-1">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="text-lg">Quick Actions</CardTitle>
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button asChild className="w-full justify-start">
-              <Link href="/admin/conference/rooms/new">
-                <Building className="mr-2 h-4 w-4" />
-                Add New Room
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/admin/conference/users">
-                <Users className="mr-2 h-4 w-4" />
-                Manage Users
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/admin/conference/bookings">
-                <Calendar className="mr-2 h-4 w-4" />
-                View All Bookings
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/admin/conference/reports">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                View Reports
-              </Link>
-            </Button>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              <Button asChild className="justify-start h-auto py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600">
+                <Link href="/admin/conference/rooms/new" className="flex items-center">
+                  <div className="p-2 bg-white/20 rounded-md mr-3">
+                    <Building className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium leading-none">Add New Room</div>
+                    <div className="text-xs text-white/80 mt-1">Create conference room</div>
+                  </div>
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline" className="justify-start h-auto py-3 bg-white dark:bg-slate-950">
+                <Link href="/admin/conference/resources/new" className="flex items-center">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-md mr-3">
+                    <Package className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium leading-none">Add Resource</div>
+                    <div className="text-xs text-muted-foreground mt-1">Create new resource</div>
+                  </div>
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline" className="justify-start h-auto py-3 bg-white dark:bg-slate-950">
+                <Link href="/admin/conference/users" className="flex items-center">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-md mr-3">
+                    <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium leading-none">Manage Users</div>
+                    <div className="text-xs text-muted-foreground mt-1">View and edit users</div>
+                  </div>
+                </Link>
+              </Button>
+              
+              <Button asChild variant="outline" className="justify-start h-auto py-3 bg-white dark:bg-slate-950">
+                <Link href="/admin/conference/reports" className="flex items-center">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-md mr-3">
+                    <BarChart3 className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium leading-none">View Reports</div>
+                    <div className="text-xs text-muted-foreground mt-1">Analytics & statistics</div>
+                  </div>
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest system activities</CardDescription>
+        <Card className="md:col-span-2 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Recent Activity</CardTitle>
+                <CardDescription>Latest system activities</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                View all
+                <ArrowUpRight className="h-3 w-3" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {recentActivity.length > 0 ? (

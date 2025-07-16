@@ -14,6 +14,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { CheckCircle2, AlertCircle } from "lucide-react"
 
 const Form = FormProvider
 
@@ -107,7 +108,7 @@ const FormControl = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+  const { error, isDirty, isValid, formItemId, formDescriptionId, formMessageId } = useFormField()
 
   return (
     <Slot
@@ -119,6 +120,10 @@ const FormControl = React.forwardRef<
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
+      className={cn(
+        error && "ring-1 ring-destructive focus-visible:ring-destructive",
+        isDirty && isValid && "ring-1 ring-emerald-500 focus-visible:ring-emerald-500"
+      )}
       {...props}
     />
   )
@@ -154,17 +159,39 @@ const FormMessage = React.forwardRef<
   }
 
   return (
-    <p
-      ref={ref}
-      id={formMessageId}
-      className={cn("text-sm font-medium text-destructive", className)}
-      {...props}
-    >
-      {body}
-    </p>
+    <div className="flex items-center gap-2 animate-fadeIn">
+      <AlertCircle className="h-4 w-4 text-destructive" />
+      <p
+        ref={ref}
+        id={formMessageId}
+        className={cn("text-sm font-medium text-destructive", className)}
+        {...props}
+      >
+        {body}
+      </p>
+    </div>
   )
 })
 FormMessage.displayName = "FormMessage"
+
+const FormValidationMessage = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, children, ...props }, ref) => {
+  return (
+    <div className="flex items-center gap-2 animate-fadeIn">
+      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+      <p
+        ref={ref}
+        className={cn("text-sm font-medium text-emerald-500", className)}
+        {...props}
+      >
+        {children}
+      </p>
+    </div>
+  )
+})
+FormValidationMessage.displayName = "FormValidationMessage"
 
 export {
   useFormField,
@@ -174,5 +201,6 @@ export {
   FormControl,
   FormDescription,
   FormMessage,
+  FormValidationMessage,
   FormField,
 }

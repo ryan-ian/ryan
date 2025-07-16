@@ -10,11 +10,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context"
-import { User, Mail, Phone, Building, Calendar, Settings, Save, Edit } from "lucide-react"
+import { User, Mail, Phone, Building, Calendar, Settings, Save, Edit, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ProtectedRoute } from "@/components/protected-route"
+import { supabase } from "@/lib/supabase"
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
@@ -46,29 +48,47 @@ export default function ProfilePage() {
   }, [user])
 
   const fetchUserStats = async () => {
+    if (!user) return;
     try {
-      const response = await fetch("/api/bookings")
-      const bookingsData = await response.json()
-      const bookings = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
-
-      const userBookings = bookings.filter((booking: any) => booking.userId === user?.id)
+      // Get the current session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+      
+      const response = await fetch(`/api/bookings/user?user_id=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error("Could not fetch stats")
+      const bookings = await response.json()
+      
       const now = new Date()
 
-      const upcoming = userBookings.filter(
-        (booking: any) => new Date(booking.startTime || booking.date) > now && booking.status === "confirmed",
+      const upcoming = bookings.filter(
+        (booking: any) => new Date(booking.start_time) > now && booking.status === "confirmed",
       )
 
-      const completed = userBookings.filter(
-        (booking: any) => new Date(booking.endTime || booking.date) < now && booking.status === "confirmed",
+      const completed = bookings.filter(
+        (booking: any) => new Date(booking.end_time) < now && booking.status === "confirmed",
       )
 
       setStats({
-        totalBookings: userBookings.length,
+        totalBookings: bookings.length,
         upcomingBookings: upcoming.length,
         completedBookings: completed.length,
       })
     } catch (error) {
       console.error("Failed to fetch user stats:", error)
+      toast({
+        title: "Error",
+        description: "Could not load booking statistics.",
+        variant: "destructive"
+      })
     }
   }
 
@@ -109,197 +129,137 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Loading profile...</p>
-      </div>
+      <ProtectedRoute>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </ProtectedRoute>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
-        </div>
-        <Button onClick={() => (isEditing ? handleSave() : setIsEditing(true))} className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <Save className="h-4 w-4" />
-              <span>Save Changes</span>
-            </>
-          ) : (
-            <>
-              <Edit className="h-4 w-4" />
-              <span>Edit Profile</span>
-            </>
-          )}
-        </Button>
-      </div>
+    <ProtectedRoute>
+      <div className="p-6 space-y-8">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">My Profile</h1>
+            <p className="text-muted-foreground">Manage your account settings and preferences.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setIsEditing(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+            )}
+          </div>
+        </header>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Profile Information */}
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                <span>Personal Information</span>
-              </CardTitle>
-              <CardDescription>Update your personal details and contact information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                  <AvatarFallback className="text-lg">
-                    {user.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()}
-                  </AvatarFallback>
+        <div className="grid gap-8 md:grid-cols-3">
+          {/* Left Column - Profile Info */}
+          <div className="md:col-span-1 space-y-8">
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-6 text-center">
+                <Avatar className="h-28 w-28 mx-auto mb-4 border-4 border-primary/20">
+                  <AvatarImage src={user.avatar_url || "/placeholder-user.jpg"} alt={user.name} />
+                  <AvatarFallback className="text-3xl">{user.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-medium">{user.name}</h3>
-                  <Badge variant="secondary" className="capitalize">
-                    {user.role}
-                  </Badge>
+                <h2 className="text-2xl font-bold text-foreground">{user.name}</h2>
+                <p className="text-muted-foreground">{user.position}</p>
+                <Badge variant="secondary" className="mt-2 capitalize">{user.role}</Badge>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-foreground">
+                  <Calendar className="h-5 w-5" />
+                  Booking Statistics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Total Bookings</span>
+                  <span className="font-bold text-foreground">{stats.totalBookings}</span>
                 </div>
-              </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Upcoming</span>
+                  <span className="font-bold text-foreground">{stats.upcomingBookings}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Completed</span>
+                  <span className="font-bold text-foreground">{stats.completedBookings}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              <Separator />
-
-              <div className="grid gap-4 md:grid-cols-2">
+          {/* Right Column - Editable Form & Settings */}
+          <div className="md:col-span-2 space-y-8">
+            <Card className="bg-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-foreground">
+                  <User className="h-5 w-5" />
+                  Personal Information
+                </CardTitle>
+                <CardDescription>Update your personal details and contact information.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} disabled={!isEditing} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" type="email" value={formData.email} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" value={formData.phone} onChange={(e) => handleInputChange("phone", e.target.value)} disabled={!isEditing} placeholder="Your phone number" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Input id="department" value={formData.department} onChange={(e) => handleInputChange("department", e.target.value)} disabled={!isEditing} placeholder="Your department" />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    disabled={!isEditing}
-                  />
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea id="bio" value={formData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditing} placeholder="A short bio about yourself..." rows={4} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="Enter phone number"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={formData.department}
-                    onChange={(e) => handleInputChange("department", e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="Enter department"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => handleInputChange("bio", e.target.value)}
-                  disabled={!isEditing}
-                  placeholder="Tell us about yourself..."
-                  rows={3}
-                />
-              </div>
-
-              {isEditing && (
-                <div className="flex gap-2 pt-4">
-                  <Button onClick={handleSave} className="flex items-center gap-2">
-                    <Save className="h-4 w-4" />
-                    <span>Save Changes</span>
-                  </Button>
-                  <Button variant="outline" onClick={handleCancel}>
-                    Cancel
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stats and Quick Info */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                <span>Booking Statistics</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.totalBookings}</div>
-                <p className="text-sm text-muted-foreground">Total Bookings</p>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">Upcoming</span>
-                  <span className="text-sm font-medium">{stats.upcomingBookings}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Completed</span>
-                  <span className="text-sm font-medium">{stats.completedBookings}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                <span>Account Settings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Email Notifications</span>
-                </div>
-                <Badge variant="outline">Enabled</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">SMS Reminders</span>
-                </div>
-                <Badge variant="outline">Disabled</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Room Preferences</span>
-                </div>
-                <Badge variant="outline">Set</Badge>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2 text-foreground">
+                  <Settings className="h-5 w-5" />
+                  Account Settings
+                </CardTitle>
+                <CardDescription>Manage your account preferences and actions.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="destructive" onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }

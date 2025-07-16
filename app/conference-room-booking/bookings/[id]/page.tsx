@@ -25,6 +25,7 @@ import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import type { Booking, Room, User as UserType } from "@/types"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function BookingDetailPage() {
   const params = useParams()
@@ -46,50 +47,49 @@ export default function BookingDetailPage() {
 
   const fetchBookingDetails = async () => {
     try {
-      const [bookingsResponse, roomsResponse, usersResponse] = await Promise.all([
-        fetch("/api/bookings"),
-        fetch("/api/rooms"),
-        fetch("/api/users"),
-      ])
-
-      const bookingsData = await bookingsResponse.json()
-      const roomsData = await roomsResponse.json()
-      const usersData = await usersResponse.json()
-
-      const bookingsArray = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
-      const roomsArray = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
-      const usersArray = Array.isArray(usersData) ? usersData : usersData.users || []
-
-      const foundBooking = bookingsArray.find((b: Booking) => b.id === bookingId)
-
-      if (foundBooking) {
+      const response = await fetch(`/api/bookings/${bookingId}`)
+      if (!response.ok) throw new Error("Booking not found")
+      
+      const foundBooking: Booking = await response.json()
         setBooking(foundBooking)
 
-        // Find associated room
-        const associatedRoom = roomsArray.find((r: Room) => r.id === foundBooking.roomId)
-        setRoom(associatedRoom || null)
+      if (foundBooking.room_id) {
+        const roomResponse = await fetch(`/api/rooms/${foundBooking.room_id}`)
+        if (roomResponse.ok) {
+          const roomData = await roomResponse.json()
+          setRoom(roomData)
+        }
+      }
 
-        // Find user who made the booking
-        const bookingUser = usersArray.find((u: UserType) => u.id === foundBooking.userId)
-        setBookedBy(bookingUser || null)
+      if (foundBooking.user_id) {
+        const userResponse = await fetch(`/api/users/${foundBooking.user_id}`)
+        if (userResponse.ok) {
+          const userData = await userResponse.json()
+          setBookedBy(userData)
+        }
       }
     } catch (error) {
       console.error("Failed to fetch booking details:", error)
+      toast({
+        title: "Error",
+        description: "Could not fetch booking details.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "bg-green-100 text-green-800"
+        return <Badge variant="default" className="bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-300 border-green-500/20 capitalize">{status}</Badge>
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300 border-yellow-500/20 capitalize">{status}</Badge>
       case "cancelled":
-        return "bg-red-100 text-red-800"
+        return <Badge variant="destructive" className="bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/20 capitalize">{status}</Badge>
       default:
-        return "bg-gray-100 text-gray-800"
+        return <Badge variant="outline" className="capitalize">{status}</Badge>
     }
   }
 
@@ -114,53 +114,46 @@ export default function BookingDetailPage() {
     }
   }
 
-  const canEditBooking = () => {
+  const canEditOrCancel = () => {
     if (!booking || !user) return false
-    return booking.userId === user.id && (booking.status === "pending" || booking.status === "confirmed")
-  }
-
-  const canCancelBooking = () => {
-    if (!booking || !user) return false
-    return booking.userId === user.id && (booking.status === "pending" || booking.status === "confirmed")
+    return user.role === 'admin' || (booking.user_id === user.id && booking.status !== "cancelled");
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+      <ProtectedRoute>
+        <div className="p-6 space-y-8">
+          <div className="animate-pulse">
+            <div className="h-6 w-24 bg-muted-foreground/10 rounded-md mb-6"></div>
+            <div className="h-10 bg-muted-foreground/20 rounded w-2/3 mb-2"></div>
+            <div className="h-6 bg-muted-foreground/20 rounded w-1/3"></div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-8">
+              <div className="h-48 bg-muted-foreground/10 rounded-lg"></div>
         </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="h-4 bg-muted rounded w-1/2"></div>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <div className="h-64 bg-muted rounded"></div>
+            <div className="space-y-8">
+              <div className="h-64 bg-muted-foreground/10 rounded-lg"></div>
             </div>
-            <div className="h-64 bg-muted rounded"></div>
           </div>
         </div>
-      </div>
+      </ProtectedRoute>
     )
   }
 
   if (!booking) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+      <ProtectedRoute>
+        <div className="p-6 space-y-6">
+          <Button variant="outline" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Bookings
           </Button>
-        </div>
         <Card>
-          <CardContent className="text-center py-12">
-            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Booking not found</h3>
-            <p className="text-muted-foreground mb-4">
+            <CardContent className="text-center py-16">
+              <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+              <h2 className="text-2xl font-semibold text-foreground">Booking Not Found</h2>
+              <p className="text-muted-foreground mt-2 mb-6">
               The booking you're looking for doesn't exist or has been removed.
             </p>
             <Button asChild>
@@ -169,289 +162,151 @@ export default function BookingDetailPage() {
           </CardContent>
         </Card>
       </div>
+      </ProtectedRoute>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <div className="p-6 space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+        <header>
+          <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Bookings
         </Button>
-      </div>
-
-      <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Calendar className="h-8 w-8" />
-            {booking.title || "Meeting"}
-          </h1>
-          <p className="text-muted-foreground mt-1">Booking ID: {booking.id}</p>
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">{booking.title || "Meeting"}</h1>
+              <p className="text-lg text-muted-foreground mt-2">
+                Booking ID: <span className="font-mono text-sm bg-muted p-1 rounded-md">{booking.id}</span>
+              </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge className={getStatusColor(booking.status)} variant="secondary">
-            {booking.status}
-          </Badge>
-          {canEditBooking() && (
-            <Button variant="outline" size="sm">
+            <div className="flex items-center gap-4 pt-2">
+              {getStatusBadge(booking.status)}
+              {canEditOrCancel() && (
+                <>
+                  <Button variant="outline" size="sm" disabled={booking.status === 'cancelled'}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
-          )}
-          {canCancelBooking() && (
-            <Button variant="outline" size="sm" onClick={handleCancelBooking}>
+                  <Button variant="destructive" size="sm" onClick={handleCancelBooking} disabled={booking.status === 'cancelled'}>
               <Trash2 className="h-4 w-4 mr-2" />
               Cancel
             </Button>
+                </>
           )}
         </div>
       </div>
+        </header>
 
-      <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Main Content */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Booking Details */}
-          <Card>
+          <div className="md:col-span-2 space-y-8">
+            <Card className="bg-card border-border/50">
             <CardHeader>
-              <CardTitle>Booking Details</CardTitle>
+                <CardTitle className="text-2xl font-semibold text-foreground">Booking Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="flex items-start gap-4">
+                    <Calendar className="h-6 w-6 text-muted-foreground mt-1" />
                   <div>
-                    <p className="font-medium">Date</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(booking.date || booking.startTime).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
+                      <p className="font-medium text-foreground">Date</p>
+                      <p className="text-muted-foreground">
+                        {new Date(booking.start_time).toLocaleDateString(undefined, {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
                       })}
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Time</p>
-                    <p className="text-sm text-muted-foreground">
-                      {booking.startTime
-                        ? new Date(booking.startTime).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : booking.startTime}{" "}
-                      -{" "}
-                      {booking.endTime
-                        ? new Date(booking.endTime).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : booking.endTime}
-                    </p>
                   </div>
-                </div>
-              </div>
-
-              {booking.description && (
-                <>
-                  <Separator />
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Description
-                    </h4>
-                    <p className="text-sm text-muted-foreground">{booking.description}</p>
-                  </div>
-                </>
-              )}
-
-              {booking.attendees && booking.attendees > 0 && (
-                <>
-                  <Separator />
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex items-start gap-4">
+                    <Clock className="h-6 w-6 text-muted-foreground mt-1" />
                     <div>
-                      <p className="font-medium">Expected Attendees</p>
-                      <p className="text-sm text-muted-foreground">{booking.attendees} people</p>
+                      <p className="font-medium text-foreground">Time</p>
+                      <p className="text-muted-foreground">
+                        {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                        {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Room Information */}
-          {room && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Room Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start justify-between">
+                  {booking.description && (
+                    <div className="sm:col-span-2 flex items-start gap-4">
+                      <FileText className="h-6 w-6 text-muted-foreground mt-1" />
                   <div>
-                    <h3 className="font-semibold text-lg">{room.name}</h3>
-                    <p className="text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {room.location}
-                    </p>
+                        <p className="font-medium text-foreground">Description</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{booking.description}</p>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/conference-room-booking/rooms/${room.id}`}>View Room Details</Link>
-                  </Button>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Capacity: {room.capacity} people</span>
-                  </div>
-                  {room.hourlyRate && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Rate: ${room.hourlyRate}/hour</span>
                     </div>
                   )}
                 </div>
-
-                {room.amenities && room.amenities.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">Available Amenities</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {room.amenities.map((amenity) => (
-                        <Badge key={amenity} variant="outline" className="text-xs">
-                          {amenity}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
-          )}
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
+          {/* Side Content */}
+          <div className="space-y-8">
+            {room && (
+              <Card className="bg-card border-border/50">
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Building className="h-5 w-5" />
+                    <span>Room Information</span>
+                  </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {canEditBooking() && (
-                <Button className="w-full bg-transparent" variant="outline">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Booking
-                </Button>
-              )}
-              {canCancelBooking() && (
-                <Button className="w-full bg-transparent" variant="outline" onClick={handleCancelBooking}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Cancel Booking
-                </Button>
-              )}
-              <Button asChild variant="outline" className="w-full bg-transparent">
-                <Link href="/conference-room-booking/bookings">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  View All Bookings
-                </Link>
-              </Button>
-              {room && (
-                <Button asChild variant="outline" className="w-full bg-transparent">
+                <CardContent>
                   <Link href={`/conference-room-booking/rooms/${room.id}`}>
-                    <Building className="h-4 w-4 mr-2" />
-                    View Room Details
+                    <div className="relative aspect-video w-full overflow-hidden rounded-lg mb-4 hover:opacity-90 transition-opacity">
+                      {room.image ? (
+                        <img src={room.image} alt={room.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Building className="w-12 h-12 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="font-semibold text-foreground hover:text-primary">{room.name}</h3>
                   </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Booking Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <Badge className={getStatusColor(booking.status)} variant="secondary">
-                    {booking.status}
-                  </Badge>
-                </div>
-              </div>
-              <div className="text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Created:</span>
-                  <span>{new Date(booking.createdAt || booking.date).toLocaleDateString()}</span>
-                </div>
-              </div>
-              {booking.updatedAt && (
-                <div className="text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Last Updated:</span>
-                    <span>{new Date(booking.updatedAt).toLocaleDateString()}</span>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                    <MapPin className="h-4 w-4" />
+                    {room.location}
+                  </p>
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-2">
+                    <Users className="h-4 w-4" />
+                    Capacity: {room.capacity}
                   </div>
-                </div>
-              )}
             </CardContent>
           </Card>
+            )}
 
-          {/* Booked By */}
           {bookedBy && (
-            <Card>
+              <Card className="bg-card border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                   <User className="h-5 w-5" />
-                  Booked By
+                    <span>Booked By</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
+                <CardContent>
+                  <div className="flex items-center gap-4">
                   <Avatar>
-                    <AvatarImage src={bookedBy.avatar || "/placeholder.svg"} alt={bookedBy.name} />
-                    <AvatarFallback>
-                      {bookedBy.name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()}
-                    </AvatarFallback>
+                      <AvatarImage src={bookedBy.avatar_url || "/placeholder-user.jpg"} alt={bookedBy.name} />
+                      <AvatarFallback>{bookedBy.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{bookedBy.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize">{bookedBy.role}</p>
+                      <p className="font-semibold text-foreground">{bookedBy.name}</p>
+                      <p className="text-sm text-muted-foreground">{bookedBy.position || 'User'}</p>
                   </div>
-                </div>
-                {bookedBy.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${bookedBy.email}`} className="text-sm hover:underline">
-                      {bookedBy.email}
-                    </a>
                   </div>
-                )}
-                {bookedBy.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${bookedBy.phone}`} className="text-sm hover:underline">
-                      {bookedBy.phone}
-                    </a>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }

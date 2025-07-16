@@ -5,16 +5,14 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Building, Plus, X, ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
-import { Checkbox } from "@/components/ui/checkbox"
 import type { Room, Resource } from "@/types"
+import { RoomForm } from "@/components/forms/room-form"
+import { LoadingAnimation } from "@/components/ui/loading-animation"
+import { StatusAnimation } from "@/components/ui/status-animation"
+import { PageHeader } from "@/components/ui/page-transition"
 
 export default function EditRoomPage({ params }: { params: { id: string } }) {
   // Unwrap params using React.use()
@@ -23,21 +21,16 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
   
   const router = useRouter()
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState<Room>({
-    id: roomId,
-    name: "",
-    location: "",
-    capacity: 0,
-    status: "available",
-    description: "",
-    image: null,
-    room_resources: []
-  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [room, setRoom] = useState<Room | null>(null)
   const [resources, setResources] = useState<Resource[]>([])
-  const [isLoadingResources, setIsLoadingResources] = useState(true)
+  const [status, setStatus] = useState<{
+    type: "success" | "error" | "warning" | "info" | null;
+    message: string;
+  }>({ type: null, message: "" })
 
+  // Fetch room data
   useEffect(() => {
     const fetchRoom = async () => {
       try {
@@ -47,12 +40,8 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
           throw new Error("Room not found")
         }
         
-        const room = await response.json()
-        setFormData({
-          ...room,
-          image: room.image || "",
-          room_resources: room.room_resources || []
-        })
+        const roomData = await response.json()
+        setRoom(roomData)
       } catch (error) {
         console.error("Failed to fetch room:", error)
         toast({
@@ -93,57 +82,15 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
           description: "Failed to load resources. Please try again.",
           variant: "destructive"
         })
-      } finally {
-        setIsLoadingResources(false)
       }
     }
     
     fetchResources()
   }, [toast])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: parseInt(value) || 0 }))
-  }
-
-  const handleStatusChange = (value: string) => {
-    setFormData(prev => ({ ...prev, status: value }))
-  }
-
-  const handleResourceChange = (resourceId: string, checked: boolean) => {
-    setFormData(prev => {
-      if (checked) {
-        return {
-          ...prev,
-          room_resources: [...(prev.room_resources || []), resourceId]
-        }
-      } else {
-        return {
-          ...prev,
-          room_resources: (prev.room_resources || []).filter(id => id !== resourceId)
-        }
-      }
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.location || formData.capacity <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      })
-      return
-    }
-    
+  const handleSubmit = async (formData: any) => {
     setIsSubmitting(true)
+    setStatus({ type: null, message: "" })
     
     try {
       const token = localStorage.getItem("auth-token")
@@ -153,7 +100,10 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          id: roomId
+        })
       })
       
       if (!response.ok) {
@@ -161,18 +111,20 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
         throw new Error(errorData.error || "Failed to update room")
       }
       
-      toast({
-        title: "Room Updated",
-        description: `${formData.name} has been updated successfully.`
+      setStatus({
+        type: "success",
+        message: `${formData.name} has been updated successfully.`
       })
       
-      router.push("/admin/conference/rooms")
+      // Delay redirect to show success message
+      setTimeout(() => {
+        router.push("/admin/conference/rooms")
+      }, 1500)
     } catch (error) {
       console.error("Error updating room:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update room. Please try again.",
-        variant: "destructive"
+      setStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to update room. Please try again."
       })
     } finally {
       setIsSubmitting(false)
@@ -182,8 +134,11 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading room details...</p>
+        <LoadingAnimation 
+          variant="spinner" 
+          size="lg"
+          text="Loading room details..." 
+        />
       </div>
     )
   }
@@ -191,161 +146,36 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center">
-        <Button variant="ghost" size="sm" className="mr-2" asChild>
-          <Link href="/admin/conference/rooms">
+        <Button variant="ghost" size="sm" className="mr-2 hover-lift" asChild>
+          <Link href={`/admin/conference/rooms/${roomId}`}>
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Rooms
+            Back to Room Details
           </Link>
         </Button>
       </div>
       
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Edit Room</h2>
-          <p className="text-muted-foreground">Update the information for this conference room</p>
-        </div>
-      </div>
+      <PageHeader
+        heading="Edit Room"
+        text="Update the information for this conference room"
+      />
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Room Details</CardTitle>
-          <CardDescription>Update the information for this conference room</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Room Name <span className="text-destructive">*</span></Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Executive Meeting Room"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="location">Location <span className="text-destructive">*</span></Label>
-                <Input
-                  id="location"
-                  name="location"
-                  placeholder="Floor 3, East Wing"
-                  value={formData.location}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity <span className="text-destructive">*</span></Label>
-                <Input
-                  id="capacity"
-                  name="capacity"
-                  type="number"
-                  min="1"
-                  placeholder="12"
-                  value={formData.capacity || ""}
-                  onChange={handleNumberChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={handleStatusChange}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="reserved">Reserved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="image">Image URL (Optional)</Label>
-                <Input
-                  id="image"
-                  name="image"
-                  placeholder="https://example.com/room-image.jpg"
-                  value={formData.image || ""}
-                  onChange={handleChange}
-                />
-              </div>
-              
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="resources">Available Resources</Label>
-                {isLoadingResources ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Loading resources...</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 border rounded-md p-4">
-                    {resources.length > 0 ? (
-                      resources.map((resource) => (
-                        <div key={resource.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`resource-${resource.id}`}
-                            checked={formData.room_resources?.includes(resource.id)}
-                            onCheckedChange={(checked) => handleResourceChange(resource.id, !!checked)}
-                          />
-                          <label 
-                            htmlFor={`resource-${resource.id}`} 
-                            className="text-sm flex items-center cursor-pointer"
-                          >
-                            {resource.name} 
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {resource.type}
-                            </Badge>
-                          </label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No resources available</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Enter a description of the room..."
-                value={formData.description || ""}
-                onChange={handleChange}
-                rows={4}
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" type="button" asChild>
-                <Link href="/admin/conference/rooms">Cancel</Link>
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Building className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Building className="mr-2 h-4 w-4" />
-                    Update Room
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {status.type && (
+        <StatusAnimation
+          status={status.type}
+          message={status.message}
+          autoHide={status.type === "success"}
+          className="animate-slideInFromBottom"
+        />
+      )}
+      
+      <RoomForm
+        initialData={room}
+        resources={resources}
+        onSubmit={handleSubmit}
+        isLoading={isSubmitting}
+        submitLabel="Update Room"
+        cancelHref={`/admin/conference/rooms/${roomId}`}
+      />
     </div>
   )
 } 

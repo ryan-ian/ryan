@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Users } from "lucide-react"
+import { Users, User, Mail, Lock, Briefcase, Building2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function SignupPage() {
@@ -42,7 +42,6 @@ export default function SignupPage() {
     setLoading(true)
     setError("")
 
-    // Basic validation
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       setLoading(false)
@@ -79,21 +78,29 @@ export default function SignupPage() {
     setLoading(false)
   }
 
+  const inputClasses = "pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 transition-all"
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Building className="h-8 w-8 text-primary" />
-            <Users className="h-6 w-6 text-primary" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5"></div>
+      
+      <div className="z-10 w-full max-w-md">
+        <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="p-3 rounded-full bg-primary/10 text-primary shadow-lg">
+                <Users className="h-8 w-8" />
+              </div>
           </div>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Sign up to use Conference Hub</CardDescription>
+            <CardTitle className="text-2xl font-bold text-foreground tracking-tight">Join Conference Hub</CardTitle>
+            <CardDescription className="text-muted-foreground">Create your account to book conference rooms</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="pb-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name" className="text-foreground">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 id="name"
                 name="name"
@@ -101,10 +108,15 @@ export default function SignupPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
+                    className={inputClasses}
               />
             </div>
+              </div>
+              
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-foreground">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 id="email"
                 name="email"
@@ -113,15 +125,20 @@ export default function SignupPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                    className={inputClasses}
               />
             </div>
+              </div>
+              
             <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className="text-foreground">Department</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
               <Select value={formData.department} onValueChange={handleDepartmentChange} required>
-                <SelectTrigger>
+                    <SelectTrigger className={`pl-10 ${inputClasses}`}>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
-                <SelectContent>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
                   <SelectItem value="marketing">Marketing</SelectItem>
                   <SelectItem value="sales">Sales</SelectItem>
                   <SelectItem value="engineering">Engineering</SelectItem>
@@ -131,8 +148,12 @@ export default function SignupPage() {
                 </SelectContent>
               </Select>
             </div>
+              </div>
+              
             <div className="space-y-2">
-              <Label htmlFor="position">Position</Label>
+                <Label htmlFor="position" className="text-foreground">Position</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 id="position"
                 name="position"
@@ -140,10 +161,15 @@ export default function SignupPage() {
                 value={formData.position}
                 onChange={handleChange}
                 required
+                    className={inputClasses}
               />
             </div>
+              </div>
+              
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-foreground">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 id="password"
                 name="password"
@@ -151,10 +177,15 @@ export default function SignupPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                    className={inputClasses}
               />
             </div>
+              </div>
+              
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -162,30 +193,49 @@ export default function SignupPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
+                    className={inputClasses}
               />
             </div>
+              </div>
+              
             {error && (
-              <Alert variant="destructive">
+                <div>
+                  <Alert variant="destructive" className="bg-destructive/10 text-destructive-foreground border-destructive/50">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
+                </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+              
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 shadow-lg shadow-primary/20 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]" 
+                disabled={loading}
+              >
               {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600 mb-2">Already have an account?</p>
-            <Link href="/user-login" className="text-primary hover:underline">
+            
+            <div className="mt-6 pt-6 border-t border-border/50 text-center space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Already have an account?</p>
+                <Link 
+                  href="/user-login" 
+                  className="inline-block text-primary hover:text-primary/80 font-medium transition-colors"
+                >
               Sign In
             </Link>
           </div>
-          <div className="mt-6 text-center text-sm">
-            <Link href="/" className="text-primary hover:underline">
-              ← Back to Home
+              <Link 
+                href="/" 
+                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors gap-1 text-sm font-medium"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Home</span>
             </Link>
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

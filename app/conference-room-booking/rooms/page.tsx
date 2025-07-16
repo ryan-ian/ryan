@@ -12,6 +12,7 @@ import type { Room, Resource } from "@/types"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([])
@@ -110,50 +111,43 @@ export default function RoomsPage() {
     });
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return "bg-green-100 text-green-800"
+        return <Badge variant="default" className="bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-300 border-green-500/20">Available</Badge>
       case "occupied":
-        return "bg-red-100 text-red-800"
+        return <Badge variant="destructive" className="bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/20">Occupied</Badge>
       case "maintenance":
-        return "bg-yellow-100 text-yellow-800"
+        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300 border-yellow-500/20">Maintenance</Badge>
       default:
-        return "bg-gray-100 text-gray-800"
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Browse Rooms</h1>
+    <ProtectedRoute>
+      {loading ? (
+        <div className="p-6 space-y-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted-foreground/20 rounded w-64 mb-2"></div>
+            <div className="h-4 bg-muted-foreground/20 rounded w-80"></div>
+          </div>
+          <div className="animate-pulse">
+            <div className="h-40 bg-muted-foreground/10 rounded-lg"></div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="h-3 bg-muted rounded"></div>
-                  <div className="h-3 bg-muted rounded w-2/3"></div>
+              <div key={i} className="animate-pulse">
+                <div className="h-64 bg-muted-foreground/10 rounded-lg"></div>
                 </div>
-              </CardContent>
-            </Card>
           ))}
         </div>
       </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      ) : (
+        <div className="p-6 space-y-8">
+          <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Browse Rooms</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Browse Rooms</h1>
           <p className="text-muted-foreground">Find and book the perfect space for your meeting</p>
         </div>
         <Button asChild>
@@ -162,35 +156,35 @@ export default function RoomsPage() {
             <span>Book a Room</span>
           </Link>
         </Button>
-      </div>
+          </header>
 
       {/* Filters */}
-      <Card>
+          <Card className="bg-card border-border/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-foreground">
             <Filter className="h-5 w-5" />
-            <span>Filters</span>
+                <span>Filter Options</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Search</label>
+                  <label className="text-sm font-medium text-muted-foreground">Search</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search rooms..."
+                      placeholder="Search by name or location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                      className="pl-10 bg-background/50"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Minimum Capacity</label>
+                  <label className="text-sm font-medium text-muted-foreground">Minimum Capacity</label>
               <Select value={capacityFilter} onValueChange={setCapacityFilter}>
-                <SelectTrigger>
+                    <SelectTrigger className="bg-background/50">
                   <SelectValue placeholder="Any capacity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,9 +198,9 @@ export default function RoomsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
+                    <SelectTrigger className="bg-background/50">
                   <SelectValue placeholder="Any status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,23 +213,21 @@ export default function RoomsPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Resources</label>
+              <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters} className="space-y-2">
+                <CollapsibleTrigger asChild>
               <Button 
                 variant="ghost" 
-                size="sm" 
-                onClick={() => setShowResourceFilters(!showResourceFilters)}
-                className="h-8 px-2 flex items-center gap-1"
+                    className="w-full flex items-center justify-between p-2 hover:bg-muted/50"
               >
+                    <span className="text-sm font-medium text-muted-foreground">Filter by Resources</span>
+                    <div className="flex items-center gap-1 text-sm text-primary">
                 {showResourceFilters ? "Hide" : "Show"} 
                 {showResourceFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
               </Button>
-            </div>
-            
-            <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters}>
+                </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2 border rounded-md p-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4 border-t border-border/50">
                   {resources.map((resource) => (
                     <div key={resource.id} className="flex items-center space-x-2">
                       <Checkbox 
@@ -247,137 +239,89 @@ export default function RoomsPage() {
                       />
                       <label 
                         htmlFor={`resource-${resource.id}`}
-                        className="text-sm flex items-center gap-1 cursor-pointer"
+                          className="text-sm font-medium flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
                       >
-                        <ResourceIcon type={resource.type} name={resource.name} size="sm" />
+                          <ResourceIcon type={resource.type} className="h-4 w-4" />
                         {resource.name}
                       </label>
                     </div>
                   ))}
                 </div>
-                {selectedResources.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSelectedResources([])}
-                    className="mt-2 text-xs"
-                  >
-                    Clear resource filters
-                  </Button>
-                )}
               </CollapsibleContent>
             </Collapsible>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Results */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredRooms.length} of {rooms.length} rooms
-        </p>
-      </div>
-
-      {/* Rooms Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredRooms.map((room) => (
-          <Card key={room.id} className="hover:shadow-md transition-shadow overflow-hidden">
+          {/* Room Listings */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredRooms.length > 0 ? (
+              filteredRooms.map((room) => (
+                <Card key={room.id} className="overflow-hidden bg-card border-border/50 hover:shadow-xl transition-shadow duration-300 flex flex-col">
             <Link href={`/conference-room-booking/rooms/${room.id}`} className="block">
-              <div className="aspect-video w-full overflow-hidden">
+                    <div className="relative h-48 w-full">
                 {room.image ? (
                   <img 
                     src={room.image} 
-                    alt={`${room.name} room`}
-                    className="w-full h-full object-cover transition-transform hover:scale-105"
+                          alt={room.name} 
+                          className="w-full h-full object-cover" 
                   />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <Building className="h-12 w-12 text-muted-foreground" />
+                          <Building className="w-12 h-12 text-muted-foreground" />
                   </div>
                 )}
+                      <div className="absolute top-3 right-3">
+                        {getStatusBadge(room.status)}
+                      </div>
               </div>
             </Link>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building className="h-5 w-5" />
-                    <span>{room.name}</span>
+                  <div className="p-6 flex-grow flex flex-col">
+                    <CardHeader className="p-0 mb-4">
+                      <Link href={`/conference-room-booking/rooms/${room.id}`}>
+                        <CardTitle className="text-xl font-bold text-foreground hover:text-primary transition-colors">
+                          {room.name}
                   </CardTitle>
-                  <CardDescription className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{room.location}</span>
+                      </Link>
+                      <CardDescription className="flex items-center gap-2 pt-1">
+                        <MapPin className="h-4 w-4" />
+                        {room.location}
                   </CardDescription>
-                </div>
-                <Badge className={getStatusColor(room.status)}>{room.status}</Badge>
-              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span>Capacity: {room.capacity}</span>
+                    <CardContent className="p-0 flex-grow space-y-4">
+                      <div className="flex items-center gap-4 text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-5 w-5" />
+                          <span className="font-medium">{room.capacity}</span>
               </div>
-
-              {/* Display resources */}
-              {room.resourceDetails && room.resourceDetails.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {room.resourceDetails.slice(0, 6).map((resource) => (
-                    <ResourceIcon 
-                      key={resource.id} 
-                      type={resource.type} 
-                      name={resource.name}
-                      image={resource.image}
-                      quantity={resource.quantity}
-                      size="sm"
-                    />
-                  ))}
-                  {room.resourceDetails.length > 6 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{room.resourceDetails.length - 6} more
-                    </Badge>
-                  )}
                 </div>
-              ) : room.resources && room.resources.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {room.resources.slice(0, 6).map((resourceId) => {
-                    const resource = resources.find(r => r.id === resourceId);
-                    return resource ? (
-                      <ResourceIcon 
-                        key={resourceId} 
-                        type={resource.type} 
-                        name={resource.name}
-                        image={resource.image}
-                        size="sm"
-                      />
-                    ) : null;
-                  })}
-                  {room.resources.length > 6 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{room.resources.length - 6} more
+                        {room.resourceDetails && room.resourceDetails.map((resource) => (
+                          <Badge key={resource.id} variant="secondary" className="flex items-center gap-1">
+                            <ResourceIcon type={resource.type} className="h-3 w-3" />
+                            {resource.name}
                     </Badge>
-                  )}
+                        ))}
                 </div>
-              ) : null}
-              
-              <Button asChild size="sm" className="w-full">
-                <Link href={`/conference-room-booking/bookings/new?room=${room.id}`}>
+                    </CardContent>
+                    <div className="mt-6">
+                      <Button asChild className="w-full">
+                        <Link href={`/conference-room-booking/bookings/new?roomId=${room.id}`}>
                   Book Now
                 </Link>
               </Button>
-            </CardContent>
+                    </div>
+                  </div>
           </Card>
-        ))}
+              ))
+            ) : (
+              <div className="col-span-full text-center py-16">
+                <h2 className="text-2xl font-semibold text-foreground">No Rooms Found</h2>
+                <p className="text-muted-foreground mt-2">Try adjusting your search or filter criteria.</p>
+              </div>
+            )}
       </div>
-
-      {filteredRooms.length === 0 && (
-        <div className="text-center py-12">
-          <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No rooms found</h3>
-          <p className="text-muted-foreground">
-            Try adjusting your filters or search criteria
-          </p>
         </div>
       )}
-    </div>
+    </ProtectedRoute>
   )
 }

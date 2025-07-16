@@ -21,7 +21,9 @@ import {
   Mail,
 } from "lucide-react"
 import Link from "next/link"
-import type { Room, Booking } from "@/types"
+import type { Room, Booking, Resource } from "@/types"
+import { ResourceIcon } from "@/components/ui/resource-icon"
+import { ProtectedRoute } from "@/components/protected-route"
 
 const amenityIcons = {
   wifi: Wifi,
@@ -38,12 +40,14 @@ export default function RoomDetailPage() {
 
   const [room, setRoom] = useState<Room | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (roomId) {
       fetchRoomDetails()
       fetchRoomBookings()
+      fetchResources()
     }
   }, [roomId])
 
@@ -63,111 +67,116 @@ export default function RoomDetailPage() {
 
   const fetchRoomBookings = async () => {
     try {
-      const response = await fetch("/api/bookings")
+      const response = await fetch(`/api/bookings?roomId=${roomId}`)
       const bookingsData = await response.json()
       const bookingsArray = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
-      const roomBookings = bookingsArray.filter((b: Booking) => b.roomId === roomId)
-      setBookings(roomBookings)
+      setBookings(bookingsArray)
     } catch (error) {
       console.error("Failed to fetch room bookings:", error)
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const fetchResources = async () => {
+    try {
+      const response = await fetch('/api/resources')
+      const resourcesData = await response.json()
+      const resourcesArray = Array.isArray(resourcesData) ? resourcesData : resourcesData.resources || []
+      setResources(resourcesArray)
+    } catch (error) {
+      console.error('Failed to fetch resources:', error)
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return "bg-green-100 text-green-800"
+        return <Badge variant="default" className="bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-300 border-green-500/20">Available</Badge>
       case "occupied":
-        return "bg-red-100 text-red-800"
+        return <Badge variant="destructive" className="bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/20">Occupied</Badge>
       case "maintenance":
-        return "bg-yellow-100 text-yellow-800"
+        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300 border-yellow-500/20">Maintenance</Badge>
       default:
-        return "bg-gray-100 text-gray-800"
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
   const getUpcomingBookings = () => {
     const now = new Date()
     return bookings
-      .filter((booking) => new Date(booking.startTime || booking.date) > now)
-      .sort((a, b) => new Date(a.startTime || a.date).getTime() - new Date(b.startTime || b.date).getTime())
+      .filter((booking) => new Date(booking.start_time) > now)
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
       .slice(0, 5)
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+      <ProtectedRoute>
+        <div className="p-6 space-y-8">
+          <div className="animate-pulse">
+            <div className="h-6 w-24 bg-muted-foreground/10 rounded-md mb-6"></div>
+            <div className="h-10 bg-muted-foreground/20 rounded w-2/3 mb-2"></div>
+            <div className="h-6 bg-muted-foreground/20 rounded w-1/3"></div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-8">
+              <div className="h-80 bg-muted-foreground/10 rounded-lg"></div>
+              <div className="h-48 bg-muted-foreground/10 rounded-lg"></div>
         </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="h-4 bg-muted rounded w-1/2"></div>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <div className="h-64 bg-muted rounded"></div>
+            <div className="space-y-8">
+              <div className="h-64 bg-muted-foreground/10 rounded-lg"></div>
             </div>
-            <div className="h-64 bg-muted rounded"></div>
           </div>
         </div>
-      </div>
+      </ProtectedRoute>
     )
   }
 
   if (!room) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+      <ProtectedRoute>
+        <div className="p-6 space-y-6">
+          <Button variant="outline" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Rooms
           </Button>
-        </div>
         <Card>
-          <CardContent className="text-center py-12">
-            <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Room not found</h3>
-            <p className="text-muted-foreground mb-4">The room you're looking for doesn't exist or has been removed.</p>
+            <CardContent className="text-center py-16">
+              <Building className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+              <h2 className="text-2xl font-semibold text-foreground">Room Not Found</h2>
+              <p className="text-muted-foreground mt-2 mb-6">
+                The room you're looking for doesn't exist or has been removed.
+              </p>
             <Button asChild>
               <Link href="/conference-room-booking/rooms">Browse All Rooms</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+      </ProtectedRoute>
     )
   }
 
   const upcomingBookings = getUpcomingBookings()
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <div className="p-6 space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+        <header>
+          <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Rooms
         </Button>
-      </div>
-
-      <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Building className="h-8 w-8" />
-            {room.name}
-          </h1>
-          <p className="text-muted-foreground flex items-center gap-1 mt-1">
-            <MapPin className="h-4 w-4" />
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">{room.name}</h1>
+              <p className="text-lg text-muted-foreground flex items-center gap-2 mt-2">
+                <MapPin className="h-5 w-5" />
             {room.location}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge className={getStatusColor(room.status)} variant="secondary">
-            {room.status}
-          </Badge>
-          {room.status === "available" && (
+            <div className="flex items-center gap-4 pt-2">
+              {getStatusBadge(room.status)}
             <Button asChild>
               <Link
                 href={`/conference-room-booking/bookings/new?roomId=${room.id}`}
@@ -177,182 +186,126 @@ export default function RoomDetailPage() {
                 <span>Book This Room</span>
               </Link>
             </Button>
-          )}
         </div>
       </div>
+        </header>
 
-      <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Main Content */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Room Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Room Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Capacity</p>
-                    <p className="text-sm text-muted-foreground">{room.capacity} people</p>
-                  </div>
-                </div>
-                {room.hourlyRate && (
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Hourly Rate</p>
-                      <p className="text-sm text-muted-foreground">${room.hourlyRate}/hour</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {room.description && (
-                <>
-                  <Separator />
-                  <div>
-                    <h4 className="font-medium mb-2">Description</h4>
-                    <p className="text-sm text-muted-foreground">{room.description}</p>
-                  </div>
-                </>
-              )}
-
-              {room.amenities && room.amenities.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h4 className="font-medium mb-3">Amenities</h4>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {room.amenities.map((amenity) => {
-                        const IconComponent = amenityIcons[amenity as keyof typeof amenityIcons] || Monitor
-                        return (
-                          <div key={amenity} className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm capitalize">{amenity}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Room Image/Gallery Placeholder */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Room Gallery</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {room.image ? (
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <img 
-                    src={room.image} 
-                    alt={`${room.name} room`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Building className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Room photos coming soon</p>
-                </div>
-              </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button asChild className="w-full" disabled={room.status !== "available"}>
-                <Link
-                  href={`/conference-room-booking/bookings/new?roomId=${room.id}`}
-                  className="flex items-center gap-2"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>Book Now</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full bg-transparent">
-                <Link href="/conference-room-booking/rooms" className="flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  <span>Browse Other Rooms</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Contact Information */}
-          {(room.contactEmail || room.contactPhone) && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {room.contactEmail && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${room.contactEmail}`} className="text-sm hover:underline">
-                      {room.contactEmail}
-                    </a>
-                  </div>
-                )}
-                {room.contactPhone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${room.contactPhone}`} className="text-sm hover:underline">
-                      {room.contactPhone}
-                    </a>
+          <div className="md:col-span-2 space-y-8">
+            {/* Room Image */}
+            <Card className="overflow-hidden border-border/50">
+              <CardContent className="p-0">
+                {room.image ? (
+                  <img src={room.image} alt={room.name} className="w-full h-auto object-cover max-h-[400px]" />
+                ) : (
+                  <div className="w-full h-80 bg-muted flex items-center justify-center">
+                    <Building className="w-24 h-24 text-muted-foreground/50" />
                   </div>
                 )}
               </CardContent>
             </Card>
-          )}
 
-          {/* Upcoming Bookings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                <span>Upcoming Bookings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {upcomingBookings.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingBookings.map((booking) => (
-                    <div key={booking.id} className="p-3 border rounded-lg">
-                      <div className="font-medium text-sm">{booking.title || "Meeting"}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(booking.startTime || booking.date).toLocaleDateString()} at{" "}
-                        {booking.startTime
-                          ? new Date(booking.startTime).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : booking.startTime}
+            {/* Room Details */}
+            <Card className="bg-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-2xl font-semibold text-foreground">Room Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {room.description && (
+                  <p className="text-muted-foreground mb-6">{room.description}</p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-muted rounded-lg text-muted-foreground">
+                      <Users className="h-6 w-6" />
+                </div>
+                    <div>
+                      <p className="font-medium text-foreground">Capacity</p>
+                      <p className="text-muted-foreground">{room.capacity} people</p>
+                    </div>
+                  </div>
+                  {room.resourceDetails && room.resourceDetails.length > 0 && (
+                    <div className="sm:col-span-2">
+                      <h4 className="font-medium text-foreground mb-4">What this place offers</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        {room.resourceDetails.map((resource) => (
+                          <div key={resource.id} className="flex items-center gap-3">
+                            <ResourceIcon type={resource.type} className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-muted-foreground">{resource.name}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No upcoming bookings</p>
-              )}
             </CardContent>
           </Card>
         </div>
+
+          {/* Side Content */}
+          <div className="space-y-8">
+            {/* Upcoming Bookings */}
+            <Card className="bg-card border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Calendar className="h-5 w-5" />
+                  <span>Upcoming Bookings</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {upcomingBookings.length > 0 ? (
+                  <ul className="space-y-4">
+                    {upcomingBookings.map((booking) => (
+                      <li key={booking.id} className="p-4 bg-muted/50 rounded-lg">
+                        <p className="font-semibold text-foreground">
+                          {new Date(booking.start_time).toLocaleDateString(undefined, {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                          {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No upcoming bookings for this room.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact Info */}
+            {room.contact_person && (
+              <Card className="bg-card border-border/50">
+            <CardHeader>
+                  <CardTitle className="text-xl font-semibold text-foreground">Contact</CardTitle>
+            </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="font-semibold text-foreground">{room.contact_person}</p>
+                  {room.contact_email && (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <a href={`mailto:${room.contact_email}`} className="hover:text-primary">{room.contact_email}</a>
+                    </div>
+                  )}
+                  {room.contact_phone && (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span>{room.contact_phone}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }

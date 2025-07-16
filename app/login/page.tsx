@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building, Shield } from "lucide-react"
+import { Shield, Lock, Mail, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { MainLayout } from "@/components/main-layout"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -37,55 +38,78 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Building className="h-8 w-8 text-primary" />
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle>Admin Login</CardTitle>
-          <CardDescription>Sign in to access the Conference Hub admin panel</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@conferencehub.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+    <MainLayout showFooter={false} className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5">
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
+        <div className="w-full max-w-md">
+          <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl">
+            <CardHeader className="text-center pb-6">
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <div className="p-3 rounded-full bg-primary/10 text-primary shadow-lg">
+                  <Shield className="h-8 w-8" />
+                </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <CardTitle className="text-2xl font-bold text-foreground tracking-tight">Admin Portal</CardTitle>
+              <CardDescription className="text-muted-foreground">Sign in to access the Conference Hub admin panel</CardDescription>
+          </CardHeader>
+            <CardContent className="pb-8">
+              <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                  <Label htmlFor="email" className="text-foreground">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@conferencehub.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                      className="pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 transition-all"
+                />
+                  </div>
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="password" className="text-foreground">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                      className="pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 transition-all"
+                />
+                  </div>
+              </div>
+              {error && (
+                  <div>
+                    <Alert variant="destructive" className="bg-destructive/10 text-destructive-foreground border-destructive/50">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+                  </div>
+              )}
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 shadow-lg shadow-primary/20 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]" 
+                  disabled={loading}
+                >
+                {loading ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+              <div className="mt-8 text-center">
+                <Link 
+                  href="/" 
+                  className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors gap-1 text-sm font-medium"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back to Home</span>
+              </Link>
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
-          <div className="mt-6 text-center text-sm">
-            <Link href="/" className="text-primary hover:underline">
-              ← Back to Home
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+        </div>
+      </div>
+    </MainLayout>
   )
 }

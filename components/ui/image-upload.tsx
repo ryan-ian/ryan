@@ -3,18 +3,41 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface ImageUploadProps {
-  onImageUploaded: (url: string) => void
+  // New props used in RoomForm
+  endpoint?: string
+  onChange?: (url: string) => void
+  onUploadBegin?: () => void
+  
+  // Original props for backward compatibility
+  onImageUploaded?: (url: string) => void
   currentImage?: string | null
   className?: string
 }
 
-export function ImageUpload({ onImageUploaded, currentImage, className }: ImageUploadProps) {
+export function ImageUpload({ 
+  // Support both callback patterns
+  onChange, 
+  onImageUploaded,
+  onUploadBegin,
+  
+  // Other props
+  endpoint = "upload",
+  currentImage, 
+  className 
+}: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImage || null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Use either the new or old callback pattern
+  const handleImageChange = (url: string) => {
+    if (onChange) onChange(url);
+    if (onImageUploaded) onImageUploaded(url);
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -25,6 +48,9 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
     setPreviewUrl(objectUrl)
     setError(null)
     setIsUploading(true)
+    
+    // Notify upload started
+    if (onUploadBegin) onUploadBegin()
 
     try {
       // Create form data
@@ -32,7 +58,7 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
       formData.append("file", file)
 
       // Upload the file
-      const response = await fetch("/api/upload", {
+      const response = await fetch(`/api/${endpoint}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth-token")}`,
@@ -46,7 +72,7 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
       }
 
       const data = await response.json()
-      onImageUploaded(data.url)
+      handleImageChange(data.url)
     } catch (error) {
       console.error("Upload error:", error)
       setError(error instanceof Error ? error.message : "Failed to upload image")
@@ -63,16 +89,19 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
 
   const handleRemoveImage = () => {
     setPreviewUrl(null)
-    onImageUploaded("")
+    handleImageChange("")
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <Label htmlFor="image-upload">Room Image</Label>
+    <div className={cn("space-y-2", className)}>
+      {!className?.includes("flex") && <Label htmlFor="image-upload">Room Image</Label>}
       
-      <div className="border border-dashed border-gray-300 rounded-md p-4">
+      <div className={cn(
+        "border border-dashed border-gray-300 rounded-md",
+        className?.includes("flex") ? "flex items-center" : "p-4"
+      )}>
         {previewUrl ? (
-          <div className="relative">
+          <div className="relative w-full">
             <div className="relative aspect-video w-full overflow-hidden rounded-md">
               <Image 
                 src={previewUrl} 
@@ -95,11 +124,21 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
         ) : (
           <label
             htmlFor="image-upload"
-            className="flex flex-col items-center justify-center py-6 cursor-pointer"
+            className={cn(
+              "flex items-center cursor-pointer w-full",
+              className?.includes("flex") ? "px-3 py-2" : "flex-col justify-center py-6"
+            )}
           >
-            <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
-            <span className="text-sm font-medium mb-1">Click to upload image</span>
-            <span className="text-xs text-muted-foreground">JPEG, PNG, WEBP, or GIF (max 5MB)</span>
+            <ImageIcon className={cn(
+              "text-muted-foreground",
+              className?.includes("flex") ? "h-4 w-4 mr-2" : "h-10 w-10 mb-2"
+            )} />
+            <div className={className?.includes("flex") ? "" : "text-center"}>
+              <span className="text-sm font-medium">Upload image</span>
+              {!className?.includes("flex") && (
+                <span className="text-xs text-muted-foreground block">JPEG, PNG, WEBP, or GIF (max 5MB)</span>
+              )}
+            </div>
           </label>
         )}
         
@@ -114,7 +153,7 @@ export function ImageUpload({ onImageUploaded, currentImage, className }: ImageU
         />
       </div>
       
-      {isUploading && (
+      {isUploading && !onUploadBegin && (
         <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
           Uploading image...

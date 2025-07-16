@@ -17,6 +17,7 @@ export interface Room {
   location: string
   capacity: number
   room_resources?: string[]
+  resources?: string[] // For compatibility with form data
   status: "available" | "maintenance" | "reserved"
   image?: string
   description?: string

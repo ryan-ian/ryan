@@ -1,17 +1,17 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { AuthProvider } from "@/contexts/auth-context"
-import { Toaster } from "@/components/ui/toaster"
-import { setupStorage } from "@/lib/setup-storage"
+import './globals.css'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/toaster'
+import { AuthProvider } from '@/contexts/auth-context'
+import { DisplaysStyleHandler } from '@/components/displays-style-handler'
+import { MainWrapper } from '@/components/main-wrapper'
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Conference Hub - Room Booking System",
-  description: "Professional conference room booking and management system",
-    generator: 'v0.dev'
+  title: 'Conference Room Booking',
+  description: 'Book conference rooms for your meetings',
 }
 
 export default function RootLayout({
@@ -19,18 +19,18 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Initialize storage bucket on app load
-  if (typeof window !== 'undefined') {
-    setupStorage().catch(console.error)
-  }
-
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <DisplaysStyleHandler />
+            <MainWrapper>
+              {children}
+            </MainWrapper>
+            <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

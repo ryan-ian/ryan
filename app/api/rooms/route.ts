@@ -39,13 +39,15 @@ export async function POST(request: NextRequest) {
     // For simplicity, we're assuming the token is valid and the user is an admin
 
     const roomData = await request.json()
+    
+    console.log("Received room data:", roomData)
 
     // Create the room in Supabase
     const newRoom = await createRoom({
       name: roomData.name,
       location: roomData.location,
       capacity: roomData.capacity,
-      room_resources: roomData.room_resources || [],
+      room_resources: roomData.resources || [], // Map resources to room_resources
       status: roomData.status || "available",
       image: roomData.image || null,
       description: roomData.description || null
@@ -71,6 +73,8 @@ export async function PUT(request: NextRequest) {
 
     const roomData = await request.json()
     
+    console.log("Updating room data:", roomData)
+    
     if (!roomData.id) {
       return NextResponse.json({ error: "Room ID is required" }, { status: 400 })
     }
@@ -80,7 +84,7 @@ export async function PUT(request: NextRequest) {
       name: roomData.name,
       location: roomData.location,
       capacity: roomData.capacity,
-      room_resources: roomData.room_resources,
+      room_resources: roomData.resources || roomData.room_resources, // Use resources field if available
       status: roomData.status,
       image: roomData.image,
       description: roomData.description

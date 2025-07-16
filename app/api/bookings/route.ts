@@ -11,9 +11,31 @@ export async function GET(request: NextRequest) {
     const roomId = searchParams.get("roomId")
     const startTime = searchParams.get("start")
     const endTime = searchParams.get("end")
+    const date = searchParams.get("date")
     
-    // For room-specific booking queries, we don't require authentication
-    // This allows the booking form to check availability without being logged in
+    // For room-specific booking queries with date only (for calendar view)
+    if (roomId && date) {
+      // Get bookings for a specific room on a specific date
+      const startOfDay = `${date}T00:00:00.000Z`
+      const endOfDay = `${date}T23:59:59.999Z`
+      
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('room_id', roomId)
+        .gte('start_time', startOfDay)
+        .lte('end_time', endOfDay)
+        .in('status', ['confirmed', 'pending'])
+      
+      if (error) {
+        console.error('Error fetching room bookings for date:', error)
+        return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
+      }
+      
+      return NextResponse.json(data || [])
+    }
+    
+    // For room-specific booking queries with time range
     if (roomId && startTime && endTime) {
       // Get bookings for a specific room within a time range
       const { data, error } = await supabase

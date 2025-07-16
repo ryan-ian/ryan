@@ -2,37 +2,19 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Building, ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ImageUpload } from "@/components/ui/image-upload"
-import { ResourceIcon } from "@/components/ui/resource-icon"
-import type { Room, Resource } from "@/types"
+import type { Resource } from "@/types"
+import { RoomForm } from "@/components/forms/room-form"
 
 export default function NewRoomPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<Omit<Room, "id">>({
-    name: "",
-    location: "",
-    capacity: 0,
-    status: "available",
-    description: "",
-    image: "",
-    room_resources: []
-  })
   const [resources, setResources] = useState<Resource[]>([])
   const [isLoadingResources, setIsLoadingResources] = useState(true)
-  const [resourcesByType, setResourcesByType] = useState<Record<string, Resource[]>>({})
 
   // Fetch available resources
   useEffect(() => {
@@ -51,16 +33,6 @@ export default function NewRoomPage() {
         
         const data = await response.json()
         setResources(data)
-        
-        // Group resources by type
-        const groupedResources: Record<string, Resource[]> = {}
-        data.forEach((resource: Resource) => {
-          if (!groupedResources[resource.type]) {
-            groupedResources[resource.type] = []
-          }
-          groupedResources[resource.type].push(resource)
-        })
-        setResourcesByType(groupedResources)
       } catch (error) {
         console.error("Error fetching resources:", error)
         toast({
@@ -76,52 +48,7 @@ export default function NewRoomPage() {
     fetchResources()
   }, [toast])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: parseInt(value) || 0 }))
-  }
-
-  const handleStatusChange = (value: string) => {
-    setFormData(prev => ({ ...prev, status: value as "available" | "maintenance" | "reserved" }))
-  }
-
-  const handleImageUploaded = (url: string) => {
-    setFormData(prev => ({ ...prev, image: url }))
-  }
-
-  const handleResourceChange = (resourceId: string, checked: boolean) => {
-    setFormData(prev => {
-      if (checked) {
-        return {
-          ...prev,
-          room_resources: [...(prev.room_resources || []), resourceId]
-        }
-      } else {
-        return {
-          ...prev,
-          room_resources: (prev.room_resources || []).filter(id => id !== resourceId)
-        }
-      }
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.location || formData.capacity <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      })
-      return
-    }
-    
+  const handleSubmit = async (formData: any) => {
     setIsSubmitting(true)
     
     try {
@@ -176,151 +103,20 @@ export default function NewRoomPage() {
         </div>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Room Details</CardTitle>
-          <CardDescription>Enter information for the new conference room</CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Room Name <span className="text-destructive">*</span></Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Executive Meeting Room"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="location">Location <span className="text-destructive">*</span></Label>
-                <Input
-                  id="location"
-                  name="location"
-                  placeholder="Floor 3, East Wing"
-                  value={formData.location}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity <span className="text-destructive">*</span></Label>
-                <Input
-                  id="capacity"
-                  name="capacity"
-                  type="number"
-                  min="1"
-                  placeholder="12"
-                  value={formData.capacity || ""}
-                  onChange={handleNumberChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={handleStatusChange}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="reserved">Reserved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="md:col-span-2">
-                <ImageUpload 
-                  onImageUploaded={handleImageUploaded}
-                  currentImage={formData.image}
-                />
-              </div>
-              
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="resources">Available Resources</Label>
-                {isLoadingResources ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Loading resources...</span>
-                  </div>
-                ) : (
-                  <div className="border rounded-md p-4 space-y-4">
-                    {Object.entries(resourcesByType).length > 0 ? (
-                      Object.entries(resourcesByType).map(([type, typeResources]) => (
-                        <div key={type} className="space-y-2">
-                          <h3 className="text-sm font-medium capitalize">{type}</h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {typeResources.map((resource) => (
-                              <div 
-                                key={resource.id} 
-                                className={`flex items-center space-x-2 p-2 rounded-md border transition-colors ${
-                                  formData.room_resources?.includes(resource.id) 
-                                    ? 'border-primary bg-primary/5' 
-                                    : 'border-transparent hover:bg-accent'
-                                }`}
-                              >
-                                <Checkbox 
-                                  id={`resource-${resource.id}`}
-                                  checked={formData.room_resources?.includes(resource.id)}
-                                  onCheckedChange={(checked) => handleResourceChange(resource.id, !!checked)}
-                                />
-                                <label 
-                                  htmlFor={`resource-${resource.id}`} 
-                                  className="text-sm flex items-center gap-2 cursor-pointer flex-1"
-                                >
-                                  <ResourceIcon type={resource.type} name={resource.name} size="sm" />
-                                  <span>{resource.name}</span>
-                                  {resource.status !== "available" && (
-                                    <Badge variant="outline" className="ml-auto text-xs">
-                                      {resource.status}
-                                    </Badge>
-                                  )}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No resources available</p>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="Enter a description of the room..."
-                  value={formData.description || ""}
-                  onChange={handleChange}
-                  rows={4}
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" type="button" onClick={() => router.push("/admin/conference/rooms")}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Room
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {isLoadingResources ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Loading resources...</p>
+        </div>
+      ) : (
+        <RoomForm
+          resources={resources}
+          onSubmit={handleSubmit}
+          isLoading={isSubmitting}
+          submitLabel="Create Room"
+          cancelHref="/admin/conference/rooms"
+        />
+      )}
     </div>
   )
 } 

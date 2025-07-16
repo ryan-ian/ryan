@@ -127,11 +127,11 @@ const RoomCard = ({
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>Capacity: {room.capacity} people</span>
           </div>
-          {room.features && room.features.length > 0 && (
+          {room.room_resources && room.room_resources.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {room.features.map((feature) => (
-                <Badge key={feature} variant="outline" className="text-xs">
-                  {feature}
+              {room.room_resources.map((resourceId) => (
+                <Badge key={resourceId} variant="outline" className="text-xs">
+                  {resourceId}
                 </Badge>
               ))}
             </div>
@@ -157,14 +157,20 @@ const TimeSlot = ({
   return (
     <div
       className={cn(
-        "px-3 py-2 rounded-md text-sm cursor-pointer transition-colors",
+        "px-3 py-2 rounded-md text-sm transition-all",
         isSelected ? "bg-primary text-primary-foreground" : 
-        isAvailable ? "bg-background hover:bg-muted border" : 
-        "bg-muted/50 text-muted-foreground cursor-not-allowed opacity-60"
+        isAvailable ? "bg-background hover:bg-muted border cursor-pointer" : 
+        "bg-muted/30 text-muted-foreground cursor-not-allowed opacity-60 blur-[0.3px] border-dashed border-muted"
       )}
       onClick={() => isAvailable && onSelect()}
+      title={isAvailable ? `Select ${time}` : `Already booked at ${time}`}
     >
       {time}
+      {!isAvailable && (
+        <div className="flex items-center justify-center mt-1">
+          <span className="text-[10px] text-muted-foreground">Booked</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -251,41 +257,99 @@ export default function NewBookingPage() {
     fetchData()
   }, [preselectedRoomId])
 
-  // Filter rooms based on selected resources
+  // Filter rooms based on selected resources and capacity
   useEffect(() => {
-    if (formData.selectedResources.length === 0) {
-      setFilteredRooms(rooms)
-      return
-    }
+    const attendeesCount = parseInt(formData.attendees) || 0
     
     const filtered = rooms.filter((room) => {
-      if (!room.resources) return false
-      return formData.selectedResources.every((resourceId) => 
-        room.resources?.includes(resourceId)
-      )
+      // Capacity check
+      if (attendeesCount > 0 && room.capacity < attendeesCount) {
+        return false
+      }
+      
+      // Resources check
+      if (formData.selectedResources.length > 0) {
+        if (!room.room_resources) return false
+        return formData.selectedResources.every((resourceId) => 
+          room.room_resources?.includes(resourceId)
+        )
+      }
+      
+      return true
     })
     
     setFilteredRooms(filtered)
-  }, [formData.selectedResources, rooms])
+  }, [formData.selectedResources, formData.attendees, rooms])
 
   // Generate time slots for selected date and room
   useEffect(() => {
     if (formData.date && formData.room_id) {
       // Generate all possible time slots from 8 AM to 6 PM
-      const allTimeSlots = []
+      const allTimeSlots: string[] = []
       for (let hour = 8; hour <= 18; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
-          const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
           allTimeSlots.push(timeString)
         }
       }
       
-      // Simulate fetching booked slots from API
-      // In a real app, you would fetch this data from your API
-      const simulateBookedSlots = ["09:00", "09:30", "13:00", "13:30", "14:00"]
+      // Fetch actual booked slots from API
+      const fetchBookedSlots = async () => {
+        try {
+          const formattedDate = format(formData.date!, 'yyyy-MM-dd')
+          
+          // Construct the date range for the selected day (from 00:00 to 23:59)
+          const startOfDay = `${formattedDate}T00:00:00`
+          const endOfDay = `${formattedDate}T23:59:59`
+          
+          const response = await fetch(`/api/bookings?roomId=${formData.room_id}&start=${startOfDay}&end=${endOfDay}`)
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch bookings')
+          }
+          
+          const bookings = await response.json()
+          
+          // Extract booked time slots from bookings
+          const bookedSlots: string[] = []
+          
+          for (const booking of bookings) {
+            if (booking.status === 'confirmed' || booking.status === 'pending') {
+              // Extract just the time part (HH:MM) from the datetime strings
+              const startTime = booking.start_time.split('T')[1].substring(0, 5)
+              const endTime = booking.end_time.split('T')[1].substring(0, 5)
+              
+              // Add all time slots between start and end time
+              let currentSlot = startTime
+              while (currentSlot < endTime) {
+                bookedSlots.push(currentSlot)
+                
+                // Move to next 30-minute slot
+                const [hours, minutes] = currentSlot.split(':').map(Number)
+                let newMinutes = minutes + 30
+                let newHours = hours
+                
+                if (newMinutes >= 60) {
+                  newMinutes = 0
+                  newHours += 1
+                }
+                
+                currentSlot = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`
+              }
+            }
+          }
+          
+          setAvailableTimeSlots(allTimeSlots.filter(slot => !bookedSlots.includes(slot)))
+          setBookedTimeSlots(bookedSlots)
+        } catch (error) {
+          console.error('Error fetching booked slots:', error)
+          // Fallback to showing all slots as available
+          setAvailableTimeSlots(allTimeSlots)
+          setBookedTimeSlots([])
+        }
+      }
       
-      setAvailableTimeSlots(allTimeSlots.filter(slot => !simulateBookedSlots.includes(slot)))
-      setBookedTimeSlots(simulateBookedSlots)
+      fetchBookedSlots()
     }
   }, [formData.date, formData.room_id])
 
@@ -612,15 +676,32 @@ export default function NewBookingPage() {
         
       case 3: // Time Selection
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <p className="text-sm text-muted-foreground">
-              Select a start and end time for your meeting. Gray slots are already booked.
+              Select a start and end time for your meeting. Booked time slots are blurred out and unavailable.
             </p>
             
-            <div className="space-y-4">
+            <div className="bg-muted/20 p-4 rounded-md">
+              <div className="flex items-center mb-2 text-sm">
+                <div className="flex items-center mr-4">
+                  <div className="w-3 h-3 bg-background border rounded-sm mr-1"></div>
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center mr-4">
+                  <div className="w-3 h-3 bg-primary rounded-sm mr-1"></div>
+                  <span>Selected</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-muted/30 blur-[0.3px] border-dashed border-muted rounded-sm mr-1"></div>
+                  <span>Booked</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
               <div>
-                <Label>Start Time *</Label>
-                <div className="grid grid-cols-4 gap-2 mt-2">
+                <Label className="text-base font-medium">Start Time *</Label>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mt-3">
                   {availableTimeSlots.map((time) => (
                     <TimeSlot
                       key={`start-${time}`}
@@ -640,8 +721,8 @@ export default function NewBookingPage() {
               </div>
               
               <div>
-                <Label>End Time *</Label>
-                <div className="grid grid-cols-4 gap-2 mt-2">
+                <Label className="text-base font-medium">End Time *</Label>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mt-3">
                   {availableTimeSlots.map((time) => (
                     <TimeSlot
                       key={`end-${time}`}

@@ -1,10 +1,38 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails } from "@/lib/supabase-data"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get("authorization")?.replace("Bearer ", "")
-
+    const searchParams = request.nextUrl.searchParams
+    
+    // Extract query parameters
+    const roomId = searchParams.get("roomId")
+    const startTime = searchParams.get("start")
+    const endTime = searchParams.get("end")
+    
+    // For room-specific booking queries, we don't require authentication
+    // This allows the booking form to check availability without being logged in
+    if (roomId && startTime && endTime) {
+      // Get bookings for a specific room within a time range
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('room_id', roomId)
+        .gte('start_time', startTime)
+        .lte('end_time', endTime)
+        .in('status', ['confirmed', 'pending'])
+      
+      if (error) {
+        console.error('Error fetching room bookings:', error)
+        return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
+      }
+      
+      return NextResponse.json(data || [])
+    }
+    
+    // For all other booking queries, require authentication
     if (!token) {
       return NextResponse.json({ error: "Authorization required" }, { status: 401 })
     }

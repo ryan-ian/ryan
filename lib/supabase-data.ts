@@ -63,16 +63,51 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 // Rooms
 export async function getRooms(): Promise<Room[]> {
   try {
-    const { data, error } = await supabase
+    // Get all rooms with their resources
+    const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
       .select('*')
       
-    if (error) {
-      console.error('Error fetching rooms:', error)
-      throw error
+    if (roomsError) {
+      console.error('Error fetching rooms:', roomsError)
+      throw roomsError
     }
     
-    return data || []
+    if (!rooms || rooms.length === 0) {
+      return []
+    }
+    
+    // For each room, get the resource details
+    const roomsWithResourceDetails = await Promise.all(rooms.map(async (room) => {
+      // If the room has no resources, return as is
+      if (!room.room_resources || room.room_resources.length === 0) {
+        return {
+          ...room,
+          resourceDetails: []
+        }
+      }
+      
+      // Get details for each resource
+      const { data: resourceDetails, error: resourcesError } = await supabase
+        .from('resources')
+        .select('*')
+        .in('id', room.room_resources)
+      
+      if (resourcesError) {
+        console.error(`Error fetching resource details for room ${room.id}:`, resourcesError)
+        return {
+          ...room,
+          resourceDetails: []
+        }
+      }
+      
+      return {
+        ...room,
+        resourceDetails: resourceDetails || []
+      }
+    }))
+    
+    return roomsWithResourceDetails || []
   } catch (error) {
     console.error('Exception in getRooms:', error)
     throw error
@@ -81,18 +116,46 @@ export async function getRooms(): Promise<Room[]> {
 
 export async function getRoomById(id: string): Promise<Room | null> {
   try {
-    const { data, error } = await supabase
+    // Get the room with its resources
+    const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select('*')
       .eq('id', id)
       .single()
       
-    if (error) {
-      console.error(`Error fetching room ${id}:`, error)
-      throw error
+    if (roomError) {
+      console.error(`Error fetching room ${id}:`, roomError)
+      throw roomError
     }
     
-    return data
+    if (!room) return null
+    
+    // If the room has no resources, return as is
+    if (!room.room_resources || room.room_resources.length === 0) {
+      return {
+        ...room,
+        resourceDetails: []
+      }
+    }
+    
+    // Get details for each resource
+    const { data: resourceDetails, error: resourcesError } = await supabase
+      .from('resources')
+      .select('*')
+      .in('id', room.room_resources)
+    
+    if (resourcesError) {
+      console.error(`Error fetching resource details for room ${id}:`, resourcesError)
+      return {
+        ...room,
+        resourceDetails: []
+      }
+    }
+    
+    return {
+      ...room,
+      resourceDetails: resourceDetails || []
+    }
   } catch (error) {
     console.error('Exception in getRoomById:', error)
     throw error
@@ -101,18 +164,17 @@ export async function getRoomById(id: string): Promise<Room | null> {
 
 export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
   try {
-    // Direct table insert approach - we'll rely on proper RLS policies
-    const { data, error } = await supabase
+    // Create the room with resources directly in the room record
+    const { data: room, error } = await supabase
       .from('rooms')
       .insert({
         name: roomInput.name,
         location: roomInput.location,
         capacity: roomInput.capacity,
-        features: roomInput.features,
-        status: roomInput.status,
+        room_resources: roomInput.room_resources || [],
+        status: roomInput.status || 'available',
         image: roomInput.image || null,
-        description: roomInput.description || null,
-        resources: roomInput.resources || []
+        description: roomInput.description || null
       })
       .select()
       .single()
@@ -122,7 +184,8 @@ export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
       throw error
     }
     
-    return data
+    // Return the room with resource details
+    return getRoomById(room.id) as Promise<Room>
   } catch (error) {
     console.error('Exception in createRoom:', error)
     throw error
@@ -131,18 +194,17 @@ export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
 
 export async function updateRoom(id: string, roomInput: Partial<Room>): Promise<Room> {
   try {
-    // Direct table update approach - we'll rely on proper RLS policies
-    const { data, error } = await supabase
+    // Update the room with resources directly in the room record
+    const { data: room, error } = await supabase
       .from('rooms')
       .update({
         name: roomInput.name,
         location: roomInput.location,
         capacity: roomInput.capacity,
-        features: roomInput.features,
+        room_resources: roomInput.room_resources,
         status: roomInput.status,
-        image: roomInput.image || null,
-        description: roomInput.description || null,
-        resources: roomInput.resources || []
+        image: roomInput.image,
+        description: roomInput.description
       })
       .eq('id', id)
       .select()
@@ -153,7 +215,8 @@ export async function updateRoom(id: string, roomInput: Partial<Room>): Promise<
       throw error
     }
     
-    return data
+    // Return the room with resource details
+    return getRoomById(id) as Promise<Room>
   } catch (error) {
     console.error('Exception in updateRoom:', error)
     throw error
@@ -162,11 +225,15 @@ export async function updateRoom(id: string, roomInput: Partial<Room>): Promise<
 
 export async function deleteRoom(id: string): Promise<boolean> {
   try {
-    // First check if there are any bookings for this room
-    const { data: bookings, error: bookingError } = await supabase
+    // First check if there are any active or future bookings for this room
+    const currentDate = new Date().toISOString()
+    
+    const { data: activeBookings, error: bookingError } = await supabase
       .from('bookings')
       .select('id')
       .eq('room_id', id)
+      .neq('status', 'cancelled') // Exclude cancelled bookings
+      .gt('end_time', currentDate) // Only include future or ongoing bookings
       .limit(1)
       
     if (bookingError) {
@@ -174,9 +241,9 @@ export async function deleteRoom(id: string): Promise<boolean> {
       throw bookingError
     }
     
-    // If there are bookings, don't allow deletion
-    if (bookings && bookings.length > 0) {
-      throw new Error('Cannot delete room with existing bookings')
+    // If there are active or future bookings, don't allow deletion
+    if (activeBookings && activeBookings.length > 0) {
+      throw new Error('Cannot delete room with active or future bookings. Cancel all active bookings first.')
     }
     
     // Delete the room
@@ -508,6 +575,27 @@ export async function adminGetAllBookings(): Promise<Booking[]> {
   }
 }
 
+export async function adminCreateResource(resourceData: Omit<Resource, 'id'>): Promise<Resource> {
+  try {
+    const adminClient = createAdminClient()
+    const { data, error } = await adminClient
+      .from('resources')
+      .insert(resourceData)
+      .select()
+      .single()
+      
+    if (error) {
+      console.error('Error creating resource:', error)
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Exception in adminCreateResource:', error)
+    throw error
+  }
+}
+
 // Check for booking conflicts
 export async function checkBookingConflicts(
   room_id: string, 
@@ -581,5 +669,225 @@ export async function getAvailableRooms(start_time: string, end_time: string): P
   } catch (error) {
     console.error('Exception in getAvailableRooms:', error)
     throw error
+  }
+} 
+
+// New function to assign a resource to a room
+export async function assignResourceToRoom(
+  roomId: string, 
+  resourceId: string, 
+  quantity: number = 1
+): Promise<boolean> {
+  try {
+    console.log(`Attempting to assign resource ${resourceId} to room ${roomId} with quantity ${quantity}`)
+    
+    // Check if the assignment already exists
+    const { data: existing, error: checkError } = await supabase
+      .from('room_resources')
+      .select('id')
+      .eq('room_id', roomId)
+      .eq('resource_id', resourceId)
+      .single()
+    
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error checking existing room resource:', checkError)
+      throw checkError
+    }
+    
+    if (existing) {
+      console.log(`Resource ${resourceId} already assigned to room ${roomId}, updating quantity to ${quantity}`)
+      // Update existing assignment
+      const { error } = await supabase
+        .from('room_resources')
+        .update({ quantity })
+        .eq('id', existing.id)
+      
+      if (error) {
+        console.error('Error updating room resource:', error)
+        throw error
+      }
+    } else {
+      console.log(`Creating new assignment for resource ${resourceId} to room ${roomId}`)
+      // Create new assignment
+      const { data, error } = await supabase
+        .from('room_resources')
+        .insert({
+          room_id: roomId,
+          resource_id: resourceId,
+          quantity
+        })
+      
+      if (error) {
+        console.error('Error assigning resource to room:', error)
+        console.error('Error details:', JSON.stringify(error))
+        throw error
+      }
+      
+      console.log('Resource assignment successful:', data)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Exception in assignResourceToRoom:', error)
+    throw error
+  }
+}
+
+// New function to remove a resource from a room
+export async function removeResourceFromRoom(roomId: string, resourceId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('room_resources')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('resource_id', resourceId)
+    
+    if (error) {
+      console.error('Error removing resource from room:', error)
+      throw error
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Exception in removeResourceFromRoom:', error)
+    throw error
+  }
+}
+
+// New function to remove all resources from a room
+export async function removeAllResourcesFromRoom(roomId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('room_resources')
+      .delete()
+      .eq('room_id', roomId)
+    
+    if (error) {
+      console.error('Error removing all resources from room:', error)
+      throw error
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Exception in removeAllResourcesFromRoom:', error)
+    throw error
+  }
+}
+
+// New function to get resources for a specific room
+export async function getResourcesForRoom(roomId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('room_resources')
+      .select(`
+        resource_id,
+        quantity,
+        resources:resource_id (
+          id,
+          name,
+          type,
+          status,
+          description
+        )
+      `)
+      .eq('room_id', roomId)
+    
+    if (error) {
+      console.error(`Error fetching resources for room ${roomId}:`, error)
+      throw error
+    }
+    
+    return data.map(item => ({
+      ...item.resources,
+      quantity: item.quantity
+    })) || []
+  } catch (error) {
+    console.error('Exception in getResourcesForRoom:', error)
+    throw error
+  }
+}
+
+// New function to get rooms that have a specific resource
+export async function getRoomsWithResource(resourceId: string): Promise<Room[]> {
+  try {
+    const { data: rooms, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .contains('room_resources', [resourceId])
+    
+    if (error) {
+      console.error(`Error fetching rooms with resource ${resourceId}:`, error)
+      throw error
+    }
+    
+    return rooms || []
+  } catch (error) {
+    console.error('Exception in getRoomsWithResource:', error)
+    throw error
+  }
+} 
+
+// Image upload functions
+export async function uploadRoomImage(file: File): Promise<string | null> {
+  try {
+    // Create a unique file name
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+    const filePath = `room-images/${fileName}`
+    
+    console.log(`Attempting to upload file to path: ${filePath}`)
+    
+    // Upload the file to Supabase Storage
+    const { data, error } = await supabase
+      .storage
+      .from('conference-hub')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true // Changed from false to true
+      })
+    
+    if (error) {
+      console.error('Error uploading image:', error)
+      throw error
+    }
+    
+    console.log('File uploaded successfully:', data)
+    
+    // Get the public URL
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('conference-hub')
+      .getPublicUrl(data.path)
+    
+    console.log('Generated public URL:', publicUrlData)
+    
+    return publicUrlData.publicUrl
+  } catch (error) {
+    console.error('Exception in uploadRoomImage:', error)
+    throw error
+  }
+}
+
+export async function deleteRoomImage(imageUrl: string): Promise<boolean> {
+  try {
+    // Extract the path from the URL
+    const baseUrl = supabase.storage.from('conference-hub').getPublicUrl('').data.publicUrl
+    const path = imageUrl.replace(baseUrl, '')
+    
+    // Delete the file
+    const { error } = await supabase
+      .storage
+      .from('conference-hub')
+      .remove([path])
+    
+    if (error) {
+      console.error('Error deleting image:', error)
+      throw error
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Exception in deleteRoomImage:', error)
+    return false
   }
 } 

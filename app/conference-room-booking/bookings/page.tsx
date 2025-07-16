@@ -10,9 +10,13 @@ import { Calendar, Clock, MapPin, Search, Filter, Plus, Eye, Edit, Trash2, Build
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import type { Booking, Room } from "@/types"
+import { BookingDetailsModal } from "./booking-details-modal"
+import { CancelBookingDialog } from "./cancel-booking-dialog"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function BookingsPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([])
@@ -20,6 +24,13 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
+  
+  // Modal state
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
+  const [isCancelling, setIsCancelling] = useState(false)
 
   useEffect(() => {
     fetchBookings()
@@ -120,6 +131,10 @@ export default function BookingsPage() {
     return room?.location || "Unknown location"
   }
 
+  const getRoom = (roomId: string) => {
+    return rooms.find((r) => r.id === roomId) || null
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
@@ -174,6 +189,69 @@ export default function BookingsPage() {
       upcoming: upcoming.length,
       today: today.length,
       pending: bookings.filter((b) => b.status === "pending").length,
+    }
+  }
+
+  // Handle opening the booking details modal
+  const handleViewBooking = (booking: Booking) => {
+    setSelectedBooking(booking)
+    setIsDetailsModalOpen(true)
+  }
+
+  // Handle initiating booking cancellation
+  const handleCancelClick = (bookingId: string) => {
+    setBookingToCancel(bookingId)
+    setIsCancelDialogOpen(true)
+  }
+
+  // Handle confirming booking cancellation
+  const handleCancelConfirm = async () => {
+    if (!bookingToCancel) return
+
+    setIsCancelling(true)
+
+    try {
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch(`/api/bookings/${bookingToCancel}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to cancel booking")
+      }
+
+      // Update the booking in the local state
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === bookingToCancel 
+            ? { ...booking, status: "cancelled" } 
+            : booking
+        )
+      )
+
+      // If the cancelled booking is currently selected in the modal, update it
+      if (selectedBooking && selectedBooking.id === bookingToCancel) {
+        setSelectedBooking({ ...selectedBooking, status: "cancelled" })
+      }
+
+      toast({
+        title: "Booking Cancelled",
+        description: "Your booking has been cancelled successfully.",
+      })
+    } catch (error) {
+      console.error("Error cancelling booking:", error)
+      toast({
+        title: "Error",
+        description: "Failed to cancel booking. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCancelling(false)
+      setIsCancelDialogOpen(false)
+      setBookingToCancel(null)
     }
   }
 
@@ -381,20 +459,32 @@ export default function BookingsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/conference-room-booking/bookings/${booking.id}`}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleViewBooking(booking)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
                   </Button>
                   {booking.status === "pending" && (
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      asChild
+                    >
+                      <Link href={`/conference-room-booking/bookings/${booking.id}/edit`}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Link>
                     </Button>
                   )}
                   {(booking.status === "pending" || booking.status === "confirmed") && (
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleCancelClick(booking.id)}
+                    >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Cancel
                     </Button>
@@ -425,6 +515,23 @@ export default function BookingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Booking Details Modal */}
+      <BookingDetailsModal
+        booking={selectedBooking}
+        room={selectedBooking ? getRoom(selectedBooking.room_id) : null}
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        onCancel={handleCancelClick}
+      />
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <CancelBookingDialog
+        isOpen={isCancelDialogOpen}
+        isLoading={isCancelling}
+        onClose={() => setIsCancelDialogOpen(false)}
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   )
 }

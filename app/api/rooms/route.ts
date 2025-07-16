@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       name: roomData.name,
       location: roomData.location,
       capacity: roomData.capacity,
-      features: roomData.features || [],
+      room_resources: roomData.room_resources || [],
       status: roomData.status || "available",
       image: roomData.image || null,
       description: roomData.description || null
@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest) {
       name: roomData.name,
       location: roomData.location,
       capacity: roomData.capacity,
-      features: roomData.features,
+      room_resources: roomData.room_resources,
       status: roomData.status,
       image: roomData.image,
       description: roomData.description
@@ -119,10 +119,12 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Delete room error:", error)
     
-    if (error instanceof Error && error.message === 'Cannot delete room with existing bookings') {
-      return NextResponse.json({ 
-        error: "Cannot delete room with existing bookings. Cancel or reassign all bookings first." 
-      }, { status: 409 })
+    if (error instanceof Error) {
+      if (error.message.includes('Cannot delete room with active or future bookings')) {
+        return NextResponse.json({ 
+          error: error.message
+        }, { status: 409 })
+      }
     }
     
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

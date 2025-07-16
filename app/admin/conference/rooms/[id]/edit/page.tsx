@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,29 +17,31 @@ import { Checkbox } from "@/components/ui/checkbox"
 import type { Room, Resource } from "@/types"
 
 export default function EditRoomPage({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const unwrappedParams = React.use(params);
+  const roomId = unwrappedParams.id;
+  
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState<Room>({
-    id: params.id,
+    id: roomId,
     name: "",
     location: "",
     capacity: 0,
-    features: [],
     status: "available",
     description: "",
     image: null,
-    resources: []
+    room_resources: []
   })
-  const [newFeature, setNewFeature] = useState("")
   const [resources, setResources] = useState<Resource[]>([])
   const [isLoadingResources, setIsLoadingResources] = useState(true)
 
   useEffect(() => {
     const fetchRoom = async () => {
       try {
-        const response = await fetch(`/api/rooms?id=${params.id}`)
+        const response = await fetch(`/api/rooms?id=${roomId}`)
         
         if (!response.ok) {
           throw new Error("Room not found")
@@ -48,7 +51,7 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
         setFormData({
           ...room,
           image: room.image || "",
-          resources: room.resources || []
+          room_resources: room.room_resources || []
         })
       } catch (error) {
         console.error("Failed to fetch room:", error)
@@ -64,7 +67,7 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
     }
     
     fetchRoom()
-  }, [params.id, router, toast])
+  }, [roomId, router, toast])
 
   // Fetch available resources
   useEffect(() => {
@@ -112,34 +115,17 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
     setFormData(prev => ({ ...prev, status: value }))
   }
 
-  const addFeature = () => {
-    if (newFeature.trim() && !formData.features.includes(newFeature.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        features: [...prev.features, newFeature.trim()]
-      }))
-      setNewFeature("")
-    }
-  }
-
-  const removeFeature = (feature: string) => {
-    setFormData(prev => ({
-      ...prev,
-      features: prev.features.filter(f => f !== feature)
-    }))
-  }
-
   const handleResourceChange = (resourceId: string, checked: boolean) => {
     setFormData(prev => {
       if (checked) {
         return {
           ...prev,
-          resources: [...(prev.resources || []), resourceId]
+          room_resources: [...(prev.room_resources || []), resourceId]
         }
       } else {
         return {
           ...prev,
-          resources: (prev.resources || []).filter(id => id !== resourceId)
+          room_resources: (prev.room_resources || []).filter(id => id !== resourceId)
         }
       }
     })
@@ -216,7 +202,7 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Edit Room</h2>
-          <p className="text-muted-foreground">Update conference room details</p>
+          <p className="text-muted-foreground">Update the information for this conference room</p>
         </div>
       </div>
       
@@ -291,38 +277,6 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="features">Features</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="newFeature"
-                    value={newFeature}
-                    onChange={(e) => setNewFeature(e.target.value)}
-                    placeholder="Add feature (e.g., Projector)"
-                  />
-                  <Button type="button" onClick={addFeature} variant="secondary">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.features.map((feature, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                      {feature}
-                      <button
-                        type="button"
-                        onClick={() => removeFeature(feature)}
-                        className="rounded-full hover:bg-muted p-1"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  {formData.features.length === 0 && (
-                    <span className="text-sm text-muted-foreground">No features added</span>
-                  )}
-                </div>
-              </div>
-
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="resources">Available Resources</Label>
                 {isLoadingResources ? (
@@ -337,7 +291,7 @@ export default function EditRoomPage({ params }: { params: { id: string } }) {
                         <div key={resource.id} className="flex items-center space-x-2">
                           <Checkbox 
                             id={`resource-${resource.id}`}
-                            checked={formData.resources?.includes(resource.id)}
+                            checked={formData.room_resources?.includes(resource.id)}
                             onCheckedChange={(checked) => handleResourceChange(resource.id, !!checked)}
                           />
                           <label 

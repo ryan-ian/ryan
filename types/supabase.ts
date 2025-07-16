@@ -53,7 +53,7 @@ export interface Database {
           name: string
           location: string
           capacity: number
-          features: string[]
+          room_resources: string[] | null
           status: "available" | "maintenance" | "reserved"
           image: string | null
           description: string | null
@@ -63,7 +63,7 @@ export interface Database {
           name: string
           location: string
           capacity: number
-          features: string[]
+          room_resources?: string[] | null
           status?: "available" | "maintenance" | "reserved"
           image?: string | null
           description?: string | null
@@ -73,7 +73,7 @@ export interface Database {
           name?: string
           location?: string
           capacity?: number
-          features?: string[]
+          room_resources?: string[] | null
           status?: "available" | "maintenance" | "reserved"
           image?: string | null
           description?: string | null

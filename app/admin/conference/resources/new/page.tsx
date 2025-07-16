@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import type { Resource } from "@/types"
+import { supabase } from '@/lib/supabase'
 
 export default function NewResourcePage() {
   const router = useRouter()
@@ -64,7 +65,14 @@ export default function NewResourcePage() {
     setIsSubmitting(true)
     
     try {
-      const token = localStorage.getItem("auth-token")
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+      
       const response = await fetch("/api/resources", {
         method: "POST",
         headers: {

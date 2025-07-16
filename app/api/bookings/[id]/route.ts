@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getBookingById, updateBooking } from "@/lib/supabase-data"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(
   request: NextRequest,
@@ -93,13 +94,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
     
-    // Instead of deleting, we'll mark it as cancelled
-    const updatedBooking = await updateBooking(bookingId, {
-      status: "cancelled",
-      updated_at: new Date().toISOString()
-    })
+    // Delete the booking from the database
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', bookingId)
+      
+    if (error) {
+      console.error(`Error deleting booking ${bookingId}:`, error)
+      return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 })
+    }
     
-    return NextResponse.json(updatedBooking)
+    return NextResponse.json({ success: true, message: "Booking deleted successfully" })
   } catch (error) {
     console.error("Delete booking error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

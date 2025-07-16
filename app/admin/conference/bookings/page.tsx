@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle, ArrowUpDown } from "lucide-react"
+import { Search, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle, ArrowUpDown, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ export default function BookingManagement() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [processingStatus, setProcessingStatus] = useState(false)
 
@@ -156,6 +157,11 @@ export default function BookingManagement() {
     setCancelDialogOpen(true)
   }
 
+  const openDeleteDialog = (bookingId: string) => {
+    setSelectedBookingId(bookingId)
+    setDeleteDialogOpen(true)
+  }
+
   const handleStatusChange = async (newStatus: "confirmed" | "cancelled") => {
     if (!selectedBookingId) return
     
@@ -205,6 +211,47 @@ export default function BookingManagement() {
       setProcessingStatus(false)
       setConfirmDialogOpen(false)
       setCancelDialogOpen(false)
+      setSelectedBookingId(null)
+    }
+  }
+
+  const handleDeleteBooking = async () => {
+    if (!selectedBookingId) return
+    
+    setProcessingStatus(true)
+    
+    try {
+      const response = await fetch(`/api/bookings/${selectedBookingId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("auth-token")}`,
+        },
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete booking")
+      }
+      
+      // Remove the booking from the state
+      const updatedBookings = bookings.filter(booking => booking.id !== selectedBookingId)
+      setBookings(updatedBookings)
+      
+      toast({
+        title: "Booking Deleted",
+        description: "The booking has been deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Failed to delete booking:", error)
+      
+      toast({
+        title: "Error",
+        description: "Failed to delete booking. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingStatus(false)
+      setDeleteDialogOpen(false)
       setSelectedBookingId(null)
     }
   }
@@ -416,6 +463,15 @@ export default function BookingManagement() {
                               </Button>
                             </>
                           )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive"
+                            onClick={() => openDeleteDialog(booking.id)}
+                            disabled={processingStatus}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -476,6 +532,28 @@ export default function BookingManagement() {
               className="bg-destructive hover:bg-destructive/90"
             >
               {processingStatus ? "Rejecting..." : "Reject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this booking? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBooking}
+              disabled={processingStatus}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {processingStatus ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

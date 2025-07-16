@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +10,7 @@ import { ArrowLeft, Edit, Trash2, Building, Users, MapPin, CheckCircle } from "l
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import type { Room, Resource } from "@/types"
+import { ResourceIcon } from "@/components/ui/resource-icon"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,10 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export default function RoomDetailPage({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const unwrappedParams = React.use(params);
+  const roomId = unwrappedParams.id;
+  
   const router = useRouter()
   const { toast } = useToast()
   const [room, setRoom] = useState<Room | null>(null)
@@ -33,7 +39,7 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchRoom = async () => {
       try {
-        const response = await fetch(`/api/rooms?id=${params.id}`)
+        const response = await fetch(`/api/rooms?id=${roomId}`)
         
         if (!response.ok) {
           throw new Error("Room not found")
@@ -74,14 +80,14 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
     }
     
     fetchRoom()
-  }, [params.id, router, toast])
+  }, [roomId, router, toast])
 
   const handleDelete = async () => {
     setIsDeleting(true)
     
     try {
       const token = localStorage.getItem("auth-token")
-      const response = await fetch(`/api/rooms?id=${params.id}`, {
+      const response = await fetch(`/api/rooms?id=${roomId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
@@ -170,7 +176,7 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" asChild>
-            <Link href={`/admin/conference/rooms/${params.id}/edit`}>
+            <Link href={`/admin/conference/rooms/${roomId}/edit`}>
               <Edit className="mr-2 h-4 w-4" />
               Edit Room
             </Link>
@@ -248,12 +254,23 @@ export default function RoomDetailPage({ params }: { params: { id: string } }) {
 
             <div>
               <p className="text-sm font-medium text-muted-foreground">Resources</p>
-              <div className="flex flex-wrap gap-2 mt-1">
+              <div className="flex flex-wrap gap-3 mt-2">
                 {resources.length > 0 ? (
                   resources.map((resource) => (
-                    <Badge key={resource.id} variant="outline">
-                      {resource.name}
-                    </Badge>
+                    <div key={resource.id} className="flex items-center gap-2 border rounded-md p-2">
+                      <ResourceIcon 
+                        type={resource.type} 
+                        name={resource.name}
+                        image={resource.image}
+                        size="md"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{resource.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {resource.quantity > 1 ? `Quantity: ${resource.quantity}` : 'Quantity: 1'}
+                        </p>
+                      </div>
+                    </div>
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground">No resources assigned</p>

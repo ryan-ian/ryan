@@ -16,11 +16,11 @@ export interface Room {
   name: string
   location: string
   capacity: number
-  features: string[]
+  room_resources?: string[]
   status: "available" | "maintenance" | "reserved"
   image?: string
   description?: string
-  resources?: string[]
+  resourceDetails?: Resource[]
 }
 
 export interface Booking {
@@ -58,6 +58,7 @@ export interface Resource {
   type: string
   status: "available" | "in-use" | "maintenance"
   description?: string
+  image?: string
 }
 
 export interface AuthUser {

@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2, Building, Users, MapPin, AlertCircle } from "lucide-react"
+import { Search, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, AlertCircle, ArrowUpDown, Building, Plus, Edit, Trash2, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
-import type { Room } from "@/types"
+import type { Room, Resource } from "@/types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { ResourceIcon } from "@/components/ui/resource-icon"
+import Image from "next/image"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 export default function RoomManagement() {
   const [rooms, setRooms] = useState<Room[]>([])
@@ -28,6 +32,9 @@ export default function RoomManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [resources, setResources] = useState<Resource[]>([])
+  const [selectedResources, setSelectedResources] = useState<string[]>([])
+  const [showFilters, setShowFilters] = useState(false)
   const { toast } = useToast()
 
   const fetchRooms = async () => {
@@ -48,19 +55,84 @@ export default function RoomManagement() {
     }
   }
 
+  const fetchResources = async () => {
+    try {
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch("/api/resources", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const resourcesData = await response.json()
+        setResources(resourcesData)
+      }
+    } catch (error) {
+      console.error("Failed to fetch resources:", error)
+    }
+  }
+
   useEffect(() => {
     fetchRooms()
+    fetchResources()
   }, [])
 
   useEffect(() => {
-    const filtered = rooms.filter(
-      (room) =>
-        room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        room.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        room.features.some((feature) => feature.toLowerCase().includes(searchTerm.toLowerCase())),
-    )
+    filterRooms()
+  }, [searchTerm, rooms, selectedResources])
+
+  const filterRooms = () => {
+    let filtered = rooms;
+
+    // Text search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (room) =>
+          room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          room.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (room.description && room.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    }
+
+    // Resource filter
+    if (selectedResources.length > 0) {
+      console.log('Filtering rooms by resources:', selectedResources);
+      console.log('Before filtering:', filtered.length, 'rooms');
+      
+      filtered = filtered.filter(room => {
+        // Check if room has all selected resources
+        const hasAllResources = selectedResources.every(resourceId => {
+          // Check room_resources array directly
+          if (room.room_resources && room.room_resources.length > 0) {
+            const hasResource = room.room_resources.includes(resourceId);
+            console.log(`Room ${room.id} room_resources check for ${resourceId}:`, hasResource, room.room_resources);
+            return hasResource;
+          }
+          
+          console.log(`Room ${room.id} has no resources`);
+          return false;
+        });
+        
+        console.log(`Room ${room.id} has all resources:`, hasAllResources);
+        return hasAllResources;
+      });
+      
+      console.log('After filtering:', filtered.length, 'rooms');
+    }
+
     setFilteredRooms(filtered)
-  }, [searchTerm, rooms])
+  }
+
+  const handleResourceCheckboxChange = (resourceId: string, checked: boolean) => {
+    setSelectedResources(prev => {
+      if (checked) {
+        return [...prev, resourceId];
+      } else {
+        return prev.filter(id => id !== resourceId);
+      }
+    });
+  }
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -214,24 +286,97 @@ export default function RoomManagement() {
           <CardDescription>Manage all conference rooms in the system</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-6">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search rooms by name, location, or features..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex flex-col space-y-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search rooms by name, location, or features..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowFilters(!showFilters)}
+                className="ml-2 flex items-center gap-1"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+              <CollapsibleContent>
+                <Card className="mt-2">
+                  <CardContent className="pt-4">
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium">Filter by Resources</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {resources.map((resource) => (
+                          <div key={resource.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`resource-${resource.id}`}
+                              checked={selectedResources.includes(resource.id)}
+                              onCheckedChange={(checked) => 
+                                handleResourceCheckboxChange(resource.id, checked === true)
+                              }
+                            />
+                            <label 
+                              htmlFor={`resource-${resource.id}`}
+                              className="text-sm flex items-center gap-1 cursor-pointer"
+                            >
+                              <ResourceIcon type={resource.type} name={resource.name} size="sm" />
+                              {resource.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedResources.length > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedResources([])}
+                          className="text-xs"
+                        >
+                          Clear filters
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredRooms.map((room) => (
-              <Card key={room.id} className="hover:shadow-md transition-shadow">
+              <Card key={room.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                {room.image ? (
+                  <div className="relative h-48 w-full">
+                    <Image 
+                      src={room.image} 
+                      alt={room.name}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Badge variant={getStatusBadgeVariant(room.status)}>{room.status}</Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-muted h-48 flex items-center justify-center">
+                    <Building className="h-16 w-16 text-muted-foreground opacity-20" />
+                    <div className="absolute top-2 right-2">
+                      <Badge variant={getStatusBadgeVariant(room.status)}>{room.status}</Badge>
+                    </div>
+                  </div>
+                )}
                 <Link href={`/admin/conference/rooms/${room.id}`} className="block">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{room.name}</CardTitle>
-                      <Badge variant={getStatusBadgeVariant(room.status)}>{room.status}</Badge>
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 mr-1" />
@@ -257,21 +402,27 @@ export default function RoomManagement() {
                     </Button>
                   </div>
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Features:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {room.features.slice(0, 3).map((feature, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {feature}
-                        </Badge>
-                      ))}
-                      {room.features.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{room.features.length - 3} more
-                        </Badge>
-                      )}
+                  {room.resourceDetails && room.resourceDetails.length > 0 && (
+                    <div className="space-y-2 mt-3">
+                      <p className="text-sm font-medium">Resources:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {room.resourceDetails.slice(0, 8).map((resource) => (
+                          <ResourceIcon 
+                            key={resource.id} 
+                            type={resource.type} 
+                            name={resource.name}
+                            image={resource.image}
+                            size="sm"
+                          />
+                        ))}
+                        {room.resourceDetails.length > 8 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{room.resourceDetails.length - 8} more
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-2">
                     <Button variant="ghost" size="sm" asChild>
@@ -316,7 +467,7 @@ export default function RoomManagement() {
                 <>
                   Are you sure you want to delete <strong>{roomToDelete.name}</strong>? This action cannot be undone.
                   <br /><br />
-                  Note: Rooms with existing bookings cannot be deleted.
+                  Note: Rooms with active or future bookings cannot be deleted. You must cancel all active bookings or wait until they have passed.
                 </>
               )}
             </AlertDialogDescription>

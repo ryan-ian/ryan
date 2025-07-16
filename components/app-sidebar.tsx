@@ -88,6 +88,11 @@ const adminMenuItems = [
     url: "/admin/health",
     icon: Heart,
   },
+  {
+    title: "Storage Test",
+    url: "/admin/test-storage",
+    icon: Heart,
+  },
 ]
 
 export function AppSidebar() {

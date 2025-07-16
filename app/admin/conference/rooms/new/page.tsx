@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Building, Plus, X, ArrowLeft, Loader2, CheckSquare, Square } from "lucide-react"
+import { Building, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { ResourceIcon } from "@/components/ui/resource-icon"
 import type { Room, Resource } from "@/types"
 
 export default function NewRoomPage() {
@@ -23,15 +25,14 @@ export default function NewRoomPage() {
     name: "",
     location: "",
     capacity: 0,
-    features: [],
     status: "available",
     description: "",
-    image: null,
-    resources: []
+    image: "",
+    room_resources: []
   })
-  const [newFeature, setNewFeature] = useState("")
   const [resources, setResources] = useState<Resource[]>([])
   const [isLoadingResources, setIsLoadingResources] = useState(true)
+  const [resourcesByType, setResourcesByType] = useState<Record<string, Resource[]>>({})
 
   // Fetch available resources
   useEffect(() => {
@@ -50,6 +51,16 @@ export default function NewRoomPage() {
         
         const data = await response.json()
         setResources(data)
+        
+        // Group resources by type
+        const groupedResources: Record<string, Resource[]> = {}
+        data.forEach((resource: Resource) => {
+          if (!groupedResources[resource.type]) {
+            groupedResources[resource.type] = []
+          }
+          groupedResources[resource.type].push(resource)
+        })
+        setResourcesByType(groupedResources)
       } catch (error) {
         console.error("Error fetching resources:", error)
         toast({
@@ -79,21 +90,8 @@ export default function NewRoomPage() {
     setFormData(prev => ({ ...prev, status: value as "available" | "maintenance" | "reserved" }))
   }
 
-  const addFeature = () => {
-    if (newFeature.trim() && !formData.features.includes(newFeature.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        features: [...prev.features, newFeature.trim()]
-      }))
-      setNewFeature("")
-    }
-  }
-
-  const removeFeature = (feature: string) => {
-    setFormData(prev => ({
-      ...prev,
-      features: prev.features.filter(f => f !== feature)
-    }))
+  const handleImageUploaded = (url: string) => {
+    setFormData(prev => ({ ...prev, image: url }))
   }
 
   const handleResourceChange = (resourceId: string, checked: boolean) => {
@@ -101,12 +99,12 @@ export default function NewRoomPage() {
       if (checked) {
         return {
           ...prev,
-          resources: [...(prev.resources || []), resourceId]
+          room_resources: [...(prev.room_resources || []), resourceId]
         }
       } else {
         return {
           ...prev,
-          resources: (prev.resources || []).filter(id => id !== resourceId)
+          room_resources: (prev.room_resources || []).filter(id => id !== resourceId)
         }
       }
     })
@@ -239,46 +237,13 @@ export default function NewRoomPage() {
                 </Select>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="image">Image URL (Optional)</Label>
-                <Input
-                  id="image"
-                  name="image"
-                  placeholder="https://example.com/room-image.jpg"
-                  value={formData.image || ""}
-                  onChange={handleChange}
+              <div className="md:col-span-2">
+                <ImageUpload 
+                  onImageUploaded={handleImageUploaded}
+                  currentImage={formData.image}
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="features">Features</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="newFeature"
-                    value={newFeature}
-                    onChange={(e) => setNewFeature(e.target.value)}
-                    placeholder="Add feature (e.g., Projector)"
-                  />
-                  <Button type="button" onClick={addFeature} variant="secondary">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.features.map((feature) => (
-                    <Badge key={feature} variant="secondary" className="flex items-center gap-1">
-                      {feature}
-                      <button
-                        type="button"
-                        onClick={() => removeFeature(feature)}
-                        className="rounded-full hover:bg-destructive/20 p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="resources">Available Resources</Label>
                 {isLoadingResources ? (
@@ -287,24 +252,41 @@ export default function NewRoomPage() {
                     <span className="text-sm text-muted-foreground">Loading resources...</span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 border rounded-md p-4">
-                    {resources.length > 0 ? (
-                      resources.map((resource) => (
-                        <div key={resource.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`resource-${resource.id}`}
-                            checked={formData.resources?.includes(resource.id)}
-                            onCheckedChange={(checked) => handleResourceChange(resource.id, !!checked)}
-                          />
-                          <label 
-                            htmlFor={`resource-${resource.id}`} 
-                            className="text-sm flex items-center cursor-pointer"
-                          >
-                            {resource.name} 
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {resource.type}
-                            </Badge>
-                          </label>
+                  <div className="border rounded-md p-4 space-y-4">
+                    {Object.entries(resourcesByType).length > 0 ? (
+                      Object.entries(resourcesByType).map(([type, typeResources]) => (
+                        <div key={type} className="space-y-2">
+                          <h3 className="text-sm font-medium capitalize">{type}</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {typeResources.map((resource) => (
+                              <div 
+                                key={resource.id} 
+                                className={`flex items-center space-x-2 p-2 rounded-md border transition-colors ${
+                                  formData.room_resources?.includes(resource.id) 
+                                    ? 'border-primary bg-primary/5' 
+                                    : 'border-transparent hover:bg-accent'
+                                }`}
+                              >
+                                <Checkbox 
+                                  id={`resource-${resource.id}`}
+                                  checked={formData.room_resources?.includes(resource.id)}
+                                  onCheckedChange={(checked) => handleResourceChange(resource.id, !!checked)}
+                                />
+                                <label 
+                                  htmlFor={`resource-${resource.id}`} 
+                                  className="text-sm flex items-center gap-2 cursor-pointer flex-1"
+                                >
+                                  <ResourceIcon type={resource.type} name={resource.name} size="sm" />
+                                  <span>{resource.name}</span>
+                                  {resource.status !== "available" && (
+                                    <Badge variant="outline" className="ml-auto text-xs">
+                                      {resource.status}
+                                    </Badge>
+                                  )}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))
                     ) : (

@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { Toaster } from "@/components/ui/toaster"
+import { setupStorage } from "@/lib/setup-storage"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,6 +19,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Initialize storage bucket on app load
+  if (typeof window !== 'undefined') {
+    setupStorage().catch(console.error)
+  }
+
   return (
     <html lang="en">
       <body className={inter.className}>

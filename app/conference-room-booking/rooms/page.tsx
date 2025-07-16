@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Users, MapPin, Search, Filter, Calendar, Clock } from "lucide-react"
+import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
 import type { Room, Resource } from "@/types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ResourceIcon } from "@/components/ui/resource-icon"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([])
@@ -18,7 +21,8 @@ export default function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [capacityFilter, setCapacityFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
-  const [selectedResource, setSelectedResource] = useState("")
+  const [selectedResources, setSelectedResources] = useState<string[]>([])
+  const [showResourceFilters, setShowResourceFilters] = useState(false)
 
   useEffect(() => {
     fetchRooms()
@@ -27,7 +31,7 @@ export default function RoomsPage() {
 
   useEffect(() => {
     filterRooms()
-  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedResource])
+  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedResources])
 
   const fetchRooms = async () => {
     try {
@@ -72,18 +76,38 @@ export default function RoomsPage() {
     }
 
     // Status filter
-    if (statusFilter) {
+    if (statusFilter && statusFilter !== "any") {
       filtered = filtered.filter((room) => room.status === statusFilter)
     }
 
-    // Resource filter
-    if (selectedResource && selectedResource !== "none") {
-      filtered = filtered.filter((room) => 
-        room.resources && room.resources.includes(selectedResource)
-      )
+    // Resource filter - check if room has ALL selected resources
+    if (selectedResources.length > 0) {
+      filtered = filtered.filter(room => {
+        return selectedResources.every(resourceId => {
+          // Check if room has resourceDetails
+          if (room.resourceDetails && room.resourceDetails.length > 0) {
+            return room.resourceDetails.some(r => r.id === resourceId);
+          }
+          // Fallback to resources array for backward compatibility
+          if (room.resources) {
+            return room.resources.includes(resourceId);
+          }
+          return false;
+        });
+      });
     }
 
     setFilteredRooms(filtered)
+  }
+
+  const handleResourceCheckboxChange = (resourceId: string, checked: boolean) => {
+    setSelectedResources(prev => {
+      if (checked) {
+        return [...prev, resourceId];
+      } else {
+        return prev.filter(id => id !== resourceId);
+      }
+    });
   }
 
   const getStatusColor = (status: string) => {
@@ -149,7 +173,7 @@ export default function RoomsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <div className="relative">
@@ -193,23 +217,56 @@ export default function RoomsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <label className="text-sm font-medium">Resources</label>
-              <Select value={selectedResource} onValueChange={setSelectedResource}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any resources" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Any resources</SelectItem>
-                  {resources.map((resource) => (
-                    <SelectItem key={resource.id} value={resource.id}>
-                      {resource.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowResourceFilters(!showResourceFilters)}
+                className="h-8 px-2 flex items-center gap-1"
+              >
+                {showResourceFilters ? "Hide" : "Show"} 
+                {showResourceFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
             </div>
+            
+            <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters}>
+              <CollapsibleContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2 border rounded-md p-3">
+                  {resources.map((resource) => (
+                    <div key={resource.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`resource-${resource.id}`}
+                        checked={selectedResources.includes(resource.id)}
+                        onCheckedChange={(checked) => 
+                          handleResourceCheckboxChange(resource.id, checked === true)
+                        }
+                      />
+                      <label 
+                        htmlFor={`resource-${resource.id}`}
+                        className="text-sm flex items-center gap-1 cursor-pointer"
+                      >
+                        <ResourceIcon type={resource.type} name={resource.name} size="sm" />
+                        {resource.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedResources.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedResources([])}
+                    className="mt-2 text-xs"
+                  >
+                    Clear resource filters
+                  </Button>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CardContent>
       </Card>
@@ -260,19 +317,47 @@ export default function RoomsPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span>Capacity: {room.capacity}</span>
               </div>
-              
-              {room.resources && room.resources.length > 0 && (
+
+              {/* Display resources */}
+              {room.resourceDetails && room.resourceDetails.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {room.resources.map((resourceId) => {
+                  {room.resourceDetails.slice(0, 6).map((resource) => (
+                    <ResourceIcon 
+                      key={resource.id} 
+                      type={resource.type} 
+                      name={resource.name}
+                      image={resource.image}
+                      quantity={resource.quantity}
+                      size="sm"
+                    />
+                  ))}
+                  {room.resourceDetails.length > 6 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{room.resourceDetails.length - 6} more
+                    </Badge>
+                  )}
+                </div>
+              ) : room.resources && room.resources.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {room.resources.slice(0, 6).map((resourceId) => {
                     const resource = resources.find(r => r.id === resourceId);
                     return resource ? (
-                      <Badge key={resourceId} variant="outline">
-                        {resource.name}
-                      </Badge>
+                      <ResourceIcon 
+                        key={resourceId} 
+                        type={resource.type} 
+                        name={resource.name}
+                        image={resource.image}
+                        size="sm"
+                      />
                     ) : null;
                   })}
+                  {room.resources.length > 6 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{room.resources.length - 6} more
+                    </Badge>
+                  )}
                 </div>
-              )}
+              ) : null}
               
               <Button asChild size="sm" className="w-full">
                 <Link href={`/conference-room-booking/bookings/new?room=${room.id}`}>
@@ -283,6 +368,16 @@ export default function RoomsPage() {
           </Card>
         ))}
       </div>
+
+      {filteredRooms.length === 0 && (
+        <div className="text-center py-12">
+          <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No rooms found</h3>
+          <p className="text-muted-foreground">
+            Try adjusting your filters or search criteria
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,26 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { createServerClient } from '@supabase/ssr'
+import { createAdminClient, supabase } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
 // GET /api/notifications - Get all notifications for the current user
 export async function GET(request: Request) {
   try {
-    // Create a Supabase client with the user's session
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-        },
-      }
-    )
-
-    // Get the user's session
+    // Get session using the existing supabase client
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
@@ -64,21 +49,7 @@ export async function GET(request: Request) {
 // POST /api/notifications - Create a new notification (admin only)
 export async function POST(request: Request) {
   try {
-    // Create a Supabase client with the user's session
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-        },
-      }
-    )
-
-    // Get the user's session
+    // Get session using the existing supabase client
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {

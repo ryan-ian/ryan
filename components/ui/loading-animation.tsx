@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Loader2, CircleNotch, Loader } from "lucide-react"
+import { Loader2, Loader } from "lucide-react"
 
 interface LoadingAnimationProps {
   variant?: "spinner" | "dots" | "pulse" | "skeleton"
@@ -57,7 +57,7 @@ export function LoadingAnimation({
         )
       case "pulse":
         return (
-          <CircleNotch 
+          <Loader2 
             className={cn(
               "animate-spin text-primary",
               sizeClasses[size],

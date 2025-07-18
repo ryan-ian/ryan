@@ -1,8 +1,0 @@
-{
-  // "crons": [
-  //   {
-  //     "path": "/api/cron/booking-reminders?api_key=Your_Cron_API_Key",
-  //     "schedule": "*/15 * * * *"
-  //   }
-  // ]
-}

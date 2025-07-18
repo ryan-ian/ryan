@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails } from "@/lib/supabase-data"
+import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
+import { createPendingApprovalNotificationsForAdmins } from "@/lib/notifications"
 
 export async function GET(request: NextRequest) {
   try {
@@ -113,6 +114,27 @@ export async function POST(request: NextRequest) {
       status: bookingData.status || "pending",
       resources: bookingData.resources || null
     })
+    
+    // If booking is created successfully and status is pending, notify admins
+    if (newBooking && newBooking.status === "pending") {
+      try {
+        // Get user details
+        const user = await getUserById(bookingData.user_id)
+        
+        if (user && room) {
+          // Send notifications to all admins
+          await createPendingApprovalNotificationsForAdmins(
+            newBooking.id,
+            user.name,
+            newBooking.title,
+            room.name
+          )
+        }
+      } catch (notificationError) {
+        // Log the error but don't fail the request
+        console.error("Failed to send admin notifications:", notificationError)
+      }
+    }
 
     return NextResponse.json(newBooking, { status: 201 })
   } catch (error) {

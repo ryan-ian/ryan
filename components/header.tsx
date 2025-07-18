@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils"
 import { ReactNode } from "react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { NotificationBell } from "@/components/ui/notification-bell"
 
 // Define the type for navigation items
 interface NavItem {
@@ -171,6 +172,8 @@ export function Header() {
           
           <ThemeSwitcher />
           
+          {user && <NotificationBell />}
+          
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -249,8 +252,10 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary px-2 py-1 rounded-md flex items-center",
-                    isActive(item.href) ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                    "flex items-center rounded-md px-3 py-2 text-sm font-medium",
+                    isActive(item.href)
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -259,11 +264,11 @@ export function Header() {
                 </Link>
               ))}
               
-              {/* Context-specific mobile actions */}
+              {/* Context-specific actions */}
               {isBooking && user?.role === "user" && (
                 <Link
                   href="/conference-room-booking/bookings/new"
-                  className="flex items-center text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded-md"
+                  className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-primary/10 text-primary"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Calendar className="h-4 w-4 mr-2" />

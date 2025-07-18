@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/booking-reminders?api_key=PROD##&&*9_cron_api_key_for_testing",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

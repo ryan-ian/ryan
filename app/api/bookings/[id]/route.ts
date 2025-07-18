@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getBookingById, updateBooking } from "@/lib/supabase-data"
+import { getBookingById, updateBooking, getRoomById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
+import { 
+  createBookingConfirmationNotification, 
+  createBookingRejectionNotification 
+} from "@/lib/notifications"
 
 export async function GET(
   request: NextRequest,
@@ -63,6 +67,39 @@ export async function PATCH(
       ...updateData,
       updated_at: new Date().toISOString()
     })
+    
+    // Send notifications if status has changed
+    if (updateData.status && updateData.status !== existingBooking.status) {
+      try {
+        // Get room details for the notification
+        const room = await getRoomById(existingBooking.room_id)
+        const roomName = room?.name || "Unknown Room"
+        
+        // Send confirmation notification
+        if (updateData.status === "confirmed" && existingBooking.status === "pending") {
+          await createBookingConfirmationNotification(
+            existingBooking.user_id,
+            bookingId,
+            existingBooking.title,
+            roomName
+          )
+        }
+        
+        // Send rejection notification
+        if (updateData.status === "cancelled" && existingBooking.status === "pending") {
+          await createBookingRejectionNotification(
+            existingBooking.user_id,
+            bookingId,
+            existingBooking.title,
+            roomName,
+            updateData.rejection_reason || undefined
+          )
+        }
+      } catch (notificationError) {
+        // Log the error but don't fail the request
+        console.error("Failed to send notification:", notificationError)
+      }
+    }
     
     return NextResponse.json(updatedBooking)
   } catch (error) {

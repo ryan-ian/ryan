@@ -70,3 +70,14 @@ export interface AuthUser {
   department: string
   position: string
 }
+
+export interface Notification {
+  id: string
+  user_id: string
+  title: string
+  message: string
+  type: "booking_confirmation" | "booking_rejection" | "booking_reminder" | "room_maintenance" | "system_notification" | "booking_request" | "pending_approval"
+  related_id?: string // ID of related entity (booking, room, etc.)
+  is_read: boolean
+  created_at: string
+}

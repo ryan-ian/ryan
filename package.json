@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "dev:cron": "node scripts/dev-cron.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -67,6 +68,8 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.0",
+    "node-cron": "^4.2.1",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

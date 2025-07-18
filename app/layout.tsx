@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/contexts/auth-context'
+import { NotificationsProvider } from '@/contexts/notifications-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
 
@@ -24,11 +25,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <DisplaysStyleHandler />
-            <MainWrapper>
-              {children}
-            </MainWrapper>
-            <Toaster />
+            <NotificationsProvider>
+              <DisplaysStyleHandler />
+              <MainWrapper>
+                {children}
+              </MainWrapper>
+              <Toaster />
+            </NotificationsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

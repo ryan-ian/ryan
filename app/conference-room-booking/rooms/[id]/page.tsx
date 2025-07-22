@@ -24,6 +24,9 @@ import Link from "next/link"
 import type { Room, Booking, Resource } from "@/types"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { ProtectedRoute } from "@/components/protected-route"
+import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
+import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "@/contexts/auth-context"
 
 const amenityIcons = {
   wifi: Wifi,
@@ -42,6 +45,8 @@ export default function RoomDetailPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const { user } = useAuth()
 
   useEffect(() => {
     if (roomId) {
@@ -101,11 +106,21 @@ export default function RoomDetailPage() {
   }
 
   const getUpcomingBookings = () => {
+    if (!user) return []
     const now = new Date()
     return bookings
-      .filter((booking) => new Date(booking.start_time) > now)
+      .filter((booking) => booking.user_id === user.id && new Date(booking.start_time) > now)
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
       .slice(0, 5)
+  }
+
+  // Handler for booking modal submit
+  const handleBookingSubmit = async (data: any) => {
+    // You may want to POST to /api/bookings here
+    setShowBookingModal(false)
+    toast({ title: "Booking request submitted!", description: "Your booking is pending approval." })
+    // Optionally refresh bookings
+    fetchRoomBookings()
   }
 
   if (loading) {
@@ -177,22 +192,17 @@ export default function RoomDetailPage() {
         </div>
             <div className="flex items-center gap-4 pt-2">
               {getStatusBadge(room.status)}
-            <Button asChild>
-              <Link
-                href={`/conference-room-booking/bookings/new?roomId=${room.id}`}
-                className="flex items-center gap-2"
-              >
+            <Button type="button" onClick={() => setShowBookingModal(true)} className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 <span>Book This Room</span>
-              </Link>
-            </Button>
-        </div>
+              </Button>
+            </div>
       </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Main Content */}
-          <div className="md:col-span-2 space-y-8">
+        <div className="w-full flex flex-col md:flex-row md:items-start md:gap-8">
+          {/* Main Content */}
+          <div className="w-full max-w-2xl space-y-8 mx-auto">
             {/* Room Image */}
             <Card className="overflow-hidden border-border/50">
               <CardContent className="p-0">
@@ -231,7 +241,7 @@ export default function RoomDetailPage() {
                       <div className="grid grid-cols-2 gap-4">
                         {room.resourceDetails.map((resource) => (
                           <div key={resource.id} className="flex items-center gap-3">
-                            <ResourceIcon type={resource.type} className="h-5 w-5 text-muted-foreground" />
+                            <ResourceIcon type={resource.type} name={resource.name} />
                             <span className="text-muted-foreground">{resource.name}</span>
                           </div>
                         ))}
@@ -243,9 +253,8 @@ export default function RoomDetailPage() {
           </Card>
         </div>
 
-          {/* Side Content */}
-          <div className="space-y-8">
-            {/* Upcoming Bookings */}
+          {/* Upcoming Bookings Section (side card) */}
+          <div className="w-full md:w-96 md:ml-0 mt-8 md:mt-0 flex-shrink-0">
             <Card className="bg-card border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-foreground">
@@ -279,13 +288,15 @@ export default function RoomDetailPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
 
-            {/* Contact Info */}
-            {room.contact_person && (
+          {/* Contact Info */}
+          {/* {room.contact_person && (
+            <div className="mx-auto w-full max-w-2xl mt-8">
               <Card className="bg-card border-border/50">
-            <CardHeader>
+                <CardHeader>
                   <CardTitle className="text-xl font-semibold text-foreground">Contact</CardTitle>
-            </CardHeader>
+                </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="font-semibold text-foreground">{room.contact_person}</p>
                   {room.contact_email && (
@@ -298,14 +309,20 @@ export default function RoomDetailPage() {
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <Phone className="h-4 w-4" />
                       <span>{room.contact_phone}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-            )}
-          </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )} */}
         </div>
       </div>
+      <BookingCreationModal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        room={room}
+        onSubmit={handleBookingSubmit}
+      />
     </ProtectedRoute>
   )
 }

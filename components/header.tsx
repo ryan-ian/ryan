@@ -59,18 +59,12 @@ export function Header() {
   const isDisplays = pathname?.startsWith("/displays")
   
   // Determine if we should show the sidebar trigger
-  const showSidebarTrigger = isAdmin || isBooking
+  const showSidebarTrigger = isAdmin
 
   // Generate navigation items based on current section and user role
   const getNavItems = () => {
-    // Base navigation that's always available
-    const baseNav: NavItem[] = [
-      {
-        name: "Home",
-        href: "/",
-        icon: <Home className="h-4 w-4 mr-2" />,
-      },
-    ]
+    // No base navigation (remove Home)
+    const baseNav: NavItem[] = []
 
     // User-specific navigation
     const userNav: NavItem[] = user?.role === "user" ? [
@@ -121,7 +115,7 @@ export function Header() {
           {showSidebarTrigger && (
             <SidebarTrigger className={cn(
               "flex h-9 w-9 items-center justify-center rounded-md",
-              isAdmin ? "-ml-2 hover:bg-slate-100 dark:hover:bg-slate-800" : "-ml-1"
+              "-ml-2 hover:bg-slate-100 dark:hover:bg-slate-800"
             )} />
           )}
           <Link href="/" className="flex items-center gap-2">
@@ -152,14 +146,14 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {/* Context-specific actions */}
-          {isBooking && user?.role === "user" && (
+          {/* {isBooking && user?.role === "user" && (
             <Button variant="outline" size="sm" asChild className="mr-2">
-              <Link href="/conference-room-booking/bookings/new">
+              <Link href="/conference-room-booking/bookings">
                 <Calendar className="h-4 w-4 mr-2" />
-                New Booking
+                My Bookings
               </Link>
             </Button>
-          )}
+          )} */}
           
           {/* {isAdmin && user?.role === "admin" && (
             <Button variant="outline" size="sm" asChild className="mr-2">
@@ -200,6 +194,14 @@ export function Header() {
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
+                {user.role === "user" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/conference-room-booking/bookings" className="cursor-pointer flex w-full items-center">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>My Bookings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 {user.role === "admin" && (
                   <DropdownMenuItem asChild>
                     <Link href="/admin/conference/settings" className="cursor-pointer flex w-full items-center">
@@ -263,18 +265,6 @@ export function Header() {
                   {item.name}
                 </Link>
               ))}
-              
-              {/* Context-specific actions */}
-              {isBooking && user?.role === "user" && (
-                <Link
-                  href="/conference-room-booking/bookings/new"
-                  className="flex items-center rounded-md px-3 py-2 text-sm font-medium bg-primary/10 text-primary"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  New Booking
-                </Link>
-              )}
             </nav>
           </div>
         </div>

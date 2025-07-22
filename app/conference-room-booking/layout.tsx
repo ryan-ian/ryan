@@ -2,8 +2,6 @@
 
 import type React from "react"
 
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Header } from "@/components/header"
 
@@ -14,13 +12,8 @@ export default function ConferenceRoomBookingLayout({
 }) {
   return (
     <ProtectedRoute>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <Header />
-          <main className="flex-1 p-6">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
+      <Header />
+      <main className="flex-1 container py-6">{children}</main>
     </ProtectedRoute>
   )
 }

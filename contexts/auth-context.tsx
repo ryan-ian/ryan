@@ -75,12 +75,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // Check for existing token in localStorage
+        const token = localStorage.getItem("auth-token")
+        
         // Get current session
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session) {
           const authUser = await mapSupabaseUser(session)
           setUser(authUser)
+        } else if (token) {
+          // Try to use the token from localStorage if no active session
+          try {
+            const { data, error } = await supabase.auth.getUser(token)
+            
+            if (!error && data.user) {
+              const authUser = await mapSupabaseUser({ user: data.user, access_token: token } as Session)
+              setUser(authUser)
+            } else {
+              // Invalid token, remove it
+              localStorage.removeItem("auth-token")
+            }
+          } catch (tokenError) {
+            console.error("Error using stored token:", tokenError)
+            localStorage.removeItem("auth-token")
+          }
         }
         
         setLoading(false)
@@ -91,8 +110,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (event === 'SIGNED_IN' && session) {
               const authUser = await mapSupabaseUser(session)
               setUser(authUser)
+              
+              // Store token on sign in
+              if (session.access_token) {
+                localStorage.setItem("auth-token", session.access_token)
+              }
             } else if (event === 'SIGNED_OUT') {
               setUser(null)
+              localStorage.removeItem("auth-token")
             }
           }
         )
@@ -122,6 +147,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false
       }
       
+      // Store the token in localStorage
+      if (data.session?.access_token) {
+        localStorage.setItem("auth-token", data.session.access_token)
+      }
+      
       // Fetch user profile to check role
       const authUser = await mapSupabaseUser(data.session)
       
@@ -134,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isAdmin && authUser.role !== 'admin') {
         // Sign out if not admin
         await supabase.auth.signOut()
+        localStorage.removeItem("auth-token")
         return false
       }
       
@@ -181,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut()
+    localStorage.removeItem("auth-token")
     setUser(null)
   }
 

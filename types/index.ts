@@ -2,13 +2,22 @@ export interface User {
   id: string
   name: string
   email: string
-  role: "admin" | "user"
+  role: "admin" | "facility_manager" | "user"
   department: string
   position: string
   phone?: string
   profile_image?: string
   date_created: string
   last_login: string
+}
+
+export interface Facility {
+  id: string
+  name: string
+  location: string
+  description?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Room {
@@ -22,6 +31,25 @@ export interface Room {
   image?: string
   description?: string
   resourceDetails?: Resource[]
+  facility_id: string
+}
+
+export interface Report {
+  id: string
+  name: string
+  type: "room_utilization" | "booking_trends" | "user_activity"
+  parameters: any
+  created_by: string
+  created_at: string
+}
+
+export interface FacilityManager {
+  id: string
+  facility_id: string
+  user_id: string
+  assigned_at: string
+  facility?: Facility
+  user?: User
 }
 
 export interface Booking {
@@ -66,7 +94,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
-  role: "admin" | "user"
+  role: "admin" | "facility_manager" | "user"
   department: string
   position: string
 }

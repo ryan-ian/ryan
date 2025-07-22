@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Clock, MapPin, Search, Filter, Plus, Eye, Edit, Trash2, Building, CheckCircle, AlertCircle, XCircle } from "lucide-react"
+import { Calendar, Clock, MapPin, Search, Filter, Plus, Eye, Edit, Trash2, Building, CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import type { Booking, Room } from "@/types"
 import { BookingDetailsModal } from "./booking-details-modal"
 import { CancelBookingDialog } from "./cancel-booking-dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { eventBus, EVENTS } from "@/lib/events"
 
 export default function BookingsPage() {
   const { user } = useAuth()
@@ -24,6 +25,7 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
+  const [refreshKey, setRefreshKey] = useState(0) // Add a refresh key to force re-render
   
   // Modal state
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
@@ -32,34 +34,100 @@ export default function BookingsPage() {
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
   const [isCancelling, setIsCancelling] = useState(false)
 
+  // Subscribe to global booking events
+  useEffect(() => {
+    // Subscribe to booking created/updated/deleted events
+    const unsubscribeCreated = eventBus.subscribe(EVENTS.BOOKING_CREATED, () => {
+      console.log("Booking created event received, refreshing...")
+      forceRefresh()
+    })
+    
+    const unsubscribeUpdated = eventBus.subscribe(EVENTS.BOOKING_UPDATED, () => {
+      console.log("Booking updated event received, refreshing...")
+      forceRefresh()
+    })
+    
+    const unsubscribeDeleted = eventBus.subscribe(EVENTS.BOOKING_DELETED, () => {
+      console.log("Booking deleted event received, refreshing...")
+      forceRefresh()
+    })
+    
+    // Clean up subscriptions
+    return () => {
+      unsubscribeCreated()
+      unsubscribeUpdated()
+      unsubscribeDeleted()
+    }
+  }, [])
+
   useEffect(() => {
     fetchBookings()
     fetchRooms()
-  }, [])
+  }, [user?.id, refreshKey]) // Add refreshKey to dependencies to force refresh
 
   useEffect(() => {
     filterBookings()
   }, [bookings, searchTerm, statusFilter, dateFilter])
 
+  // Force a refresh by incrementing the refresh key
+  const forceRefresh = () => {
+    setRefreshKey(prevKey => prevKey + 1)
+  }
+
   const fetchBookings = async () => {
     try {
-      // Get the auth token from localStorage
+      // Check if we have a user and token before proceeding
       const token = localStorage.getItem("auth-token")
+      if (!token || !user?.id) {
+        console.log("Skipping fetchBookings: No token or user ID available")
+        return
+      }
       
-      // Use the user-specific bookings endpoint
-      const response = await fetch(`/api/bookings/user?user_id=${user?.id}`, {
+      setLoading(true)
+      
+      // Use the user-specific bookings endpoint with cache-busting
+      const response = await fetch(`/api/bookings/user?user_id=${user.id}&timestamp=${Date.now()}`, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       })
       
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bookings: ${response.status} ${response.statusText}`);
+      }
+      
       const bookingsData = await response.json()
       
-      // Set the bookings directly from the response
-      // No need to filter by user since the API already returns user-specific bookings
-      setBookings(bookingsData)
+      // Ensure bookingsData is an array before setting state
+      if (Array.isArray(bookingsData)) {
+        setBookings(bookingsData)
+        console.log("Fetched bookings:", bookingsData.length)
+      } else {
+        console.error("Received non-array bookings data:", bookingsData)
+        // Set to empty array if response is not an array
+        setBookings([])
+        
+        // Show error toast if there's an error message in the response
+        if (bookingsData.error) {
+          toast({
+            title: "Error fetching bookings",
+            description: bookingsData.error,
+            variant: "destructive"
+          })
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch bookings:", error)
+      setBookings([]) // Ensure bookings is always an array
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch bookings",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -78,7 +146,14 @@ export default function BookingsPage() {
   }
   
   const filterBookings = () => {
-    let filtered = bookings
+    // Ensure bookings is an array before filtering
+    if (!Array.isArray(bookings)) {
+      console.error("bookings is not an array in filterBookings:", bookings);
+      setFilteredBookings([]);
+      return;
+    }
+    
+    let filtered = [...bookings];
 
     // Search filter
     if (searchTerm) {
@@ -175,6 +250,17 @@ export default function BookingsPage() {
   }
 
   const getBookingStats = () => {
+    // Ensure bookings is an array before using filter
+    if (!Array.isArray(bookings)) {
+      console.error("bookings is not an array:", bookings);
+      return {
+        total: 0,
+        upcoming: 0,
+        today: 0,
+        pending: 0,
+      };
+    }
+    
     const now = new Date()
     const upcoming = bookings.filter((b) => new Date(b.start_time) > now && b.status === "confirmed")
     const today = bookings.filter((b) => {
@@ -237,6 +323,12 @@ export default function BookingsPage() {
         setSelectedBooking({ ...selectedBooking, status: "cancelled" })
       }
 
+      // Refresh the bookings list
+      fetchBookings()
+      
+      // Trigger global event for booking deletion/cancellation
+      eventBus.publish(EVENTS.BOOKING_DELETED)
+
       toast({
         title: "Booking Cancelled",
         description: "Your booking has been cancelled successfully.",
@@ -280,19 +372,39 @@ export default function BookingsPage() {
   const stats = getBookingStats()
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-8">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Bookings</h1>
-          <p className="text-muted-foreground">Manage your conference room reservations</p>
+          <p className="text-muted-foreground">View and manage your room bookings</p>
         </div>
-        <Button asChild>
-          <Link href="/conference-room-booking/bookings/new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span>New Booking</span>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => fetchBookings()}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </>
+            )}
+          </Button>
+          <Link href="/conference-room-booking/bookings/new">
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              New Booking
+            </Button>
           </Link>
-        </Button>
-      </div>
+        </div>
+      </header>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">

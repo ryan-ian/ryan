@@ -19,12 +19,12 @@ export default function ProfilePage() {
   const { user, logout } = useAuth()
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     department: "",
-    bio: "",
   })
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -39,7 +39,6 @@ export default function ProfilePage() {
         email: user.email || "",
         phone: user.phone || "",
         department: user.department || "",
-        bio: user.bio || "",
       })
 
       // Fetch user booking stats
@@ -97,9 +96,26 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    setIsSaving(true)
     try {
-      // Here you would typically make an API call to update the user profile
-      // For now, we'll just show a success message
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("No authentication token available");
+      const response = await fetch("/api/users", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          department: formData.department
+        })
+      })
+      if (!response.ok) throw new Error("Failed to update profile")
+      const updatedUser = await response.json()
+      // Optionally update the user in context if needed
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
@@ -111,6 +127,8 @@ export default function ProfilePage() {
         description: "Failed to update profile. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -121,7 +139,6 @@ export default function ProfilePage() {
         email: user.email || "",
         phone: user.phone || "",
         department: user.department || "",
-        bio: user.bio || "",
       })
     }
     setIsEditing(false)
@@ -148,12 +165,12 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             {isEditing ? (
               <>
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Changes
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </>
             ) : (
@@ -234,10 +251,6 @@ export default function ProfilePage() {
                     <Label htmlFor="department">Department</Label>
                     <Input id="department" value={formData.department} onChange={(e) => handleInputChange("department", e.target.value)} disabled={!isEditing} placeholder="Your department" />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea id="bio" value={formData.bio} onChange={(e) => handleInputChange("bio", e.target.value)} disabled={!isEditing} placeholder="A short bio about yourself..." rows={4} />
                 </div>
               </CardContent>
             </Card>

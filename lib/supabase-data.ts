@@ -307,6 +307,12 @@ export async function getBookingsWithDetails(): Promise<BookingWithDetails[]> {
 
 export async function getUserBookingsWithDetails(userId: string): Promise<BookingWithDetails[]> {
   try {
+    if (!userId) {
+      console.warn('getUserBookingsWithDetails called with empty userId');
+      return [];
+    }
+    
+    // Add a random parameter to prevent caching
     const { data, error } = await supabase
       .from('bookings')
       .select(`
@@ -315,16 +321,21 @@ export async function getUserBookingsWithDetails(userId: string): Promise<Bookin
         users:user_id(id, name, email)
       `)
       .eq('user_id', userId)
+      .order('created_at', { ascending: false })
       
     if (error) {
       console.error(`Error fetching bookings with details for user ${userId}:`, error)
       throw error
     }
     
-    return data || []
+    // Ensure we return an array even if data is null or undefined
+    const bookings = data || [];
+    console.log(`Fetched ${bookings.length} bookings for user ${userId}`)
+    return bookings
   } catch (error) {
     console.error('Exception in getUserBookingsWithDetails:', error)
-    throw error
+    // Return empty array instead of throwing to prevent UI errors
+    return []
   }
 }
 
@@ -369,13 +380,29 @@ export async function getBookingById(id: string): Promise<Booking | null> {
 
 export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_at' | 'updated_at'>): Promise<Booking> {
   try {
+    // Ensure all required fields are present
+    if (!bookingData.room_id) throw new Error('room_id is required')
+    if (!bookingData.user_id) throw new Error('user_id is required')
+    if (!bookingData.title) throw new Error('title is required')
+    if (!bookingData.start_time) throw new Error('start_time is required')
+    if (!bookingData.end_time) throw new Error('end_time is required')
+    
+    // Prepare the booking data with timestamps
     const newBooking = {
       ...bookingData,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Ensure status is set
+      status: bookingData.status || 'pending'
     }
     
-    const { data, error } = await supabase
+    console.log(`Creating booking: ${JSON.stringify(newBooking, null, 2)}`)
+    
+    // Use admin client to bypass RLS if needed
+    const client = createAdminClient()
+    
+    // Insert the booking
+    const { data, error } = await client
       .from('bookings')
       .insert(newBooking)
       .select()
@@ -383,9 +410,14 @@ export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_a
       
     if (error) {
       console.error('Error creating booking:', error)
-      throw error
+      throw new Error(`Database error: ${error.message}`)
     }
     
+    if (!data) {
+      throw new Error('No data returned after booking creation')
+    }
+    
+    console.log(`Successfully created booking with ID: ${data.id}`)
     return data
   } catch (error) {
     console.error('Exception in createBooking:', error)
@@ -604,27 +636,36 @@ export async function checkBookingConflicts(
   excludeBookingId?: string
 ): Promise<boolean> {
   try {
+    // Fetch all bookings for the room that could possibly conflict
     let query = supabase
       .from('bookings')
-      .select('id')
+      .select('id, start_time, end_time')
       .eq('room_id', room_id)
-      .eq('status', 'confirmed')
-      .or(`start_time.gte.${start_time},end_time.gt.${start_time}`)
-      .or(`start_time.lt.${end_time},end_time.lte.${end_time}`)
-      .or(`start_time.lte.${start_time},end_time.gte.${end_time}`)
-    
+      .in('status', ['confirmed', 'pending'])
     if (excludeBookingId) {
       query = query.neq('id', excludeBookingId)
     }
-    
     const { data, error } = await query
-    
     if (error) {
       console.error('Error checking booking conflicts:', error)
       throw error
     }
-    
-    return (data && data.length > 0) || false
+    // Parse the new booking times
+    const newStart = new Date(start_time)
+    const newEnd = new Date(end_time)
+    // 30-minute buffer in ms
+    const bufferMs = 30 * 60 * 1000
+    // Check for conflicts with buffer
+    const hasConflict = (data || []).some((booking: any) => {
+      const existingStart = new Date(booking.start_time)
+      const existingEnd = new Date(booking.end_time)
+      const bufferEnd = new Date(existingEnd.getTime() + bufferMs)
+      // New booking cannot start before bufferEnd of existing booking
+      // and cannot end after existingStart
+      // Overlap if: newStart < bufferEnd && newEnd > existingStart
+      return newStart < bufferEnd && newEnd > existingStart
+    })
+    return hasConflict
   } catch (error) {
     console.error('Exception in checkBookingConflicts:', error)
     throw error

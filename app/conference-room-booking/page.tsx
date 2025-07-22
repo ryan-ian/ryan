@@ -3,305 +3,475 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, MapPin, Users, Plus, TrendingUp, Building, CheckCircle, List, LayoutGrid } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
-import Link from "next/link"
-import type { Room, Booking, BookingWithDetails } from "@/types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ResourceIcon } from "@/components/ui/resource-icon"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { RoomCard } from "@/components/cards/room-card"
+import { useToast } from "@/components/ui/use-toast"
+import type { Room, Resource } from "@/types"
 import { useAuth } from "@/contexts/auth-context"
-
-interface DashboardData {
-  totalRooms: number
-  availableRooms: number
-  todayBookings: number
-  upcomingBookings: number
-  recentBookings: BookingWithDetails[]
-  popularRooms: Room[]
-}
-
-async function fetchDashboardData(userId: string | undefined): Promise<DashboardData> {
-  try {
-    const [roomsRes] = await Promise.all([fetch("/api/rooms")])
-
-    const roomsData = await roomsRes.json()
-
-    // Normalize data - ensure we always have arrays
-    const rooms = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
-
-    const availableRooms = rooms.filter((room: Room) => room.status === "available")
-
-    // Get user's bookings if userId is available
-    let userBookings: BookingWithDetails[] = []
-    
-    if (userId) {
-      const token = localStorage.getItem("auth-token")
-      const userBookingsRes = await fetch(`/api/bookings/user?user_id=${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      userBookings = await userBookingsRes.json()
-    }
-
-    // Calculate today's bookings
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayBookings = userBookings.filter((booking) => {
-      const bookingDate = new Date(booking.start_time)
-      bookingDate.setHours(0, 0, 0, 0)
-      return bookingDate.getTime() === today.getTime()
-    })
-
-    // Calculate upcoming bookings
-    const upcomingBookings = userBookings.filter((booking) => {
-      return new Date(booking.start_time) > today
-    })
-
-    // Get recent bookings from last 5 days (including today)
-    const fiveDaysAgo = new Date()
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
-    fiveDaysAgo.setHours(0, 0, 0, 0) // Set to beginning of the day 5 days ago
-
-    const now = new Date()
-    
-    const recentBookings = userBookings
-      .filter((booking) => {
-        const createdDate = new Date(booking.created_at)
-        // Include all bookings from beginning of 5 days ago until now (including today)
-        return createdDate >= fiveDaysAgo && createdDate <= now
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5)
-
-    // Get popular rooms (rooms with most bookings)
-    const roomBookingCounts = rooms.map((room: Room) => ({
-      ...room,
-      bookingCount: userBookings.filter((booking) => booking.room_id === room.id).length,
-    }))
-    const popularRooms = roomBookingCounts.sort((a, b) => b.bookingCount - a.bookingCount).slice(0, 4)
-
-    return {
-      totalRooms: rooms.length,
-      availableRooms: availableRooms.length,
-      todayBookings: todayBookings.length,
-      upcomingBookings: upcomingBookings.length,
-      recentBookings,
-      popularRooms,
-    }
-  } catch (error) {
-    console.error("Failed to fetch dashboard data:", error)
-    return {
-      totalRooms: 0,
-      availableRooms: 0,
-      todayBookings: 0,
-      upcomingBookings: 0,
-      recentBookings: [],
-      popularRooms: [],
-    }
-  }
-}
-
-function StatCard({ title, value, icon, description, colorClass }: { title: string, value: number, icon: React.ReactNode, description: string, colorClass: string }) {
-  return (
-    <Card className="bg-card border-border/50 hover:shadow-lg transition-shadow duration-300">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={`text-${colorClass}`}>
-          {icon}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-foreground">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  )
-}
+import { eventBus, EVENTS } from "@/lib/events"
+import { useRouter } from "next/navigation"
 
 export default function ConferenceRoomBookingPage() {
   const { user } = useAuth()
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [capacityFilter, setCapacityFilter] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [selectedResources, setSelectedResources] = useState<string[]>([])
+  const [showResourceFilters, setShowResourceFilters] = useState(false)
+  const [userBookings, setUserBookings] = useState<any[]>([])
 
   useEffect(() => {
-    fetchDashboardData(user?.id).then((data) => {
-      setDashboardData(data)
-      setLoading(false)
-    })
+    fetchRooms()
+    fetchResources()
+    if (user?.id) {
+      fetchUserBookings()
+    }
   }, [user?.id])
 
-  if (loading) {
+  useEffect(() => {
+    filterRooms()
+  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedResources])
+
+  const fetchRooms = async () => {
+    try {
+      const response = await fetch("/api/rooms")
+      const roomsData = await response.json()
+      const roomsArray = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
+      setRooms(roomsArray)
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchResources = async () => {
+    try {
+      const response = await fetch("/api/resources")
+      const resourcesData = await response.json()
+      const resourcesArray = Array.isArray(resourcesData) ? resourcesData : resourcesData.resources || []
+      setResources(resourcesArray)
+    } catch (error) {
+      console.error("Failed to fetch resources:", error)
+    }
+  }
+
+  const fetchUserBookings = async () => {
+    try {
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch(`/api/bookings/user?user_id=${user?.id}&timestamp=${Date.now()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
+      const bookings = await response.json()
+      console.log(`Fetched ${bookings.length} user bookings in main page`)
+      setUserBookings(bookings)
+    } catch (error) {
+      console.error("Failed to fetch user bookings:", error)
+    }
+  }
+
+  const filterRooms = () => {
+    let filtered = rooms
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (room) =>
+          room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          room.location.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+
+    // Capacity filter
+    if (capacityFilter) {
+      const capacity = Number.parseInt(capacityFilter)
+      filtered = filtered.filter((room) => room.capacity >= capacity)
+    }
+
+    // Status filter
+    if (statusFilter && statusFilter !== "any") {
+      filtered = filtered.filter((room) => room.status === statusFilter)
+    }
+
+    // Resource filter - check if room has ALL selected resources
+    if (selectedResources.length > 0) {
+      filtered = filtered.filter(room => {
+        return selectedResources.every(resourceId => {
+          // Check if room has resourceDetails
+          if (room.resourceDetails && room.resourceDetails.length > 0) {
+            return room.resourceDetails.some(r => r.id === resourceId);
+          }
+          // Fallback to resources array for backward compatibility
+          if (room.resources && Array.isArray(room.resources)) {
+            return room.resources.includes(resourceId);
+          }
+          return false;
+        });
+      });
+    }
+
+    setFilteredRooms(filtered)
+  }
+
+  const handleResourceCheckboxChange = (resourceId: string, checked: boolean) => {
+    setSelectedResources(prev => {
+      if (checked) {
+        return [...prev, resourceId];
+      } else {
+        return prev.filter(id => id !== resourceId);
+      }
+    });
+  }
+
+  const handleBookRoom = async (roomId: string, bookingData: any) => {
+    try {
+      // Find the selected room to get its capacity
+      const selectedRoom = rooms.find(room => room.id === roomId)
+      if (!selectedRoom) {
+        throw new Error("Room not available")
+      }
+      
+      // Create the booking
+      const token = localStorage.getItem("auth-token")
+      
+      // Check if this is a multi-booking request
+      if (bookingData.bookings && Array.isArray(bookingData.bookings)) {
+        // Multiple bookings
+        const response = await fetch("/api/bookings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title: bookingData.title,
+            description: bookingData.description || "",
+            room_id: roomId,
+            user_id: user?.id,
+            bookings: bookingData.bookings
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to create bookings")
+        }
+        
+        const result = await response.json()
+        
+        // Force a refresh of user bookings with a small delay to ensure server has processed
+        setTimeout(() => {
+          fetchUserBookings()
+          console.log("Refreshing user bookings after multiple booking creation")
+          
+          // Trigger global event for booking creation
+          eventBus.publish(EVENTS.BOOKING_CREATED)
+          
+          // Navigate to bookings page after successful creation
+          if (result.created > 0) {
+            router.push('/conference-room-booking/bookings')
+          }
+        }, 1000)
+        
+        if (result.failed > 0) {
+          // Detailed feedback for failures
+          const failureReasons = new Map<string, number>();
+          
+          // Count occurrences of each failure reason
+          result.failures.forEach((failure: any) => {
+            const count = failureReasons.get(failure.reason) || 0;
+            failureReasons.set(failure.reason, count + 1);
+          });
+          
+          // Create detailed failure message
+          let failureMessage = "";
+          failureReasons.forEach((count, reason) => {
+            failureMessage += `• ${reason} (${count} booking${count > 1 ? 's' : ''})\n`;
+          });
+          
+          if (result.created > 0) {
+            // Some succeeded, some failed
+            toast({
+              title: `${result.created} booking(s) created successfully`,
+              description: `${result.failed} booking(s) could not be created:\n${failureMessage}`,
+              variant: "default"
+            })
+          } else {
+            // All failed
+            toast({
+              title: "Booking failed",
+              description: `None of your bookings could be created:\n${failureMessage}`,
+              variant: "destructive"
+            })
+          }
+        } else {
+          // All succeeded
+          toast({
+            title: "Bookings created successfully",
+            description: `${result.created} booking(s) have been submitted for approval.`,
+          })
+        }
+      } else {
+        // Single booking (legacy support)
+        // Check if user has already booked a room today
+        const bookingDate = new Date(bookingData.date).toISOString().split('T')[0]
+        
+        const hasBookingToday = userBookings.some(booking => {
+          const bookingDay = new Date(booking.start_time).toISOString().split('T')[0]
+          return bookingDay === bookingDate
+        })
+        
+        if (hasBookingToday) {
+          toast({
+            title: "Booking limit reached",
+            description: "You can only book one room per day. Please select a different date.",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // Check for time conflicts
+        const startTime = new Date(bookingData.start_time).toISOString()
+        const endTime = new Date(bookingData.end_time).toISOString()
+        
+        const response = await fetch(`/api/bookings?roomId=${roomId}&start=${startTime}&end=${endTime}`)
+        
+        if (!response.ok) {
+          throw new Error("Failed to check room availability")
+        }
+        
+        const existingBookings = await response.json()
+        
+        if (existingBookings && existingBookings.length > 0) {
+          toast({
+            title: "Time slot unavailable",
+            description: "This room is already booked for the selected time period. Please choose a different time.",
+            variant: "destructive"
+          })
+          return
+        }
+        
+        // Create the booking
+        const bookingResponse = await fetch("/api/bookings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(bookingData)
+        })
+        
+        if (!bookingResponse.ok) {
+          const errorData = await bookingResponse.json()
+          throw new Error(errorData.error || "Failed to create booking")
+        }
+        
+        const result = await bookingResponse.json()
+        
+        // Force a refresh of user bookings
+        setTimeout(() => {
+          fetchUserBookings()
+          
+          // Trigger global event for booking creation
+          eventBus.publish(EVENTS.BOOKING_CREATED)
+          
+          // Navigate to bookings page after successful creation
+          router.push('/conference-room-booking/bookings')
+        }, 1000)
+        
+        toast({
+          title: "Booking created successfully",
+          description: "Your booking has been submitted for approval.",
+        })
+      }
+    } catch (error: any) {
+      console.error("Error booking room:", error)
+      
+      // Extract error message
+      let errorMessage = 'Failed to create booking. Please try again.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Show error toast with specific message
+      toast({
+        title: "Booking failed",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    }
+  }
+
     return (
       <ProtectedRoute>
+      {loading ? (
         <div className="p-6 space-y-8">
-          <div className="flex items-center justify-between">
             <div className="animate-pulse">
               <div className="h-8 bg-muted-foreground/20 rounded w-64 mb-2"></div>
               <div className="h-4 bg-muted-foreground/20 rounded w-80"></div>
             </div>
+          <div className="animate-pulse">
+            <div className="h-40 bg-muted-foreground/10 rounded-lg"></div>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-28 bg-muted-foreground/10 rounded-lg"></div>
+                <div className="h-64 bg-muted-foreground/10 rounded-lg"></div>
               </div>
             ))}
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="animate-pulse">
-              <div className="h-80 bg-muted-foreground/10 rounded-lg"></div>
-            </div>
-            <div className="animate-pulse">
-              <div className="h-80 bg-muted-foreground/10 rounded-lg"></div>
-            </div>
-          </div>
         </div>
-      </ProtectedRoute>
-    )
-  }
-
-  if (!dashboardData) {
-    return (
-      <ProtectedRoute>
-        <div className="p-6 space-y-6">
-          <div className="text-center py-16 bg-card rounded-lg border border-border/50">
-            <h2 className="text-2xl font-semibold text-destructive">Error</h2>
-            <p className="text-muted-foreground mt-2">Failed to load dashboard data. Please try again later.</p>
-          </div>
-        </div>
-      </ProtectedRoute>
-    )
-  }
-
-  return (
-    <ProtectedRoute>
+      ) : (
       <div className="p-6 space-y-8">
-        {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.name || 'User'}. Here's your booking summary.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button asChild variant="outline">
-              <Link href="/conference-room-booking/bookings" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
-                <span>My Bookings</span>
-              </Link>
-            </Button>
-          <Button asChild>
-            <Link href="/conference-room-booking/rooms" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              <span>Book a Room</span>
-            </Link>
-          </Button>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Browse Rooms</h1>
+              <p className="text-muted-foreground">Find and book the perfect space for your meeting</p>
         </div>
         </header>
 
-        {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Rooms" value={dashboardData.totalRooms} icon={<Building className="h-5 w-5" />} description="Available for booking" colorClass="primary" />
-          <StatCard title="Available Now" value={dashboardData.availableRooms} icon={<CheckCircle className="h-5 w-5" />} description="Ready to book" colorClass="green-500" />
-          <StatCard title="Today's Bookings" value={dashboardData.todayBookings} icon={<Calendar className="h-5 w-5" />} description="Scheduled for today" colorClass="primary" />
-          <StatCard title="Upcoming" value={dashboardData.upcomingBookings} icon={<TrendingUp className="h-5 w-5" />} description="Future bookings" colorClass="primary" />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-          {/* Recent Bookings */}
-          <Card className="col-span-1 lg:col-span-3 bg-card border-border/50">
+          {/* Filters */}
+          <Card className="bg-card border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <Clock className="h-5 w-5" />
-                <span>Recent Activity</span>
+                <Filter className="h-5 w-5" />
+                <span>Filter Options</span>
               </CardTitle>
-              <CardDescription>Your latest bookings from the last 5 days.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {dashboardData.recentBookings.length > 0 ? (
-                dashboardData.recentBookings.map((booking) => (
-                  <Link 
-                    href={`/conference-room-booking/bookings/${booking.id}`} 
-                    key={booking.id} 
-                    className="block p-4 rounded-lg hover:bg-muted/50 transition-colors border border-border/50"
-                  >
-                    <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold text-foreground">{booking.rooms?.name || `Room ${booking.room_id}`}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" />
-                          <span>{new Date(booking.start_time).toLocaleDateString()}</span>
-                        </div>
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-4 w-4" />
-                          <span>
-                            {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
-                            {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
-                        </div>
-                      <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className="capitalize">
-                        {booking.status}
-                      </Badge>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or location..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-background/50"
+                    />
                   </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No recent bookings found.</p>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Minimum Capacity</label>
+                  <Select value={capacityFilter} onValueChange={setCapacityFilter}>
+                    <SelectTrigger className="bg-background/50">
+                      <SelectValue placeholder="Any capacity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Any capacity</SelectItem>
+                      <SelectItem value="2">2+ people</SelectItem>
+                      <SelectItem value="5">5+ people</SelectItem>
+                      <SelectItem value="10">10+ people</SelectItem>
+                      <SelectItem value="20">20+ people</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="bg-background/50">
+                      <SelectValue placeholder="Any status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any status</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="occupied">Occupied</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters} className="space-y-2">
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full flex items-center justify-between p-2 hover:bg-muted/50"
+                  >
+                    <span className="text-sm font-medium text-muted-foreground">Filter by Resources</span>
+                    <div className="flex items-center gap-1 text-sm text-primary">
+                      {showResourceFilters ? "Hide" : "Show"} 
+                      {showResourceFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </div>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4 border-t border-border/50">
+                    {resources.map((resource) => (
+                      <div key={resource.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`resource-${resource.id}`}
+                          checked={selectedResources.includes(resource.id)}
+                          onCheckedChange={(checked) => 
+                            handleResourceCheckboxChange(resource.id, checked === true)
+                          }
+                        />
+                        <label 
+                          htmlFor={`resource-${resource.id}`}
+                          className="text-sm font-medium flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                        >
+                          <ResourceIcon type={resource.type} name={resource.name} />
+                          {resource.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
 
-          {/* Popular Rooms */}
-          <Card className="col-span-1 lg:col-span-2 bg-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <TrendingUp className="h-5 w-5" />
-                <span>Popular Rooms</span>
-              </CardTitle>
-              <CardDescription>Most frequently booked rooms.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dashboardData.popularRooms.length > 0 ? (
-                dashboardData.popularRooms.map((room) => (
-                  <Link 
-                    href={`/conference-room-booking/rooms/${room.id}`}
+          {/* Room Grid */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredRooms.length > 0 ? (
+              filteredRooms.map((room) => {
+                // Find resource details for this room
+                const roomResourceDetails = room.resources && Array.isArray(room.resources)
+                  ? resources.filter(resource => room.resources!.includes(resource.id))
+                  : room.resourceDetails || []
+
+                return (
+                  <RoomCard
                     key={room.id}
-                    className="block p-4 rounded-lg hover:bg-muted/50 transition-colors border border-border/50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-foreground">{room.name}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Users className="h-4 w-4" />
-                            <span>{room.capacity}</span>
-                        </div>
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4" />
-                            <span>{room.location}</span>
-                      </div>
-                        </div>
-                      </div>
-                      <Badge variant="secondary">{room.bookingCount} bookings</Badge>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No popular rooms found.</p>
+                    room={room}
+                    resourceDetails={roomResourceDetails}
+                    onBookRoom={handleBookRoom}
+                  />
+                )
+              })
+            ) : (
+              <div className="col-span-full p-8 text-center bg-muted/20 rounded-lg border border-dashed">
+                <h3 className="text-lg font-medium mb-2">No rooms found</h3>
+                <p className="text-muted-foreground">Try adjusting your filters to find available rooms.</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </div>
         </div>
-      </div>
+      )}
     </ProtectedRoute>
   )
 }

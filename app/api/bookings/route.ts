@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
 import { createPendingApprovalNotificationsForAdmins } from "@/lib/notifications"
+import { format } from "date-fns"
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,6 +94,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Room not available" }, { status: 400 })
     }
 
+    // Handle multiple bookings
+    if (bookingData.bookings && Array.isArray(bookingData.bookings)) {
+      return await createMultipleBookings(bookingData, room)
+    } else {
+      // Handle single booking (legacy support)
+      return await createSingleBooking(bookingData, room)
+    }
+  } catch (error) {
+    console.error("Create booking error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+// Helper function to create a single booking
+async function createSingleBooking(bookingData: any, room: any) {
+  try {
     // Check for conflicts
     const start_time = bookingData.start_time
     const end_time = bookingData.end_time
@@ -100,6 +117,28 @@ export async function POST(request: NextRequest) {
     const hasConflict = await checkBookingConflicts(bookingData.room_id, start_time, end_time)
     if (hasConflict) {
       return NextResponse.json({ error: "Room is already booked for this time slot" }, { status: 409 })
+    }
+
+    // Check if user already has a booking on the same day
+    const bookingDate = new Date(start_time).toISOString().split('T')[0]
+    const startOfDay = `${bookingDate}T00:00:00.000Z`
+    const endOfDay = `${bookingDate}T23:59:59.999Z`
+    
+    const { data: existingBookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', bookingData.user_id)
+      .gte('start_time', startOfDay)
+      .lte('start_time', endOfDay)
+      .in('status', ['confirmed', 'pending'])
+    
+    if (bookingsError) {
+      console.error('Error checking existing bookings:', bookingsError)
+      return NextResponse.json({ error: "Failed to check existing bookings" }, { status: 500 })
+    }
+    
+    if (existingBookings && existingBookings.length > 0) {
+      return NextResponse.json({ error: "You can only book one room per day" }, { status: 400 })
     }
 
     // Create the booking
@@ -110,7 +149,7 @@ export async function POST(request: NextRequest) {
       description: bookingData.description || null,
       start_time: start_time,
       end_time: end_time,
-      attendees: bookingData.attendees || null,
+      attendees: Array.isArray(bookingData.attendees) ? bookingData.attendees : bookingData.attendees ? [Number(bookingData.attendees)] : [],
       status: bookingData.status || "pending",
       resources: bookingData.resources || null
     })
@@ -138,7 +177,128 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newBooking, { status: 201 })
   } catch (error) {
-    console.error("Create booking error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error in createSingleBooking:", error)
+    throw error
+  }
+}
+
+// Helper function to create multiple bookings
+async function createMultipleBookings(bookingData: any, room: any) {
+  try {
+    // Validate number of bookings
+    if (!bookingData.bookings || !Array.isArray(bookingData.bookings) || bookingData.bookings.length === 0) {
+      return NextResponse.json({ error: "No booking dates provided" }, { status: 400 })
+    }
+
+    if (bookingData.bookings.length > 5) {
+      return NextResponse.json({ error: "Maximum 5 bookings allowed per request" }, { status: 400 })
+    }
+
+    const createdBookings = []
+    const failedBookings = []
+    const user = await getUserById(bookingData.user_id)
+
+    // Process each booking
+    for (const booking of bookingData.bookings) {
+      const bookingDate = format(new Date(booking.date), 'yyyy-MM-dd')
+      const start_time = `${bookingDate}T${booking.startTime}:00`
+      const end_time = `${bookingDate}T${booking.endTime}:00`
+
+      // Check for conflicts
+      const hasConflict = await checkBookingConflicts(bookingData.room_id, start_time, end_time)
+      if (hasConflict) {
+        failedBookings.push({
+          date: bookingDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          reason: "Time slot already booked"
+        })
+        continue
+      }
+
+      // Check if user already has a booking on the same day
+      const startOfDay = `${bookingDate}T00:00:00.000Z`
+      const endOfDay = `${bookingDate}T23:59:59.999Z`
+      
+      const { data: existingBookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', bookingData.user_id)
+        .gte('start_time', startOfDay)
+        .lte('start_time', endOfDay)
+        .in('status', ['confirmed', 'pending'])
+      
+      if (bookingsError) {
+        console.error('Error checking existing bookings:', bookingsError)
+        failedBookings.push({
+          date: bookingDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          reason: "Failed to check existing bookings"
+        })
+        continue
+      }
+      
+      if (existingBookings && existingBookings.length > 0) {
+        failedBookings.push({
+          date: bookingDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          reason: "You already have a booking on this day"
+        })
+        continue
+      }
+
+      // Create the booking
+      try {
+        const newBooking = await createBooking({
+          room_id: bookingData.room_id,
+          user_id: bookingData.user_id,
+          title: bookingData.title,
+          description: bookingData.description || null,
+          start_time: start_time,
+          end_time: end_time,
+          attendees: [room.capacity], // Set attendees to room capacity
+          status: "pending",
+          resources: bookingData.resources || null
+        })
+        
+        createdBookings.push(newBooking)
+        
+        // Send notification for each booking
+        if (user && room) {
+          try {
+            await createPendingApprovalNotificationsForAdmins(
+              newBooking.id,
+              user.name,
+              `${bookingData.title} - ${format(new Date(booking.date), 'MMM d')}`,
+              room.name
+            )
+          } catch (notificationError) {
+            console.error("Failed to send admin notification:", notificationError)
+          }
+        }
+      } catch (error) {
+        console.error("Error creating booking:", error)
+        failedBookings.push({
+          date: bookingDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          reason: "Failed to create booking"
+        })
+      }
+    }
+
+    // Return results
+    return NextResponse.json({
+      success: true,
+      created: createdBookings.length,
+      failed: failedBookings.length,
+      bookings: createdBookings,
+      failures: failedBookings
+    }, { status: 201 })
+  } catch (error) {
+    console.error("Error in createMultipleBookings:", error)
+    throw error
   }
 }

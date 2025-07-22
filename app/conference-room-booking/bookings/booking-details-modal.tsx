@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,11 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Users, Building } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Building, AlertCircle, Info, X } from "lucide-react";
 import type { Booking, Room } from "@/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface BookingDetailsModalProps {
   booking: Booking | null;
@@ -27,7 +29,16 @@ export function BookingDetailsModal({
   onClose,
   onCancel,
 }: BookingDetailsModalProps) {
-  if (!booking) return null;
+  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null);
+  
+  // Update the current booking whenever the booking prop changes
+  useEffect(() => {
+    if (booking) {
+      setCurrentBooking(booking);
+    }
+  }, [booking]);
+  
+  if (!currentBooking) return null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -58,8 +69,8 @@ export function BookingDetailsModal({
   };
 
   const getDuration = () => {
-    const start = new Date(booking.start_time);
-    const end = new Date(booking.end_time);
+    const start = new Date(currentBooking.start_time);
+    const end = new Date(currentBooking.end_time);
     const diffMs = end.getTime() - start.getTime();
     const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.round((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -73,22 +84,66 @@ export function BookingDetailsModal({
     }
   };
 
+  const renderBookingRestrictions = () => {
+    if (!booking) return null;
+    
+    // Check if the booking is pending and show approval info
+    if (booking.status === "pending") {
+      return (
+        <Alert className="mt-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-amber-600 dark:text-amber-400">Pending Approval</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            This booking is waiting for administrator approval. You will be notified when it's approved or rejected.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    return null;
+  };
+
+  const renderBookingInfo = () => {
+    return (
+      <Alert className="mt-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <AlertTitle className="text-blue-600 dark:text-blue-400">Booking Restrictions</AlertTitle>
+        <AlertDescription className="text-blue-700 dark:text-blue-300">
+          <ul className="list-disc list-inside space-y-1 mt-2">
+            <li>You can only book one room per day</li>
+            <li>Bookings must be made at least 24 hours in advance</li>
+            <li>All bookings require administrator approval</li>
+            <li>You can cancel pending bookings anytime</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
       <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>{booking.title || "Meeting"}</span>
-            <Badge className={getStatusColor(booking.status)}>
-              {booking.status}
-            </Badge>
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <span>{currentBooking.title || "Meeting"}</span>
+              <Badge className={getStatusColor(currentBooking.status)}>
+                {currentBooking.status}
+              </Badge>
+            </DialogTitle>
+            {/* <DialogClose className="h-6 w-6 rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogClose> */}
+          </div>
           <DialogDescription>
-            Booking details for {formatDate(booking.start_time)}
+            Booking details for {formatDate(currentBooking.start_time)}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 max-h-[60vh] overflow-auto pr-2">
           {/* Room Info */}
           <div className="bg-muted p-4 rounded-md">
             <h4 className="font-medium mb-2 flex items-center gap-2">
@@ -97,7 +152,7 @@ export function BookingDetailsModal({
             </h4>
             <div className="space-y-2">
               <p className="text-sm">
-                <span className="font-medium">Room:</span> {room?.name || `Room ${booking.room_id}`}
+                <span className="font-medium">Room:</span> {room?.name || `Room ${currentBooking.room_id}`}
               </p>
               {room && (
                 <>
@@ -116,11 +171,11 @@ export function BookingDetailsModal({
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Date:</span> {formatDate(booking.start_time)}
+              <span className="font-medium">Date:</span> {formatDate(currentBooking.start_time)}
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Time:</span> {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
+              <span className="font-medium">Time:</span> {formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -129,7 +184,7 @@ export function BookingDetailsModal({
           </div>
 
           {/* Attendees */}
-          {booking.attendees && booking.attendees.length > 0 && (
+          {currentBooking.attendees && currentBooking.attendees.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -137,7 +192,7 @@ export function BookingDetailsModal({
               </div>
               <div className="pl-6">
                 <ul className="list-disc pl-4 space-y-1">
-                  {booking.attendees.map((attendee, index) => (
+                  {currentBooking.attendees.map((attendee, index) => (
                     <li key={index} className="text-sm">
                       {attendee}
                     </li>
@@ -148,19 +203,19 @@ export function BookingDetailsModal({
           )}
 
           {/* Description */}
-          {booking.description && (
+          {currentBooking.description && (
             <div className="space-y-2">
               <h4 className="font-medium">Description:</h4>
-              <p className="text-sm">{booking.description}</p>
+              <p className="text-sm">{currentBooking.description}</p>
             </div>
           )}
 
           {/* Resources */}
-          {booking.resources && booking.resources.length > 0 && (
+          {currentBooking.resources && currentBooking.resources.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium">Resources:</h4>
               <div className="flex flex-wrap gap-2">
-                {booking.resources.map((resource, index) => (
+                {currentBooking.resources.map((resource, index) => (
                   <Badge key={index} variant="outline">
                     {resource}
                   </Badge>
@@ -171,19 +226,22 @@ export function BookingDetailsModal({
 
           {/* Created/Updated Info */}
           <div className="border-t pt-4 text-xs text-muted-foreground">
-            <p>Created: {new Date(booking.created_at).toLocaleString()}</p>
-            <p>Last updated: {new Date(booking.updated_at).toLocaleString()}</p>
+            <p>Created: {new Date(currentBooking.created_at).toLocaleString()}</p>
+            <p>Last updated: {new Date(currentBooking.updated_at).toLocaleString()}</p>
           </div>
+
+          {renderBookingRestrictions()}
+          {renderBookingInfo()}
         </div>
 
         <DialogFooter className="flex sm:justify-between">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {booking.status !== "cancelled" && (
+          {currentBooking.status !== "cancelled" && (
             <Button 
               variant="destructive" 
-              onClick={() => onCancel(booking.id)}
+              onClick={() => onCancel(currentBooking.id)}
             >
               Cancel Booking
             </Button>

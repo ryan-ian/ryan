@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getRooms, createRoom, updateRoom, deleteRoom, getRoomById } from "@/lib/supabase-data"
+import { addCacheHeaders, addETag, cacheConfig } from "@/lib/api-cache"
 
 export async function GET(request: NextRequest) {
   try {
+    // Check for conditional request headers
+    const ifNoneMatch = request.headers.get('if-none-match')
+    
     // Check if we're fetching a specific room by ID
     const url = new URL(request.url)
     const id = url.searchParams.get('id')
@@ -15,12 +19,37 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Room not found" }, { status: 404 })
       }
       
-      return NextResponse.json(room)
+      // Generate ETag for the room data
+      const etag = `"${id}-${JSON.stringify(room).length}"`
+      
+      // If client has a matching ETag, return 304 Not Modified
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return new NextResponse(null, { status: 304 })
+      }
+      
+      // Return room data with cache headers
+      let response = NextResponse.json(room)
+      response = addCacheHeaders(response, cacheConfig.semiStatic)
+      response.headers.set('ETag', etag)
+      return response
     }
     
     // Get all rooms
     const rooms = await getRooms()
-    return NextResponse.json(rooms)
+    
+    // Generate ETag for the rooms collection
+    const etag = `"rooms-${rooms.length}-${Date.now().toString().slice(0, -4)}"`
+    
+    // If client has a matching ETag, return 304 Not Modified
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return new NextResponse(null, { status: 304 })
+    }
+    
+    // Return rooms data with cache headers
+    let response = NextResponse.json(rooms)
+    response = addCacheHeaders(response, cacheConfig.semiStatic)
+    response.headers.set('ETag', etag)
+    return response
   } catch (error) {
     console.error("Get rooms error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

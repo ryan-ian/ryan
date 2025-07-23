@@ -13,9 +13,12 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 // and protect it with proper authentication checks
 // This is just for demonstration purposes
 export const createAdminClient = () => {
-  // In a real app, you would use a service role key that's only available server-side
-  // For this demo, we'll use the same anon key but note this is NOT secure
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseServiceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables.')
+  }
+  
+  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/auth-context'
 import { NotificationsProvider } from '@/contexts/notifications-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
+import ReactQueryProvider from '@/lib/react-query-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,15 +25,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthProvider>
-            <NotificationsProvider>
-              <DisplaysStyleHandler />
-              <MainWrapper>
-                {children}
-              </MainWrapper>
-              <Toaster />
-            </NotificationsProvider>
-          </AuthProvider>
+          <ReactQueryProvider>
+            <AuthProvider>
+              <NotificationsProvider>
+                <DisplaysStyleHandler />
+                <MainWrapper>
+                  {children}
+                </MainWrapper>
+                <Toaster />
+              </NotificationsProvider>
+            </AuthProvider>
+          </ReactQueryProvider>
         </ThemeProvider>
       </body>
     </html>

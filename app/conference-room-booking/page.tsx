@@ -6,17 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react"
+import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp, X } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { RoomCard } from "@/components/cards/room-card"
 import { useToast } from "@/components/ui/use-toast"
-import type { Room, Resource } from "@/types"
+import type { Room, Resource, Facility } from "@/types"
 import { useAuth } from "@/contexts/auth-context"
 import { eventBus, EVENTS } from "@/lib/events"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 export default function ConferenceRoomBookingPage() {
   const { user } = useAuth()
@@ -24,32 +25,97 @@ export default function ConferenceRoomBookingPage() {
   const { toast } = useToast()
   const [rooms, setRooms] = useState<Room[]>([])
   const [resources, setResources] = useState<Resource[]>([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [capacityFilter, setCapacityFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
+  const [facilityFilter, setFacilityFilter] = useState("any")
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [showResourceFilters, setShowResourceFilters] = useState(false)
   const [userBookings, setUserBookings] = useState<any[]>([])
 
   useEffect(() => {
-    fetchRooms()
+    fetchFacilities() // Fetch facilities first
     fetchResources()
+    fetchRooms()
     if (user?.id) {
       fetchUserBookings()
     }
   }, [user?.id])
 
+  // Add a new effect to enrich rooms with facility names when both are available
+  useEffect(() => {
+    if (rooms.length > 0 && facilities.length > 0) {
+      enrichRoomsWithFacilityNames()
+    }
+  }, [rooms, facilities])
+  
+  // Add back the filterRooms effect
   useEffect(() => {
     filterRooms()
-  }, [rooms, searchTerm, capacityFilter, statusFilter, selectedResources])
+  }, [rooms, searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources])
+
+  // Separate function to enrich rooms with facility names
+  const enrichRoomsWithFacilityNames = () => {
+    // Create a map of facility ID to name for quick lookup
+    const facilityMap = new Map<string, string>()
+    facilities.forEach((f: Facility) => {
+      if (f.id && f.name) {
+        facilityMap.set(f.id, f.name)
+      }
+    })
+    console.log("Facility map created with entries:", Array.from(facilityMap.entries()))
+    
+    // Enrich rooms with facilityName
+    const enrichedRooms = rooms.map((room) => {
+      let facilityName = "Unknown facility"
+      let facilitySource = "none"
+      
+      // Check if room has a nested facility object with a name
+      if (room.facility && room.facility.name) {
+        facilityName = room.facility.name
+        facilitySource = "nested"
+      } 
+      // Otherwise, try to find the facility by ID in our facilities map
+      else if (room.facility_id && facilityMap.has(room.facility_id)) {
+        facilityName = facilityMap.get(room.facility_id)!
+        facilitySource = "map"
+      }
+      
+      console.log(`Room "${room.name}" (ID: ${room.id}):
+        - Facility ID: ${room.facility_id || 'none'}
+        - Facility Name: ${facilityName}
+        - Source: ${facilitySource}
+      `)
+      
+      return { ...room, facilityName }
+    })
+    
+    console.log(`Enhanced ${enrichedRooms.length} rooms with facility names`)
+    setRooms(enrichedRooms)
+  }
 
   const fetchRooms = async () => {
     try {
       const response = await fetch("/api/rooms")
       const roomsData = await response.json()
       const roomsArray = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
+      console.log(`Fetched ${roomsArray.length} rooms from API`)
+      
+      // Log a sample of rooms with their facility IDs
+      if (roomsArray.length > 0) {
+        console.log("Sample rooms with facility data:", 
+          roomsArray.slice(0, 3).map((r: Room) => ({ 
+            id: r.id, 
+            name: r.name, 
+            facility_id: r.facility_id,
+            has_facility_object: !!r.facility
+          }))
+        )
+      }
+      
       setRooms(roomsArray)
     } catch (error) {
       console.error("Failed to fetch rooms:", error)
@@ -66,6 +132,27 @@ export default function ConferenceRoomBookingPage() {
       setResources(resourcesArray)
     } catch (error) {
       console.error("Failed to fetch resources:", error)
+    }
+  }
+  
+  const fetchFacilities = async () => {
+    try {
+      console.log("Fetching facilities...")
+      const response = await fetch("/api/facilities")
+      const facilitiesData = await response.json()
+      const facilitiesArray = Array.isArray(facilitiesData) ? facilitiesData : facilitiesData.facilities || []
+      
+      console.log(`Fetched ${facilitiesArray.length} facilities from API:`, 
+        facilitiesArray.map((f: Facility) => ({ 
+          id: f.id, 
+          name: f.name,
+          location: f.location || 'N/A'
+        }))
+      )
+      
+      setFacilities(facilitiesArray)
+    } catch (error) {
+      console.error("Failed to fetch facilities:", error)
     }
   }
 
@@ -90,25 +177,38 @@ export default function ConferenceRoomBookingPage() {
 
   const filterRooms = () => {
     let filtered = rooms
+    console.log(`Starting filtering with ${rooms.length} rooms`)
 
     // Search filter
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter(
         (room) =>
-          room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          room.location.toLowerCase().includes(searchTerm.toLowerCase()),
+          room.name.toLowerCase().includes(searchLower) ||
+          room.location.toLowerCase().includes(searchLower) ||
+          (room.facilityName && room.facilityName.toLowerCase().includes(searchLower))
       )
+      console.log(`After search filter: ${filtered.length} rooms`)
     }
 
     // Capacity filter
     if (capacityFilter) {
       const capacity = Number.parseInt(capacityFilter)
       filtered = filtered.filter((room) => room.capacity >= capacity)
+      console.log(`After capacity filter: ${filtered.length} rooms`)
     }
 
     // Status filter
     if (statusFilter && statusFilter !== "any") {
       filtered = filtered.filter((room) => room.status === statusFilter)
+      console.log(`After status filter: ${filtered.length} rooms`)
+    }
+    
+    // Facility filter
+    if (facilityFilter && facilityFilter !== "any") {
+      console.log(`Filtering by facility ID: ${facilityFilter}`)
+      filtered = filtered.filter((room) => room.facility_id === facilityFilter)
+      console.log(`After facility filter: ${filtered.length} rooms`)
     }
 
     // Resource filter - check if room has ALL selected resources
@@ -120,12 +220,13 @@ export default function ConferenceRoomBookingPage() {
             return room.resourceDetails.some(r => r.id === resourceId);
           }
           // Fallback to resources array for backward compatibility
-          if (room.resources && Array.isArray(room.resources)) {
+          if (room.resources) {
             return room.resources.includes(resourceId);
           }
           return false;
         });
       });
+      console.log(`After resource filter: ${filtered.length} rooms`)
     }
 
     setFilteredRooms(filtered)
@@ -366,7 +467,7 @@ export default function ConferenceRoomBookingPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by name or location..."
+                      placeholder="Search by name, location, or facility..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 bg-background/50"
@@ -401,6 +502,34 @@ export default function ConferenceRoomBookingPage() {
                       <SelectItem value="available">Available</SelectItem>
                       <SelectItem value="occupied">Occupied</SelectItem>
                       <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-muted-foreground">Facility</label>
+                    {facilityFilter && facilityFilter !== "any" && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setFacilityFilter("any")}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+                    <SelectTrigger className={cn("bg-background/50", facilityFilter !== "any" && "border-primary")}>
+                      <SelectValue placeholder="Any facility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any facility</SelectItem>
+                      {facilities.map(facility => (
+                        <SelectItem key={facility.id} value={facility.id}>
+                          {facility.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -442,6 +571,100 @@ export default function ConferenceRoomBookingPage() {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+              
+              {/* Active Filters */}
+              {(searchTerm || capacityFilter || statusFilter !== "any" || facilityFilter !== "any" || selectedResources.length > 0) && (
+                <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
+                  <div className="text-sm font-medium text-muted-foreground mr-2">Active filters:</div>
+                  
+                  {searchTerm && (
+                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
+                      <span>Search: {searchTerm}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                        onClick={() => setSearchTerm("")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {capacityFilter && (
+                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
+                      <span>Capacity: {capacityFilter}+ people</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                        onClick={() => setCapacityFilter("")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {statusFilter && statusFilter !== "any" && (
+                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
+                      <span>Status: {statusFilter}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                        onClick={() => setStatusFilter("any")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {facilityFilter && facilityFilter !== "any" && (
+                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
+                      <span>
+                        Facility: {facilities.find((f: Facility) => f.id === facilityFilter)?.name || 'Unknown'}
+                      </span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                        onClick={() => setFacilityFilter("any")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {selectedResources.length > 0 && (
+                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
+                      <span>Resources: {selectedResources.length}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                        onClick={() => setSelectedResources([])}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="ml-auto text-muted-foreground text-xs"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCapacityFilter("");
+                      setStatusFilter("any");
+                      setFacilityFilter("any");
+                      setSelectedResources([]);
+                    }}
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -460,6 +683,7 @@ export default function ConferenceRoomBookingPage() {
                     room={room}
                     resourceDetails={roomResourceDetails}
                     onBookRoom={handleBookRoom}
+                    facilities={facilities}
                   />
                 )
               })

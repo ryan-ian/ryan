@@ -214,6 +214,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
     localStorage.removeItem("auth-token")
     setUser(null)
+    if (typeof window !== "undefined") {
+      window.location.href = "/"
+    }
   }
 
   return <AuthContext.Provider value={{ user, login, logout, signup, loading }}>{children}</AuthContext.Provider>

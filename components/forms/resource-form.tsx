@@ -28,8 +28,8 @@ const resourceFormSchema = z.object({
   name: z.string().min(2, { message: "Resource name must be at least 2 characters." }),
   type: z.string().min(1, { message: "Please select a resource type." }),
   description: z.string().optional(),
-  status: z.enum(["available", "in-use", "maintenance", "unavailable"]),
-  quantity: z.coerce.number().int().positive({ message: "Quantity must be a positive number." }).optional(),
+  status: z.enum(["available", "in-use", "maintenance"]),
+  facility_id: z.string().optional(),
 })
 
 type ResourceFormValues = z.infer<typeof resourceFormSchema>
@@ -83,8 +83,7 @@ export function ResourceForm({
       name: initialData?.name || "",
       type: initialData?.type || "",
       description: initialData?.description || "",
-      status: (initialData?.status as "available" | "in-use" | "maintenance" | "unavailable") || "available",
-      quantity: initialData?.quantity || 1,
+      status: (initialData?.status as "available" | "in-use" | "maintenance") || "available",
     },
   })
 
@@ -95,8 +94,7 @@ export function ResourceForm({
         name: initialData.name || "",
         type: initialData.type || "",
         description: initialData.description || "",
-        status: (initialData.status as "available" | "in-use" | "maintenance" | "unavailable") || "available",
-        quantity: initialData.quantity || 1,
+        status: (initialData.status as "available" | "in-use" | "maintenance") || "available",
       })
     }
   }, [initialData, form])
@@ -163,29 +161,7 @@ export function ResourceForm({
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantity</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min={1} 
-                        placeholder="1" 
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Number of units available
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              
             </div>
             
             <FormField
@@ -226,7 +202,6 @@ export function ResourceForm({
                       <SelectItem value="available">Available</SelectItem>
                       <SelectItem value="in-use">In Use</SelectItem>
                       <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="unavailable">Unavailable</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

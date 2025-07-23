@@ -126,6 +126,18 @@ body {
   100% { background-position: 200% 0; }
 }
 
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 /* Animation utilities */
 @layer utilities {
   .animate-fadeIn {
@@ -165,6 +177,11 @@ body {
     );
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
+  }
+  
+  .animate-gradient-slow {
+    background-size: 300% 300%;
+    animation: gradient-shift 8s ease infinite;
   }
   
   /* Animation delays for staggered animations */

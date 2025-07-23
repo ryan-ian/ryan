@@ -18,6 +18,8 @@ export interface Facility {
   description?: string
   created_at: string
   updated_at: string
+  roomCount?: number
+  utilization?: number
 }
 
 export interface Room {
@@ -32,6 +34,12 @@ export interface Room {
   description?: string
   resourceDetails?: Resource[]
   facility_id: string
+  facility?: {
+    id: string
+    name: string
+    location: string
+  }
+  facilityName?: string // Added for UI display purposes
 }
 
 export interface Report {
@@ -88,6 +96,7 @@ export interface Resource {
   status: "available" | "in-use" | "maintenance"
   description?: string
   image?: string
+  facility_id?: string
 }
 
 export interface AuthUser {

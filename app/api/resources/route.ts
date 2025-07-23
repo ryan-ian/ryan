@@ -1,13 +1,55 @@
-import { NextResponse, NextRequest } from "next/server"
-import { getResources } from "@/lib/supabase-data"
-import { createAdminClient } from '@/lib/supabase'
-import { adminCreateResource } from '@/lib/supabase-data'
-import { createClient } from '@supabase/supabase-js'
+import { type NextRequest, NextResponse } from "next/server"
+import { getResources, createResource, updateResource, deleteResource, getResourceById } from "@/lib/supabase-data"
+import { addCacheHeaders, addETag, cacheConfig } from "@/lib/api-cache"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Check for conditional request headers
+    const ifNoneMatch = request.headers.get('if-none-match')
+    
+    // Check if we're fetching a specific resource by ID
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+    
+    if (id) {
+      // Get a specific resource
+      const resource = await getResourceById(id)
+      
+      if (!resource) {
+        return NextResponse.json({ error: "Resource not found" }, { status: 404 })
+      }
+      
+      // Generate ETag for the resource data
+      const etag = `"resource-${id}-${JSON.stringify(resource).length}"`
+      
+      // If client has a matching ETag, return 304 Not Modified
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return new NextResponse(null, { status: 304 })
+      }
+      
+      // Return resource data with cache headers
+      let response = NextResponse.json(resource)
+      response = addCacheHeaders(response, cacheConfig.semiStatic)
+      response.headers.set('ETag', etag)
+      return response
+    }
+    
+    // Get all resources
     const resources = await getResources()
-    return NextResponse.json(resources)
+    
+    // Generate ETag for the resources collection
+    const etag = `"resources-${resources.length}-${Date.now().toString().slice(0, -4)}"`
+    
+    // If client has a matching ETag, return 304 Not Modified
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return new NextResponse(null, { status: 304 })
+    }
+    
+    // Return resources data with cache headers
+    let response = NextResponse.json(resources)
+    response = addCacheHeaders(response, cacheConfig.semiStatic)
+    response.headers.set('ETag', etag)
+    return response
   } catch (error) {
     console.error("Get resources error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

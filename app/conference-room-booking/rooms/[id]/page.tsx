@@ -58,13 +58,15 @@ export default function RoomDetailPage() {
 
   const fetchRoomDetails = async () => {
     try {
-      const response = await fetch("/api/rooms")
-      const roomsData = await response.json()
-      const roomsArray = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
-      const foundRoom = roomsArray.find((r: Room) => r.id === roomId)
-      setRoom(foundRoom || null)
+      const response = await fetch(`/api/rooms?id=${roomId}`)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const roomData = await response.json()
+      setRoom(roomData)
     } catch (error) {
       console.error("Failed to fetch room details:", error)
+      setRoom(null)
     } finally {
       setLoading(false)
     }
@@ -187,8 +189,14 @@ export default function RoomDetailPage() {
               <h1 className="text-4xl font-bold tracking-tight text-foreground">{room.name}</h1>
               <p className="text-lg text-muted-foreground flex items-center gap-2 mt-2">
                 <MapPin className="h-5 w-5" />
-            {room.location}
-          </p>
+                {room.location}
+              </p>
+              {room.facility && (
+                <p className="text-lg text-muted-foreground flex items-center gap-2 mt-2">
+                  <Building className="h-5 w-5" />
+                  {room.facility.name}
+                </p>
+              )}
         </div>
             <div className="flex items-center gap-4 pt-2">
               {getStatusBadge(room.status)}

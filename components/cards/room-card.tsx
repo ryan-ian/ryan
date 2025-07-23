@@ -1,18 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
-import { Building, MapPin, Users, Check } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import NextLink from "next/link"
+import { Building, MapPin, Users, Check, Edit, Trash2 } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResourceIcon } from "@/components/ui/resource-icon"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
 import type { Room, Resource } from "@/types"
 
 export interface RoomCardProps {
   room: Room
+  href?: string // Add href for navigation
   resourceDetails?: Resource[]
   selectable?: boolean
   selected?: boolean
@@ -20,14 +22,19 @@ export interface RoomCardProps {
   actionLabel?: string
   actionHref?: string
   onAction?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
   className?: string
   compact?: boolean
   showBookButton?: boolean
   onBookRoom?: (roomId: string, data: any) => Promise<void>
+  children?: React.ReactNode
+  facilities?: { id: string; name: string }[]
 }
 
 export function RoomCard({
   room,
+  href,
   resourceDetails,
   selectable = false,
   selected = false,
@@ -35,12 +42,21 @@ export function RoomCard({
   actionLabel = "Book Now",
   actionHref,
   onAction,
+  onEdit,
+  onDelete,
   className,
   compact = false,
   showBookButton = true,
   onBookRoom,
+  children,
+  facilities,
 }: RoomCardProps) {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+
+  const handleActionClick = (e: React.MouseEvent, action?: () => void) => {
+    e.stopPropagation() // Prevent card click from firing
+    action?.()
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -78,19 +94,49 @@ export function RoomCard({
     }
   }
 
+  // Look up facility name using facility_id from facilities prop
+  let facilityName = "Unknown facility"
+  let facilityDetails = null
+  
+  // First check if facilityName is already set on the room object (from enrichment)
+  if (room.facilityName) {
+    facilityName = room.facilityName
+  } 
+  // Otherwise, try to look it up from facilities prop
+  else if (facilities && room.facility_id) {
+    const found = facilities.find(f => f.id === room.facility_id)
+    if (found) {
+      facilityName = found.name
+      facilityDetails = found
+    }
+  }
+
+  const CardContentWrapper = ({ children }: { children: React.ReactNode }) => {
+    const cardProps = {
+      className: cn(
+        "overflow-hidden bg-card border-border/50 hover:shadow-xl transition-shadow duration-300 flex flex-col group",
+        selectable && "cursor-pointer",
+        selected && "border-primary ring-2 ring-primary/30",
+        !isBookable && "opacity-80",
+        className
+      ),
+      onClick: selectable ? onSelect : undefined,
+    }
+
+    if (href) {
+      return (
+        <NextLink href={href} className="no-underline">
+          <Card {...cardProps}>{children}</Card>
+        </NextLink>
+      )
+    }
+    return <Card {...cardProps}>{children}</Card>
+  }
+  
   return (
     <>
-      <Card 
-        className={cn(
-          "overflow-hidden bg-card border-border/50 hover:shadow-xl transition-shadow duration-300 flex flex-col",
-          selectable && "cursor-pointer",
-          selected && "border-primary ring-2 ring-primary/30",
-          !isBookable && "opacity-80",
-          className
-        )}
-        onClick={handleCardClick}
-      >
-        <Link href={selectable ? "#" : `/conference-room-booking/rooms/${room.id}`} className="block">
+      <CardContentWrapper>
+        <div className="relative">
           <div className={cn("relative w-full", compact ? "h-32" : "h-48")}>
             {room.image ? (
               <img 
@@ -112,18 +158,40 @@ export function RoomCard({
               </div>
             )}
           </div>
-        </Link>
+
+          {(onEdit || onDelete) && (
+            <div className="absolute top-2 left-2 flex gap-1">
+              {onEdit && (
+                <Button variant="secondary" size="icon" className="h-8 w-8" onClick={(e) => handleActionClick(e, onEdit)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button variant="destructive" size="icon" className="h-8 w-8" onClick={(e) => handleActionClick(e, onDelete)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
         
         <div className={cn("flex-grow flex flex-col", compact ? "p-4" : "p-6")}>
           <CardHeader className={cn("p-0", compact ? "mb-2" : "mb-4")}>
-            <Link href={selectable ? "#" : `/conference-room-booking/rooms/${room.id}`}>
-              <CardTitle className={cn(compact ? "text-lg" : "text-xl", "font-bold text-foreground hover:text-primary transition-colors")}>
-                {room.name}
-              </CardTitle>
-            </Link>
+            <CardTitle className={cn(compact ? "text-lg" : "text-xl", "font-bold text-foreground group-hover:text-primary transition-colors")}>
+              {room.name}
+            </CardTitle>
             <CardDescription className="flex items-center gap-2 pt-1">
-              <MapPin className="h-4 w-4" />
-              {room.location}
+              {room.location && (
+                <>
+                  <MapPin className="h-4 w-4" />
+                  {room.location}
+                  <span className="mx-1">·</span>
+                </>
+              )}
+              <Building className="h-4 w-4" />
+              <span className={facilityName === "Unknown facility" ? "text-muted-foreground italic" : ""}>
+                {facilityName}
+              </span>
             </CardDescription>
           </CardHeader>
           
@@ -139,7 +207,7 @@ export function RoomCard({
               <div className="flex flex-wrap gap-2">
                 {resourceDetails.map((resource) => (
                   <Badge key={resource.id} variant="secondary" className="flex items-center gap-1">
-                    <ResourceIcon type={resource.type} className="h-3 w-3" />
+                    <ResourceIcon type={resource.type} name={resource.name} />
                     {resource.name}
                   </Badge>
                 ))}
@@ -147,33 +215,35 @@ export function RoomCard({
             )}
           </CardContent>
           
-          {showBookButton && (
+          {children ? (
+            <CardFooter className="p-0 pt-4">{children}</CardFooter>
+          ) : showBookButton && (
             <div className={cn(compact ? "mt-4" : "mt-6")}>
               {actionHref && !onBookRoom ? (
                 <Button asChild className="w-full" disabled={!isBookable}>
-                  <Link href={actionHref}>
+                  <NextLink href={actionHref}>
                     {actionLabel}
-                  </Link>
+                  </NextLink>
                 </Button>
               ) : onAction ? (
-                <Button onClick={onAction} className="w-full" disabled={!isBookable}>
+                <Button onClick={(e) => handleActionClick(e, onAction)} className="w-full" disabled={!isBookable}>
                   {actionLabel}
                 </Button>
               ) : onBookRoom ? (
-                <Button onClick={handleBookNow} className="w-full" disabled={!isBookable}>
+                <Button onClick={(e) => handleActionClick(e, () => setIsBookingModalOpen(true))} className="w-full" disabled={!isBookable}>
                   {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
                 </Button>
               ) : (
                 <Button asChild className="w-full" disabled={!isBookable}>
-                  <Link href={`/conference-room-booking/bookings/new?roomId=${room.id}`}>
+                  <NextLink href={`/conference-room-booking/bookings/new?roomId=${room.id}`}>
                     {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                  </Link>
+                  </NextLink>
                 </Button>
               )}
             </div>
           )}
         </div>
-      </Card>
+      </CardContentWrapper>
 
       {onBookRoom && (
         <BookingCreationModal
@@ -184,5 +254,26 @@ export function RoomCard({
         />
       )}
     </>
+  )
+}
+
+export function RoomCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <Skeleton className="h-48 w-full" />
+      <div className="p-6">
+        <Skeleton className="h-6 w-3/4 mb-2" />
+        <Skeleton className="h-4 w-1/2 mb-4" />
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-5 w-5 rounded-full" />
+          <Skeleton className="h-4 w-8" />
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <Skeleton className="h-10 w-full mt-6" />
+      </div>
+    </Card>
   )
 } 

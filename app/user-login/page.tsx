@@ -16,12 +16,12 @@ export default function UserLoginPage() {
                 <Users className="h-6 w-6 text-primary" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold tracking-tight">User Login</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">Login</CardTitle>
             <CardDescription>Sign in to access the Conference Hub</CardDescription>
           </CardHeader>
           
           <CardContent className="pb-8">
-            <LoginForm isAdmin={false} redirectPath="/conference-room-booking" />
+            <LoginForm />
             <div className="mt-8 text-center">
               <Link 
                 href="/" 

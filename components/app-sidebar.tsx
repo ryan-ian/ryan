@@ -1,6 +1,8 @@
 "use client"
 
-import { Calendar, Home, Settings, Users, Building, BarChart3, Shield, User, LogOut, Heart } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Calendar, Home, Settings, Users, Building, LogOut } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -12,87 +14,36 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/auth-context"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
-const userMenuItems = [
-  {
-    title: "Dashboard",
-    url: "/conference-room-booking",
-    icon: Home,
-  },
-  {
-    title: "Browse Rooms",
-    url: "/conference-room-booking/rooms",
-    icon: Building,
-  },
-  {
-    title: "My Bookings",
-    url: "/conference-room-booking/bookings",
-    icon: Calendar,
-  },
-  {
-    title: "Profile",
-    url: "/conference-room-booking/profile",
-    icon: User,
-  },
-]
-
-const adminMenuItems = [
-  {
-    title: "Admin Portal",
-    url: "/admin",
-    icon: Shield,
-  },
-  {
-    title: "Conference Dashboard",
-    url: "/admin/conference",
-    icon: Building,
-  },
-  {
-    title: "User Management",
-    url: "/admin/conference/users",
-    icon: Users,
-  },
-  {
-    title: "Room Management",
-    url: "/admin/conference/rooms",
-    icon: Building,
-  },
-  {
-    title: "All Bookings",
-    url: "/admin/conference/bookings",
-    icon: Calendar,
-  },
-  {
-    title: "Resources",
-    url: "/admin/conference/resources",
-    icon: Settings,
-  },
-  {
-    title: "Reports",
-    url: "/admin/conference/reports",
-    icon: BarChart3,
-  },
-  {
-    title: "Settings",
-    url: "/admin/conference/settings",
-    icon: Settings,
-  },
-  {
-    title: "System Health",
-    url: "/admin/health",
-    icon: Heart,
-  },
-  {
-    title: "Storage Test",
-    url: "/admin/test-storage",
-    icon: Heart,
-  },
+const facilityManagerMenuItems = [
+    {
+      title: "Dashboard",
+      url: "/facility-manager",
+      icon: Home,
+    },
+    {
+      title: "Bookings",
+      url: "/facility-manager/bookings",
+      icon: Calendar,
+    },
+    {
+      title: "Rooms",
+      url: "/facility-manager/rooms",
+      icon: Building,
+    },
+    {
+      title: "Resources",
+      url: "/facility-manager/resources",
+      icon: Settings,
+    },
+    {
+      title: "Facilities",
+      url: "/facility-manager/facilities",
+      icon: Building,
+    },
 ]
 
 export function AppSidebar() {
@@ -101,7 +52,9 @@ export function AppSidebar() {
 
   if (!user) return null
 
-  const menuItems = user.role === "admin" ? adminMenuItems : userMenuItems
+  const menuItems = user.role === "facility_manager" 
+    ? facilityManagerMenuItems 
+    : []
 
   return (
     <Sidebar>
@@ -131,35 +84,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {user.role === "admin" && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link href="/admin/conference/rooms/new" className="flex items-center gap-3">
-                        <Building className="h-4 w-4 flex-shrink-0" />
-                        <span className="leading-none">Add Room</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <Link href="/admin/conference/users/new" className="flex items-center gap-3">
-                        <Users className="h-4 w-4 flex-shrink-0" />
-                        <span className="leading-none">Add User</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4">

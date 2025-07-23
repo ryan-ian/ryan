@@ -6,7 +6,7 @@ import Link from "next/link"
 import { MainLayout } from "@/components/main-layout"
 import { LoginForm } from "@/components/forms/login-form"
 
-export default function AdminLoginPage() {
+export default function LoginPage() {
   return (
     <MainLayout>
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
@@ -18,12 +18,12 @@ export default function AdminLoginPage() {
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
               </div>
-              <CardTitle className="text-2xl font-bold tracking-tight">Admin Login</CardTitle>
-              <CardDescription>Sign in to the admin dashboard</CardDescription>
+              <CardTitle className="text-2xl font-bold tracking-tight">Sign In</CardTitle>
+              <CardDescription>Sign in to your account</CardDescription>
             </CardHeader>
             
             <CardContent className="pb-8">
-              <LoginForm isAdmin={true} redirectPath="/admin" />
+              <LoginForm />
               <div className="mt-8 text-center">
                 <Link 
                   href="/" 

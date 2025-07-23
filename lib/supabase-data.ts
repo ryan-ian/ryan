@@ -1,8 +1,8 @@
 import { supabase, createAdminClient } from './supabase'
-import type { AuthUser, User, Room, Booking, Resource, BookingWithDetails } from '@/types'
+import * as types from '@/types'
 
 // Users
-export async function getUsers(): Promise<User[]> {
+export async function getUsers(): Promise<types.User[]> {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -20,7 +20,7 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-export async function getUserById(id: string): Promise<User | null> {
+export async function getUserById(id: string): Promise<types.User | null> {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -40,7 +40,7 @@ export async function getUserById(id: string): Promise<User | null> {
   }
 }
 
-export async function getUserByEmail(email: string): Promise<User | null> {
+export async function getUserByEmail(email: string): Promise<types.User | null> {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -60,13 +60,221 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   }
 }
 
+// Facilities
+export async function getFacilities(): Promise<types.Facility[]> {
+  try {
+    const { data, error } = await supabase
+      .from('facilities')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching facilities:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Exception in getFacilities:', error);
+    throw error;
+  }
+}
+
+export async function getFacilitiesByManager(userId: string): Promise<types.Facility[]> {
+  try {
+    const { data, error } = await supabase
+      .from('facilities')
+      .select('*')
+      .eq('manager_id', userId)
+
+    if (error) {
+      console.error('Error fetching facilities by manager:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Exception in getFacilitiesByManager:', error);
+    throw error;
+  }
+}
+
+export async function getFacilityById(id: string): Promise<types.Facility | null> {
+  try {
+    const { data, error } = await supabase
+      .from('facilities')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching facility ${id}:`, error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception in getFacilityById:', error);
+    throw error;
+  }
+}
+
+export async function createFacility(facilityInput: Omit<types.Facility, 'id' | 'created_at' | 'updated_at'>): Promise<types.Facility> {
+  try {
+    const { data, error } = await supabase
+      .from('facilities')
+      .insert(facilityInput)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating facility:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception in createFacility:', error);
+    throw error;
+  }
+}
+
+export async function updateFacility(id: string, facilityInput: Partial<types.Facility>): Promise<types.Facility> {
+  try {
+    const { data, error } = await supabase
+      .from('facilities')
+      .update(facilityInput)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Error updating facility ${id}:`, error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception in updateFacility:', error);
+    throw error;
+  }
+}
+
+export async function deleteFacility(id: string): Promise<boolean> {
+  try {
+    // Check for rooms associated with the facility
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('facility_id', id)
+      .limit(1);
+
+    if (roomsError) {
+      console.error(`Error checking rooms for facility ${id}:`, roomsError);
+      throw roomsError;
+    }
+
+    if (rooms && rooms.length > 0) {
+      throw new Error('Cannot delete facility with associated rooms. Please delete or reassign rooms first.');
+    }
+
+    const { error } = await supabase
+      .from('facilities')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error deleting facility ${id}:`, error);
+      throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Exception in deleteFacility:', error);
+    throw error;
+  }
+}
+
+
 // Rooms
-export async function getRooms(): Promise<Room[]> {
+
+// Helper function to get the IDs of rooms managed by a facility manager.
+// Not exported, as it's only used by other functions in this file.
+async function getManagedRoomIds(userId: string): Promise<string[]> {
+  // Step 1: Find the facility managed by the user.
+  const { data: facility, error: facilityError } = await supabase
+    .from('facilities')
+    .select('id')
+    .eq('manager_id', userId)
+    .single();
+
+  if (facilityError || !facility) {
+    // It's not an error if a manager has no facility, just return empty.
+    if (facilityError && facilityError.code !== 'PGRST116') { // PGRST116: "not found"
+       console.error(`Error fetching facility for manager ${userId}:`, facilityError);
+       throw facilityError;
+    }
+    return [];
+  }
+  
+  // Step 2: Get all room IDs that belong to that facility.
+  const { data: rooms, error: roomsError } = await supabase
+    .from('rooms')
+    .select('id')
+    .eq('facility_id', facility.id);
+
+  if (roomsError) {
+      console.error(`Error fetching rooms for facility ${facility.id}:`, roomsError);
+      throw roomsError;
+  }
+
+  return (rooms || []).map(r => r.id);
+}
+
+export async function getRoomsByFacilityManager(userId: string): Promise<types.Room[]> {
+  try {
+    // Step 1: Find the facility managed by the user.
+    const { data: facility, error: facilityError } = await supabase
+      .from('facilities')
+      .select('id')
+      .eq('manager_id', userId)
+      .single();
+
+    if (facilityError || !facility) {
+      if (facilityError && facilityError.code !== 'PGRST116') {
+         console.error(`Error fetching facility for manager ${userId}:`, facilityError);
+         throw facilityError;
+      }
+      return [];
+    }
+
+    // Step 2: Get all rooms that belong to that facility.
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('*, facility:facilities(name)')
+      .eq('facility_id', facility.id);
+    
+    if (roomsError) {
+      console.error(`Error fetching rooms for facility ${facility.id}:`, roomsError);
+      throw roomsError;
+    }
+
+    return rooms || [];
+  } catch (error) {
+    console.error('Exception in getRoomsByFacilityManager:', error);
+    throw error;
+  }
+}
+
+
+export async function getRooms(): Promise<types.Room[]> {
   try {
     // Get all rooms with their resources
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
-      .select('*')
+      .select(`
+        *,
+        facility:facilities(id, name, location)
+      `)
       
     if (roomsError) {
       console.error('Error fetching rooms:', roomsError)
@@ -114,12 +322,15 @@ export async function getRooms(): Promise<Room[]> {
   }
 }
 
-export async function getRoomById(id: string): Promise<Room | null> {
+export async function getRoomById(id: string): Promise<types.Room | null> {
   try {
     // Get the room with its resources
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('*')
+      .select(`
+        *,
+        facility:facilities(id, name, location)
+      `)
       .eq('id', id)
       .single()
       
@@ -162,7 +373,7 @@ export async function getRoomById(id: string): Promise<Room | null> {
   }
 }
 
-export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
+export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<types.Room> {
   try {
     // Create the room with resources directly in the room record
     const { data: room, error } = await supabase
@@ -174,7 +385,8 @@ export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
         room_resources: roomInput.room_resources || [],
         status: roomInput.status || 'available',
         image: roomInput.image || null,
-        description: roomInput.description || null
+        description: roomInput.description || null,
+        facility_id: roomInput.facility_id, // Add this line
       })
       .select()
       .single()
@@ -185,14 +397,14 @@ export async function createRoom(roomInput: Omit<Room, 'id'>): Promise<Room> {
     }
     
     // Return the room with resource details
-    return getRoomById(room.id) as Promise<Room>
+    return getRoomById(room.id) as Promise<types.Room>
   } catch (error) {
     console.error('Exception in createRoom:', error)
     throw error
   }
 }
 
-export async function updateRoom(id: string, roomInput: Partial<Room>): Promise<Room> {
+export async function updateRoom(id: string, roomInput: Partial<types.Room>): Promise<types.Room> {
   try {
     // Update the room with resources directly in the room record
     const { data: room, error } = await supabase
@@ -216,7 +428,7 @@ export async function updateRoom(id: string, roomInput: Partial<Room>): Promise<
     }
     
     // Return the room with resource details
-    return getRoomById(id) as Promise<Room>
+    return getRoomById(id) as Promise<types.Room>
   } catch (error) {
     console.error('Exception in updateRoom:', error)
     throw error
@@ -265,7 +477,7 @@ export async function deleteRoom(id: string): Promise<boolean> {
 }
 
 // Bookings
-export async function getBookings(): Promise<Booking[]> {
+export async function getBookings(): Promise<types.Booking[]> {
   try {
     const { data, error } = await supabase
       .from('bookings')
@@ -283,7 +495,7 @@ export async function getBookings(): Promise<Booking[]> {
   }
 }
 
-export async function getBookingsWithDetails(): Promise<BookingWithDetails[]> {
+export async function getBookingsWithDetails(): Promise<types.BookingWithDetails[]> {
   try {
     const { data, error } = await supabase
       .from('bookings')
@@ -305,7 +517,7 @@ export async function getBookingsWithDetails(): Promise<BookingWithDetails[]> {
   }
 }
 
-export async function getUserBookingsWithDetails(userId: string): Promise<BookingWithDetails[]> {
+export async function getUserBookingsWithDetails(userId: string): Promise<types.BookingWithDetails[]> {
   try {
     if (!userId) {
       console.warn('getUserBookingsWithDetails called with empty userId');
@@ -339,7 +551,7 @@ export async function getUserBookingsWithDetails(userId: string): Promise<Bookin
   }
 }
 
-export async function getBookingsByUserId(userId: string): Promise<Booking[]> {
+export async function getBookingsByUserId(userId: string): Promise<types.Booking[]> {
   try {
     const { data, error } = await supabase
       .from('bookings')
@@ -358,7 +570,7 @@ export async function getBookingsByUserId(userId: string): Promise<Booking[]> {
   }
 }
 
-export async function getBookingById(id: string): Promise<Booking | null> {
+export async function getBookingById(id: string): Promise<types.Booking | null> {
   try {
     const { data, error } = await supabase
       .from('bookings')
@@ -378,7 +590,7 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   }
 }
 
-export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_at' | 'updated_at'>): Promise<Booking> {
+export async function createBooking(bookingData: Omit<types.Booking, 'id' | 'created_at' | 'updated_at'>): Promise<types.Booking> {
   try {
     // Ensure all required fields are present
     if (!bookingData.room_id) throw new Error('room_id is required')
@@ -425,7 +637,7 @@ export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_a
   }
 }
 
-export async function updateBooking(id: string, bookingData: Partial<Booking>): Promise<Booking> {
+export async function updateBooking(id: string, bookingData: Partial<types.Booking>): Promise<types.Booking> {
   try {
     const updates = {
       ...bookingData,
@@ -452,7 +664,7 @@ export async function updateBooking(id: string, bookingData: Partial<Booking>): 
 }
 
 // Resources
-export async function getResources(): Promise<Resource[]> {
+export async function getResources(): Promise<types.Resource[]> {
   try {
     const { data, error } = await supabase
       .from('resources')
@@ -470,7 +682,7 @@ export async function getResources(): Promise<Resource[]> {
   }
 }
 
-export async function getResourceById(id: string): Promise<Resource | null> {
+export async function getResourceById(id: string): Promise<types.Resource | null> {
   try {
     const { data, error } = await supabase
       .from('resources')
@@ -490,7 +702,7 @@ export async function getResourceById(id: string): Promise<Resource | null> {
   }
 }
 
-export async function createResource(resourceData: Omit<Resource, 'id'>): Promise<Resource> {
+export async function createResource(resourceData: Omit<types.Resource, 'id'>): Promise<types.Resource> {
   try {
     const { data, error } = await supabase
       .from('resources')
@@ -510,7 +722,7 @@ export async function createResource(resourceData: Omit<Resource, 'id'>): Promis
   }
 }
 
-export async function updateResource(id: string, resourceData: Partial<Resource>): Promise<Resource> {
+export async function updateResource(id: string, resourceData: Partial<types.Resource>): Promise<types.Resource> {
   try {
     const { data, error } = await supabase
       .from('resources')
@@ -568,8 +780,27 @@ export async function deleteResource(id: string): Promise<boolean> {
   }
 }
 
+export async function getResourcesByFacility(facilityId: string): Promise<types.Resource[]> {
+  try {
+    const { data, error } = await supabase
+      .from('resources')
+      .select('*')
+      .eq('facility_id', facilityId)
+      
+    if (error) {
+      console.error(`Error fetching resources for facility ${facilityId}:`, error)
+      throw error
+    }
+    
+    return data || []
+  } catch (error) {
+    console.error('Exception in getResourcesByFacility:', error)
+    throw error
+  }
+}
+
 // Admin operations - using admin client to bypass RLS
-export async function adminGetAllUsers(): Promise<User[]> {
+export async function adminGetAllUsers(): Promise<types.User[]> {
   try {
     const adminClient = createAdminClient()
     const { data, error } = await adminClient
@@ -588,7 +819,7 @@ export async function adminGetAllUsers(): Promise<User[]> {
   }
 }
 
-export async function adminGetAllBookings(): Promise<Booking[]> {
+export async function adminGetAllBookings(): Promise<types.Booking[]> {
   try {
     const adminClient = createAdminClient()
     const { data, error } = await adminClient
@@ -607,7 +838,7 @@ export async function adminGetAllBookings(): Promise<Booking[]> {
   }
 }
 
-export async function adminCreateResource(resourceData: Omit<Resource, 'id'>): Promise<Resource> {
+export async function adminCreateResource(resourceData: Omit<types.Resource, 'id'>): Promise<types.Resource> {
   try {
     const adminClient = createAdminClient()
     const { data, error } = await adminClient
@@ -673,7 +904,7 @@ export async function checkBookingConflicts(
 }
 
 // Get available rooms for a time period
-export async function getAvailableRooms(start_time: string, end_time: string): Promise<Room[]> {
+export async function getAvailableRooms(start_time: string, end_time: string): Promise<types.Room[]> {
   try {
     // First get all rooms
     const { data: rooms, error: roomsError } = await supabase
@@ -849,7 +1080,7 @@ export async function getResourcesForRoom(roomId: string): Promise<any[]> {
 }
 
 // New function to get rooms that have a specific resource
-export async function getRoomsWithResource(resourceId: string): Promise<Room[]> {
+export async function getRoomsWithResource(resourceId: string): Promise<types.Room[]> {
   try {
     const { data: rooms, error } = await supabase
       .from('rooms')
@@ -930,5 +1161,99 @@ export async function deleteRoomImage(imageUrl: string): Promise<boolean> {
   } catch (error) {
     console.error('Exception in deleteRoomImage:', error)
     return false
+  }
+} 
+
+export async function getPendingBookingsByFacilityManager(userId: string): Promise<types.BookingWithDetails[]> {
+  try {
+    const roomIds = await getManagedRoomIds(userId);
+    if (roomIds.length === 0) {
+      return [];
+    }
+    
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms:room_id(id, name, location, capacity),
+        users:user_id(id, name, email)
+      `)
+      .in('room_id', roomIds)
+      .eq('status', 'pending');
+
+    if (error) {
+      console.error('Error fetching pending bookings:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (error) {
+    console.error('Exception in getPendingBookingsByFacilityManager:', error);
+    throw error;
+  }
+} 
+
+export async function getAllBookingsByFacilityManager(userId: string): Promise<types.BookingWithDetails[]> {
+  try {
+      const roomIds = await getManagedRoomIds(userId);
+      if (roomIds.length === 0) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+              *,
+              rooms:room_id(id, name, location, capacity),
+              users:user_id(id, name, email)
+          `)
+          .in('room_id', roomIds)
+          .order('start_time', { ascending: false });
+
+      if (error) {
+          console.error('Error fetching bookings:', error);
+          throw error;
+      }
+
+      return data || [];
+  } catch (error) {
+      console.error('Exception in getAllBookingsByFacilityManager:', error);
+      throw error;
+  }
+} 
+  
+  
+export async function getTodaysBookingsByFacilityManager(userId: string): Promise<types.BookingWithDetails[]> {
+  try {
+    const roomIds = await getManagedRoomIds(userId);
+    if (roomIds.length === 0) {
+      return [];
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms:room_id(id, name, location, capacity),
+        users:user_id(id, name, email)
+      `)
+      .in('room_id', roomIds)
+      .eq('status', 'confirmed')
+      .gte('start_time', startOfDay)
+      .lte('start_time', endOfDay)
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching today\'s bookings:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Exception in getTodaysBookingsByFacilityManager:', error);
+    throw error;
   }
 } 

@@ -10,12 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, Lock } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-interface LoginFormProps {
-  isAdmin?: boolean
-  redirectPath: string
-}
-
-export function LoginForm({ isAdmin = false, redirectPath }: LoginFormProps) {
+export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -23,34 +18,33 @@ export function LoginForm({ isAdmin = false, redirectPath }: LoginFormProps) {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
 
+  // Helper to redirect based on role
+  const redirectByRole = (role: string) => {
+    if (role === "admin") {
+      router.push("/admin")
+    } else if (role === "facility_manager") {
+      router.push("/facility-manager")
+    } else {
+      router.push("/conference-room-booking")
+    }
+  }
+
   // Check if user is already authenticated on component mount
   useEffect(() => {
     const checkExistingAuth = async () => {
       try {
-        // Check if we have a token in localStorage
         const token = localStorage.getItem("auth-token")
-        
         if (token) {
-          // Verify the token is valid
           const { data, error } = await supabase.auth.getUser(token)
-          
           if (!error && data.user) {
-            // If this is admin login, verify user has admin role
-            if (isAdmin) {
-              const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('role')
-                .eq('id', data.user.id)
-                .single()
-                
-              if (!userError && userData?.role === 'admin') {
-                // Valid admin, redirect
-                router.push(redirectPath)
-                return
-              }
-            } else {
-              // Valid user, redirect
-              router.push(redirectPath)
+            // Fetch user profile for role
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', data.user.id)
+              .single()
+            if (!userError && userData?.role) {
+              redirectByRole(userData.role)
               return
             }
           }
@@ -61,71 +55,50 @@ export function LoginForm({ isAdmin = false, redirectPath }: LoginFormProps) {
         setIsCheckingAuth(false)
       }
     }
-    
     checkExistingAuth()
-  }, [isAdmin, redirectPath, router])
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
-
     try {
       // Sign in with Supabase directly
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-      
       if (error) {
-        console.error("Login error:", error.message)
         setError("Invalid credentials. Please try again.")
         setLoading(false)
         return
       }
-      
       if (!data.session) {
         setError("Failed to create session")
         setLoading(false)
         return
       }
-      
       // Get user profile data to check role
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('*')
+        .select('role')
         .eq('id', data.user.id)
         .single()
-      
-      if (userError) {
-        console.error("Error fetching user data:", userError)
+      if (userError || !userData?.role) {
         setError("Error fetching user data")
         setLoading(false)
         return
       }
-      
-      // If this is an admin login, verify the user has admin role
-      if (isAdmin && userData.role !== 'admin') {
-        // Sign out if not admin
-        await supabase.auth.signOut()
-        setError("You don't have admin privileges")
-        setLoading(false)
-        return
-      }
-      
       // Store the token in localStorage
       localStorage.setItem("auth-token", data.session.access_token)
-      
-      // Redirect to the appropriate page
-      router.push(redirectPath)
+      // Redirect based on role
+      redirectByRole(userData.role)
     } catch (error) {
-      console.error("Login error:", error)
       setError("An unexpected error occurred. Please try again.")
       setLoading(false)
     }
   }
 
-  // Show loading state while checking authentication
   if (isCheckingAuth) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -143,7 +116,7 @@ export function LoginForm({ isAdmin = false, redirectPath }: LoginFormProps) {
           <Input
             id="email"
             type="email"
-            placeholder={isAdmin ? "admin@conferencehub.com" : "your.email@company.com"}
+            placeholder="your.email@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

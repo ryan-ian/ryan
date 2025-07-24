@@ -14,6 +14,7 @@ DECLARE
   admin_record RECORD;
   room_name TEXT;
   user_name TEXT;
+  manager_id UUID;
 BEGIN
   -- If a booking status changes to confirmed
   IF (TG_OP = 'UPDATE' AND NEW.status = 'confirmed' AND OLD.status = 'pending') THEN
@@ -46,6 +47,23 @@ BEGIN
     
     -- Get user name
     SELECT name INTO user_name FROM users WHERE id = NEW.user_id;
+    
+    -- Get facility manager
+    SELECT f.manager_id INTO manager_id
+    FROM rooms r
+    JOIN facilities f ON r.facility_id = f.id
+    WHERE r.id = NEW.room_id;
+    
+    -- Create notification for facility manager if exists
+    IF manager_id IS NOT NULL THEN
+      PERFORM create_notification(
+        manager_id,
+        'New Booking Request',
+        user_name || ' has requested to book "' || NEW.title || '" in ' || room_name || '.',
+        'booking_request',
+        NEW.id
+      );
+    END IF;
     
     -- Create notifications for all admins
     FOR admin_record IN 

@@ -43,6 +43,9 @@ import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { getRoomsByFacilityManager } from "@/lib/supabase-data"
 
 type SortField = "title" | "room" | "organizer" | "date" | "status"
 type SortDirection = "asc" | "desc"
@@ -63,6 +66,10 @@ export default function BookingsManagementPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [processingStatus, setProcessingStatus] = useState(false)
   const { toast } = useToast()
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
+  const [rooms, setRooms] = useState<{ id: string; name: string }[]>([])
+  const [roomFilter, setRoomFilter] = useState<string>("__all__")
 
   useEffect(() => {
     async function loadBookings() {
@@ -84,10 +91,27 @@ export default function BookingsManagementPage() {
   }, [user])
 
   useEffect(() => {
+    async function loadRooms() {
+      if (!user) return
+      try {
+        const roomsData = await getRoomsByFacilityManager(user.id)
+        setRooms(roomsData.map(r => ({ id: r.id, name: r.name })))
+      } catch (err) {
+        console.error("Failed to load rooms", err)
+      }
+    }
+    loadRooms()
+  }, [user])
+
+  useEffect(() => {
     // First filter by status
     let filtered = bookings
     if (statusFilter !== "all") {
       filtered = bookings.filter(booking => booking.status === statusFilter)
+    }
+    // Room filter
+    if (roomFilter && roomFilter !== "__all__") {
+      filtered = filtered.filter(booking => booking.rooms?.id === roomFilter)
     }
     
     // Then filter by search term
@@ -128,7 +152,7 @@ export default function BookingsManagementPage() {
     })
     
     setFilteredBookings(sorted)
-  }, [searchTerm, bookings, sortField, sortDirection, statusFilter])
+  }, [searchTerm, bookings, sortField, sortDirection, statusFilter, roomFilter])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -200,8 +224,12 @@ export default function BookingsManagementPage() {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking`)
+        let errorMsg = `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking`;
+        try {
+          const errorData = await response.json()
+          errorMsg = errorData.error || errorMsg
+        } catch {}
+        throw new Error(errorMsg)
       }
       
       const updatedBooking = await response.json()
@@ -215,17 +243,18 @@ export default function BookingsManagementPage() {
       })
       
       setBookings(updatedBookings)
+      setFilteredBookings(updatedBookings)
       
       toast({
         title: `Booking ${newStatus === "confirmed" ? "Approved" : "Rejected"}`,
         description: `The booking has been ${newStatus === "confirmed" ? "approved" : "rejected"} successfully.`,
         variant: newStatus === "confirmed" ? "default" : "destructive",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error ${newStatus === "confirmed" ? "approving" : "rejecting"} booking:`, error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking. Please try again.`,
+        description: error.message || `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking. Please try again.`,
         variant: "destructive",
       })
     } finally {
@@ -233,6 +262,11 @@ export default function BookingsManagementPage() {
       setConfirmDialogOpen(false)
       setRejectDialogOpen(false)
     }
+  }
+
+  const openDetailsModal = (booking: BookingWithDetails) => {
+    setSelectedBooking(booking)
+    setDetailsModalOpen(true)
   }
 
   // Calculate stats
@@ -373,6 +407,19 @@ export default function BookingsManagementPage() {
                   className="pl-10"
                 />
               </div>
+              <div className="w-full sm:w-64">
+                <Select value={roomFilter} onValueChange={setRoomFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Filter by room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Rooms</SelectItem>
+                    {rooms.map(room => (
+                      <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -472,11 +519,9 @@ export default function BookingsManagementPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/facility-manager/bookings/${booking.id}`} className="flex items-center gap-2">
-                                  <Eye className="h-4 w-4" />
-                                  <span>View Details</span>
-                                </Link>
+                              <DropdownMenuItem onClick={() => openDetailsModal(booking)} className="flex items-center gap-2">
+                                <Eye className="h-4 w-4" />
+                                <span>View Details</span>
                               </DropdownMenuItem>
                               {booking.status === "pending" && (
                                 <DropdownMenuItem onClick={() => openConfirmDialog(booking.id)} className="text-green-600 dark:text-green-400">
@@ -566,6 +611,49 @@ export default function BookingsManagementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+            <DialogDescription>
+              Details for this meeting booking.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-4">
+              <div>
+                <span className="font-semibold">Title:</span> {selectedBooking.title}
+              </div>
+              <div>
+                <span className="font-semibold">Room:</span> {selectedBooking.rooms?.name} ({selectedBooking.rooms?.location})
+              </div>
+              <div>
+                <span className="font-semibold">Organizer:</span> {selectedBooking.users?.name} ({selectedBooking.users?.email})
+              </div>
+              <div>
+                <span className="font-semibold">Date:</span> {format(new Date(selectedBooking.start_time), "MMM d, yyyy")}
+              </div>
+              <div>
+                <span className="font-semibold">Time:</span> {format(new Date(selectedBooking.start_time), "h:mm a")} - {format(new Date(selectedBooking.end_time), "h:mm a")}
+              </div>
+              <div>
+                <span className="font-semibold">Status:</span> <Badge variant={getStatusBadgeVariant(selectedBooking.status)}>{selectedBooking.status}</Badge>
+              </div>
+              {selectedBooking.description && (
+                <div>
+                  <span className="font-semibold">Description:</span> {selectedBooking.description}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

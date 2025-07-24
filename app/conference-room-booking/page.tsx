@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp, X } from "lucide-react"
+import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp, X, SlidersHorizontal } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ResourceIcon } from "@/components/ui/resource-icon"
@@ -18,6 +18,11 @@ import { useAuth } from "@/contexts/auth-context"
 import { eventBus, EVENTS } from "@/lib/events"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 export default function ConferenceRoomBookingPage() {
   const { user } = useAuth()
@@ -25,7 +30,6 @@ export default function ConferenceRoomBookingPage() {
   const { toast } = useToast()
   const [rooms, setRooms] = useState<Room[]>([])
   const [resources, setResources] = useState<Resource[]>([])
-  const [facilities, setFacilities] = useState<Facility[]>([])
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -35,67 +39,75 @@ export default function ConferenceRoomBookingPage() {
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [showResourceFilters, setShowResourceFilters] = useState(false)
   const [userBookings, setUserBookings] = useState<any[]>([])
+  const [availableFacilities, setAvailableFacilities] = useState<{id: string, name: string}[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0)
 
   useEffect(() => {
-    fetchFacilities() // Fetch facilities first
     fetchResources()
     fetchRooms()
     if (user?.id) {
       fetchUserBookings()
     }
   }, [user?.id])
-
-  // Add a new effect to enrich rooms with facility names when both are available
+  
+  // Add effect to extract unique facilities from rooms
   useEffect(() => {
-    if (rooms.length > 0 && facilities.length > 0) {
-      enrichRoomsWithFacilityNames()
+    if (rooms.length > 0) {
+      // Extract unique facilities from rooms
+      const facilitiesMap = new Map<string, {id: string, name: string}>();
+      let directFacilityNameCount = 0;
+      let facilityObjectCount = 0;
+      
+      rooms.forEach(room => {
+        // If a room has facility_id and facility_name, use them directly
+        if (room.facility_id && room.facility_name) {
+          facilitiesMap.set(room.facility_id, {
+            id: room.facility_id,
+            name: room.facility_name
+          });
+          directFacilityNameCount++;
+        }
+        // Fallback to facility object if available
+        else if (room.facility && room.facility.id && room.facility.name) {
+          facilitiesMap.set(room.facility.id, {
+            id: room.facility.id,
+            name: room.facility.name
+          });
+          facilityObjectCount++;
+        }
+      });
+      
+      // Convert map to array
+      const uniqueFacilities = Array.from(facilitiesMap.values());
+      console.log(`Extracted ${uniqueFacilities.length} unique facilities from rooms`);
+      console.log(`- ${directFacilityNameCount} rooms had direct facility_name`);
+      console.log(`- ${facilityObjectCount} rooms used facility object`);
+      
+      if (uniqueFacilities.length > 0) {
+        console.log("Sample facilities:", uniqueFacilities.slice(0, 3).map(f => `${f.id}: ${f.name}`));
+      }
+      
+      setAvailableFacilities(uniqueFacilities);
     }
-  }, [rooms, facilities])
+  }, [rooms]);
+  
+  // Update active filters count whenever filters change
+  useEffect(() => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (capacityFilter) count++;
+    if (statusFilter !== "any") count++;
+    if (facilityFilter !== "any") count++;
+    if (selectedResources.length > 0) count += 1;
+    
+    setActiveFiltersCount(count);
+  }, [searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources]);
   
   // Add back the filterRooms effect
   useEffect(() => {
     filterRooms()
   }, [rooms, searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources])
-
-  // Separate function to enrich rooms with facility names
-  const enrichRoomsWithFacilityNames = () => {
-    // Create a map of facility ID to name for quick lookup
-    const facilityMap = new Map<string, string>()
-    facilities.forEach((f: Facility) => {
-      if (f.id && f.name) {
-        facilityMap.set(f.id, f.name)
-      }
-    })
-    console.log("Facility map created with entries:", Array.from(facilityMap.entries()))
-    
-    // Enrich rooms with facilityName
-    const enrichedRooms = rooms.map((room) => {
-      let facilityName = "Unknown facility"
-      let facilitySource = "none"
-      
-      // Check if room has a nested facility object with a name
-      if (room.facility && room.facility.name) {
-        facilityName = room.facility.name
-        facilitySource = "nested"
-      } 
-      // Otherwise, try to find the facility by ID in our facilities map
-      else if (room.facility_id && facilityMap.has(room.facility_id)) {
-        facilityName = facilityMap.get(room.facility_id)!
-        facilitySource = "map"
-      }
-      
-      console.log(`Room "${room.name}" (ID: ${room.id}):
-        - Facility ID: ${room.facility_id || 'none'}
-        - Facility Name: ${facilityName}
-        - Source: ${facilitySource}
-      `)
-      
-      return { ...room, facilityName }
-    })
-    
-    console.log(`Enhanced ${enrichedRooms.length} rooms with facility names`)
-    setRooms(enrichedRooms)
-  }
 
   const fetchRooms = async () => {
     try {
@@ -104,14 +116,15 @@ export default function ConferenceRoomBookingPage() {
       const roomsArray = Array.isArray(roomsData) ? roomsData : roomsData.rooms || []
       console.log(`Fetched ${roomsArray.length} rooms from API`)
       
-      // Log a sample of rooms with their facility IDs
+      // Log a sample of rooms with their facility data
       if (roomsArray.length > 0) {
         console.log("Sample rooms with facility data:", 
           roomsArray.slice(0, 3).map((r: Room) => ({ 
             id: r.id, 
             name: r.name, 
             facility_id: r.facility_id,
-            has_facility_object: !!r.facility
+            facility_name: r.facility_name,
+            facility: r.facility
           }))
         )
       }
@@ -132,27 +145,6 @@ export default function ConferenceRoomBookingPage() {
       setResources(resourcesArray)
     } catch (error) {
       console.error("Failed to fetch resources:", error)
-    }
-  }
-  
-  const fetchFacilities = async () => {
-    try {
-      console.log("Fetching facilities...")
-      const response = await fetch("/api/facilities")
-      const facilitiesData = await response.json()
-      const facilitiesArray = Array.isArray(facilitiesData) ? facilitiesData : facilitiesData.facilities || []
-      
-      console.log(`Fetched ${facilitiesArray.length} facilities from API:`, 
-        facilitiesArray.map((f: Facility) => ({ 
-          id: f.id, 
-          name: f.name,
-          location: f.location || 'N/A'
-        }))
-      )
-      
-      setFacilities(facilitiesArray)
-    } catch (error) {
-      console.error("Failed to fetch facilities:", error)
     }
   }
 
@@ -186,7 +178,8 @@ export default function ConferenceRoomBookingPage() {
         (room) =>
           room.name.toLowerCase().includes(searchLower) ||
           room.location.toLowerCase().includes(searchLower) ||
-          (room.facilityName && room.facilityName.toLowerCase().includes(searchLower))
+          (room.facility_name && room.facility_name.toLowerCase().includes(searchLower)) ||
+          (room.facility && room.facility.name && room.facility.name.toLowerCase().includes(searchLower))
       )
       console.log(`After search filter: ${filtered.length} rooms`)
     }
@@ -206,9 +199,21 @@ export default function ConferenceRoomBookingPage() {
     
     // Facility filter
     if (facilityFilter && facilityFilter !== "any") {
-      console.log(`Filtering by facility ID: ${facilityFilter}`)
-      filtered = filtered.filter((room) => room.facility_id === facilityFilter)
-      console.log(`After facility filter: ${filtered.length} rooms`)
+      const selectedFacility = availableFacilities.find(f => f.id === facilityFilter);
+      console.log(`Filtering by facility: ${selectedFacility?.name || 'Unknown'} (ID: ${facilityFilter})`);
+      
+      const byDirectId = rooms.filter(room => room.facility_id === facilityFilter).length;
+      const byFacilityObject = rooms.filter(room => room.facility && room.facility.id === facilityFilter).length;
+      console.log(`- ${byDirectId} rooms match by direct facility_id`);
+      console.log(`- ${byFacilityObject} rooms match by facility object`);
+      
+      filtered = filtered.filter((room) => 
+        // Match on facility_id
+        room.facility_id === facilityFilter || 
+        // Or fall back to facility object if needed
+        (room.facility && room.facility.id === facilityFilter)
+      );
+      console.log(`After facility filter: ${filtered.length} rooms`);
     }
 
     // Resource filter - check if room has ALL selected resources
@@ -449,224 +454,277 @@ export default function ConferenceRoomBookingPage() {
           <div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Browse Rooms</h1>
               <p className="text-muted-foreground">Find and book the perfect space for your meeting</p>
-        </div>
+          </div>
         </header>
 
-          {/* Filters */}
-          <Card className="bg-card border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Filter className="h-5 w-5" />
-                <span>Filter Options</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Search</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name, location, or facility..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-background/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Minimum Capacity</label>
-                  <Select value={capacityFilter} onValueChange={setCapacityFilter}>
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue placeholder="Any capacity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Any capacity</SelectItem>
-                      <SelectItem value="2">2+ people</SelectItem>
-                      <SelectItem value="5">5+ people</SelectItem>
-                      <SelectItem value="10">10+ people</SelectItem>
-                      <SelectItem value="20">20+ people</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue placeholder="Any status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any status</SelectItem>
-                      <SelectItem value="available">Available</SelectItem>
-                      <SelectItem value="occupied">Occupied</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-muted-foreground">Facility</label>
-                    {facilityFilter && facilityFilter !== "any" && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 px-2 text-xs"
-                        onClick={() => setFacilityFilter("any")}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <Select value={facilityFilter} onValueChange={setFacilityFilter}>
-                    <SelectTrigger className={cn("bg-background/50", facilityFilter !== "any" && "border-primary")}>
-                      <SelectValue placeholder="Any facility" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any facility</SelectItem>
-                      {facilities.map(facility => (
-                        <SelectItem key={facility.id} value={facility.id}>
-                          {facility.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters} className="space-y-2">
-                <CollapsibleTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full flex items-center justify-between p-2 hover:bg-muted/50"
-                  >
-                    <span className="text-sm font-medium text-muted-foreground">Filter by Resources</span>
-                    <div className="flex items-center gap-1 text-sm text-primary">
-                      {showResourceFilters ? "Hide" : "Show"} 
-                      {showResourceFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </div>
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-4 border-t border-border/50">
-                    {resources.map((resource) => (
-                      <div key={resource.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`resource-${resource.id}`}
-                          checked={selectedResources.includes(resource.id)}
-                          onCheckedChange={(checked) => 
-                            handleResourceCheckboxChange(resource.id, checked === true)
-                          }
-                        />
-                        <label 
-                          htmlFor={`resource-${resource.id}`}
-                          className="text-sm font-medium flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
-                        >
-                          <ResourceIcon type={resource.type} name={resource.name} />
-                          {resource.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-              
-              {/* Active Filters */}
-              {(searchTerm || capacityFilter || statusFilter !== "any" || facilityFilter !== "any" || selectedResources.length > 0) && (
-                <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
-                  <div className="text-sm font-medium text-muted-foreground mr-2">Active filters:</div>
-                  
-                  {searchTerm && (
-                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
-                      <span>Search: {searchTerm}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
-                        onClick={() => setSearchTerm("")}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  )}
-                  
-                  {capacityFilter && (
-                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
-                      <span>Capacity: {capacityFilter}+ people</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
-                        onClick={() => setCapacityFilter("")}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  )}
-                  
-                  {statusFilter && statusFilter !== "any" && (
-                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
-                      <span>Status: {statusFilter}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
-                        onClick={() => setStatusFilter("any")}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  )}
-                  
-                  {facilityFilter && facilityFilter !== "any" && (
-                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
-                      <span>
-                        Facility: {facilities.find((f: Facility) => f.id === facilityFilter)?.name || 'Unknown'}
-                      </span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
-                        onClick={() => setFacilityFilter("any")}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  )}
-                  
-                  {selectedResources.length > 0 && (
-                    <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1">
-                      <span>Resources: {selectedResources.length}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 p-0 rounded-full hover:bg-muted"
-                        onClick={() => setSelectedResources([])}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  )}
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="ml-auto text-muted-foreground text-xs"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setCapacityFilter("");
-                      setStatusFilter("any");
-                      setFacilityFilter("any");
-                      setSelectedResources([]);
-                    }}
-                  >
-                    Clear all
-                  </Button>
-                </div>
+        {/* Modern Search & Filter Bar */}
+        <div className="w-full flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, location, or facility..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 bg-background border-border/50 focus-visible:ring-primary h-11 w-full"
+              />
+              {searchTerm && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full hover:bg-muted"
+                  onClick={() => setSearchTerm("")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
               )}
-            </CardContent>
-          </Card>
+            </div>
+            
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className={cn(
+                    "h-11 flex items-center gap-1.5 px-3 border-border/50 w-full sm:w-auto", 
+                    activeFiltersCount > 0 && "border-primary"
+                  )}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span>Filters</span>
+                  {activeFiltersCount > 0 && (
+                    <Badge 
+                      variant="secondary" 
+                      className="ml-1 h-5 rounded-full bg-primary text-primary-foreground"
+                    >
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-[calc(100vw-2rem)] sm:w-80 md:w-96 p-4 border border-border/50 shadow-lg"
+                align="end"
+                sideOffset={8}
+              >
+                <div className="space-y-5">
+                  <h3 className="text-lg font-medium tracking-tight flex items-center gap-2">
+                    <Filter className="h-5 w-5" /> 
+                    <span>Filter Options</span>
+                  </h3>
+
+                  {/* Capacity Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Minimum Capacity</label>
+                    <Select value={capacityFilter} onValueChange={setCapacityFilter}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue placeholder="Any capacity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Any capacity</SelectItem>
+                        <SelectItem value="2">2+ people</SelectItem>
+                        <SelectItem value="5">5+ people</SelectItem>
+                        <SelectItem value="10">10+ people</SelectItem>
+                        <SelectItem value="20">20+ people</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue placeholder="Any status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any status</SelectItem>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="occupied">Occupied</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Facility Filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-muted-foreground">Facility</label>
+                      {facilityFilter && facilityFilter !== "any" && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setFacilityFilter("any")}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <Select value={facilityFilter} onValueChange={setFacilityFilter}>
+                      <SelectTrigger className={cn("bg-background/50", facilityFilter !== "any" && "border-primary")}>
+                        <SelectValue placeholder="Any facility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any facility</SelectItem>
+                        {availableFacilities.length > 0 ? (
+                          // Sort facilities alphabetically by name for better UX
+                          [...availableFacilities]
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(facility => (
+                              <SelectItem key={facility.id} value={facility.id}>
+                                {facility.name}
+                              </SelectItem>
+                            ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            No facilities found
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Resource Filters */}
+                  <div className="space-y-3">
+                    <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters}>
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between cursor-pointer hover:text-primary">
+                          <label className="text-sm font-medium text-muted-foreground">Resources</label>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            {showResourceFilters ? 
+                              <ChevronUp className="h-4 w-4" /> : 
+                              <ChevronDown className="h-4 w-4" />
+                            }
+                          </Button>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-3">
+                        <div className="grid grid-cols-1 gap-2.5 max-h-[200px] overflow-y-auto pr-1">
+                          {resources.map((resource) => (
+                            <div key={resource.id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`resource-${resource.id}`}
+                                checked={selectedResources.includes(resource.id)}
+                                onCheckedChange={(checked) => 
+                                  handleResourceCheckboxChange(resource.id, checked === true)
+                                }
+                              />
+                              <label 
+                                htmlFor={`resource-${resource.id}`}
+                                className="text-sm font-medium flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                              >
+                                <ResourceIcon type={resource.type} name={resource.name} />
+                                {resource.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+
+                  {/* Active Filter Badges */}
+                  {activeFiltersCount > 0 && (
+                    <div className="pt-4 border-t border-border/50">
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-7 text-xs hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            setSearchTerm("");
+                            setCapacityFilter("");
+                            setStatusFilter("any");
+                            setFacilityFilter("any");
+                            setSelectedResources([]);
+                          }}
+                        >
+                          Clear all filters
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          {/* Active Filter Badges - horizontal scrolling row under search */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              {searchTerm && (
+                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                  <span>Search: {searchTerm}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              
+              {capacityFilter && (
+                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                  <span>Min. capacity: {capacityFilter}+</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    onClick={() => setCapacityFilter("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              
+              {statusFilter !== "any" && (
+                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                  <span>Status: {statusFilter}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    onClick={() => setStatusFilter("any")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              
+              {facilityFilter !== "any" && (
+                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                  <span>
+                    Facility: {availableFacilities.find(f => f.id === facilityFilter)?.name || 'Unknown'}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    onClick={() => setFacilityFilter("any")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+              
+              {selectedResources.length > 0 && (
+                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                  <span>Resources: {selectedResources.length}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    onClick={() => setSelectedResources([])}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+            </div>
+          )}
 
           {/* Room Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -683,7 +741,8 @@ export default function ConferenceRoomBookingPage() {
                     room={room}
                     resourceDetails={roomResourceDetails}
                     onBookRoom={handleBookRoom}
-                    facilities={facilities}
+                    facilities={availableFacilities}
+                    isAdminView={false}
                   />
                 )
               })
@@ -691,10 +750,11 @@ export default function ConferenceRoomBookingPage() {
               <div className="col-span-full p-8 text-center bg-muted/20 rounded-lg border border-dashed">
                 <h3 className="text-lg font-medium mb-2">No rooms found</h3>
                 <p className="text-muted-foreground">Try adjusting your filters to find available rooms.</p>
-                </div>
-              )}
+              </div>
+            )}
           </div>
         </div>
+      </div>
       )}
     </ProtectedRoute>
   )

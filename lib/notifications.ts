@@ -48,6 +48,42 @@ export async function createNotification(
 }
 
 /**
+ * Creates a notification for facility managers when a booking is made for a room in their facility
+ * @param facilityManagerId - The ID of the facility manager
+ * @param bookingId - The ID of the booking
+ * @param userName - The name of the user who made the booking
+ * @param bookingTitle - The title of the booking
+ * @param roomName - The name of the room
+ * @param startTime - The start time of the booking
+ * @param endTime - The end time of the booking
+ * @returns The created notification or null if there was an error
+ */
+export async function createFacilityManagerBookingNotification(
+  facilityManagerId: string,
+  bookingId: string,
+  userName: string,
+  bookingTitle: string,
+  roomName: string,
+  startTime: string,
+  endTime: string
+): Promise<Notification | null> {
+  // Format the times nicely
+  const startDateTime = new Date(startTime);
+  const endDateTime = new Date(endTime);
+  const dateStr = startDateTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const startTimeStr = startDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const endTimeStr = endDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  return createNotification(
+    facilityManagerId,
+    'New Room Booking',
+    `${userName} has booked "${roomName}" for "${bookingTitle}" on ${dateStr} from ${startTimeStr} to ${endTimeStr}.`,
+    'booking_request',
+    bookingId
+  )
+}
+
+/**
  * Creates a booking confirmation notification
  * @param userId - The ID of the user who made the booking
  * @param bookingId - The ID of the booking

@@ -34,12 +34,12 @@ export interface Room {
   description?: string
   resourceDetails?: Resource[]
   facility_id: string
-  facility?: {
+  facility_name?: string // Add this direct property for easy access
+  facility: {
     id: string
     name: string
     location: string
   }
-  facilityName?: string // Added for UI display purposes
 }
 
 export interface Report {

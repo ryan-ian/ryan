@@ -55,11 +55,25 @@ export function Header() {
   // Determine which section of the app we're in
   const isHome = pathname === "/"
   const isAdmin = pathname?.startsWith("/admin")
+  const isFacilityManager = pathname?.startsWith("/facility-manager")
   const isBooking = pathname?.startsWith("/conference-room-booking")
   const isDisplays = pathname?.startsWith("/displays")
   
   // Determine if we should show the sidebar trigger
-  const showSidebarTrigger = isAdmin
+  const showSidebarTrigger = isAdmin || isFacilityManager
+
+  // Function to get user role display text
+  const getUserRoleDisplay = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Administrator';
+      case 'facility_manager':
+        return 'Facility Manager';
+      case 'user':
+      default:
+        return 'User';
+    }
+  }
 
   // Generate navigation items based on current section and user role
   const getNavItems = () => {
@@ -124,6 +138,7 @@ export function Header() {
             </div>
             <span className="font-bold text-lg hidden sm:inline-block">Conference Hub</span>
             {isAdmin && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-md ml-2">Admin</span>}
+            {isFacilityManager && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-md ml-2">Facility Manager</span>}
             {isDisplays && <span className="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded-md ml-2">Display</span>}
           </Link>
           
@@ -184,7 +199,7 @@ export function Header() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.name}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    <p className="text-xs leading-none text-muted-foreground mt-1">{user.role === "admin" ? "Administrator" : "User"}</p>
+                    <p className="text-xs leading-none text-muted-foreground mt-1">{getUserRoleDisplay(user.role)}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -199,6 +214,14 @@ export function Header() {
                     <Link href="/conference-room-booking/bookings" className="cursor-pointer flex w-full items-center">
                       <Calendar className="mr-2 h-4 w-4" />
                       <span>My Bookings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {user.role === "facility_manager" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/facility-manager" className="cursor-pointer flex w-full items-center">
+                      <Building className="mr-2 h-4 w-4" />
+                      <span>Facility Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
                 )}

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
-import { createPendingApprovalNotificationsForAdmins } from "@/lib/notifications"
+import { createPendingApprovalNotificationsForAdmins, createNotification, createFacilityManagerBookingNotification } from "@/lib/notifications"
 import { format } from "date-fns"
 
 export async function GET(request: NextRequest) {
@@ -141,7 +141,7 @@ async function createSingleBooking(bookingData: any, room: any) {
       return NextResponse.json({ error: "You can only book one room per day" }, { status: 400 })
     }
 
-    // Create the booking
+    // Create the booking - ALWAYS set to pending regardless of what was provided
     const newBooking = await createBooking({
       room_id: bookingData.room_id,
       user_id: bookingData.user_id,
@@ -150,31 +150,10 @@ async function createSingleBooking(bookingData: any, room: any) {
       start_time: start_time,
       end_time: end_time,
       attendees: Array.isArray(bookingData.attendees) ? bookingData.attendees : bookingData.attendees ? [Number(bookingData.attendees)] : [],
-      status: bookingData.status || "pending",
+      status: "pending", // Always set to pending regardless of input
       resources: bookingData.resources || null
     })
     
-    // If booking is created successfully and status is pending, notify admins
-    if (newBooking && newBooking.status === "pending") {
-      try {
-        // Get user details
-        const user = await getUserById(bookingData.user_id)
-        
-        if (user && room) {
-          // Send notifications to all admins
-          await createPendingApprovalNotificationsForAdmins(
-            newBooking.id,
-            user.name,
-            newBooking.title,
-            room.name
-          )
-        }
-      } catch (notificationError) {
-        // Log the error but don't fail the request
-        console.error("Failed to send admin notifications:", notificationError)
-      }
-    }
-
     return NextResponse.json(newBooking, { status: 201 })
   } catch (error) {
     console.error("Error in createSingleBooking:", error)
@@ -197,6 +176,17 @@ async function createMultipleBookings(bookingData: any, room: any) {
     const createdBookings = []
     const failedBookings = []
     const user = await getUserById(bookingData.user_id)
+    
+    // Get facility details to find the manager
+    const { data: facility, error: facilityError } = await supabase
+      .from('facilities')
+      .select('*, manager:manager_id(id, name, email)')
+      .eq('id', room.facility_id)
+      .single();
+      
+    if (facilityError || !facility || !facility.manager || !facility.manager.id) {
+      console.error('Error fetching facility or manager:', facilityError || 'No facility manager found')
+    }
 
     // Process each booking
     for (const booking of bookingData.bookings) {
@@ -259,23 +249,27 @@ async function createMultipleBookings(bookingData: any, room: any) {
           start_time: start_time,
           end_time: end_time,
           attendees: [room.capacity], // Set attendees to room capacity
-          status: "pending",
+          status: "pending", // Always pending, regardless of input
           resources: bookingData.resources || null
         })
         
         createdBookings.push(newBooking)
         
-        // Send notification for each booking
-        if (user && room) {
+        // Send notification to facility manager
+        if (user && room && facility && facility.manager && facility.manager.id) {
           try {
-            await createPendingApprovalNotificationsForAdmins(
+            await createFacilityManagerBookingNotification(
+              facility.manager.id,
               newBooking.id,
               user.name,
-              `${bookingData.title} - ${format(new Date(booking.date), 'MMM d')}`,
-              room.name
+              bookingData.title,
+              room.name,
+              start_time,
+              end_time
             )
+            console.log(`Notification sent to facility manager ${facility.manager.name} for booking on ${bookingDate}`)
           } catch (notificationError) {
-            console.error("Failed to send admin notification:", notificationError)
+            console.error("Failed to send facility manager notification:", notificationError)
           }
         }
       } catch (error) {

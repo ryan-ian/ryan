@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
@@ -40,7 +41,7 @@ const facilityManagerMenuItems = [
       icon: Settings,
     },
     {
-      title: "Facilities",
+      title: "Facility",
       url: "/facility-manager/facilities",
       icon: Building,
     },
@@ -58,14 +59,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <Building className="h-6 w-6 text-primary flex-shrink-0" />
-          <span className="font-bold text-lg leading-none">Conference Hub</span>
-        </div>
-        <div className="text-sm text-muted-foreground mt-1">Welcome, {user.name}</div>
-      </SidebarHeader>
-
+      <SidebarHeader className="p-4" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>

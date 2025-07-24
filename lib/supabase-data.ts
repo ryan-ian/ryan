@@ -1,5 +1,6 @@
 import { supabase, createAdminClient } from './supabase'
 import * as types from '@/types'
+import { createBookingConfirmationNotification, createBookingRejectionNotification } from '@/lib/notifications'
 
 // Users
 export async function getUsers(): Promise<types.User[]> {
@@ -63,6 +64,8 @@ export async function getUserByEmail(email: string): Promise<types.User | null> 
 // Facilities
 export async function getFacilities(): Promise<types.Facility[]> {
   try {
+    console.log('Fetching all facilities...');
+    
     const { data, error } = await supabase
       .from('facilities')
       .select('*');
@@ -70,6 +73,15 @@ export async function getFacilities(): Promise<types.Facility[]> {
     if (error) {
       console.error('Error fetching facilities:', error);
       throw error;
+    }
+
+    if (data && data.length > 0) {
+      console.log(`Found ${data.length} facilities:`);
+      data.forEach(facility => {
+        console.log(`- Facility ID: ${facility.id}, Name: ${facility.name}, Location: ${facility.location || 'N/A'}`);
+      });
+    } else {
+      console.log('No facilities found in the database.');
     }
 
     return data || [];
@@ -247,10 +259,10 @@ export async function getRoomsByFacilityManager(userId: string): Promise<types.R
       return [];
     }
 
-    // Step 2: Get all rooms that belong to that facility.
+    // Step 2: Get all rooms that belong to that facility with explicit join
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
-      .select('*, facility:facilities(name)')
+      .select(`*, facilities!facility_id(id, name, location)`)
       .eq('facility_id', facility.id);
     
     if (roomsError) {
@@ -258,7 +270,31 @@ export async function getRoomsByFacilityManager(userId: string): Promise<types.R
       throw roomsError;
     }
 
-    return rooms || [];
+    // Normalize facility property
+    const normalizedRooms = rooms ? rooms.map(room => {
+      let normalizedFacility = null;
+      if (room.facilities) {
+        normalizedFacility = {
+          id: room.facilities.id,
+          name: room.facilities.name,
+          location: room.facilities.location
+        };
+      } else if (room.facility_id) {
+        normalizedFacility = {
+          id: room.facility_id,
+          name: "Unknown Facility",
+          location: "Unknown Location"
+        };
+      }
+      
+      return {
+        ...room,
+        facility: normalizedFacility,
+        facilities: undefined
+      };
+    }) : [];
+
+    return normalizedRooms;
   } catch (error) {
     console.error('Exception in getRoomsByFacilityManager:', error);
     throw error;
@@ -268,12 +304,14 @@ export async function getRoomsByFacilityManager(userId: string): Promise<types.R
 
 export async function getRooms(): Promise<types.Room[]> {
   try {
-    // Get all rooms with their resources
-    const { data: rooms, error: roomsError } = await supabase
+    console.log('Fetching rooms with explicit facility join...');
+    
+    // Use the same join pattern that works in getRoomsByFacilityManager
+    const { data: roomsWithFacilities, error: roomsError } = await supabase
       .from('rooms')
       .select(`
         *,
-        facility:facilities(id, name, location)
+        facilities!facility_id(id, name, location)
       `)
       
     if (roomsError) {
@@ -281,12 +319,42 @@ export async function getRooms(): Promise<types.Room[]> {
       throw roomsError
     }
     
-    if (!rooms || rooms.length === 0) {
+    if (!roomsWithFacilities || roomsWithFacilities.length === 0) {
+      console.log('No rooms found');
       return []
     }
     
-    // For each room, get the resource details
-    const roomsWithResourceDetails = await Promise.all(rooms.map(async (room) => {
+    console.log(`Found ${roomsWithFacilities.length} rooms`);
+    
+    // Process the results to normalize the facility property using the same approach as getRoomsByFacilityManager
+    const normalizedRooms = roomsWithFacilities.map(room => {
+      let normalizedFacility = null;
+      // If the join returned facility data, use it
+      if (room.facilities) {
+        normalizedFacility = {
+          id: room.facilities.id,
+          name: room.facilities.name,
+          location: room.facilities.location || 'Unknown Location'
+        };
+      } else if (room.facility_id) {
+        // Fallback if the join didn't work but we have facility_id
+        normalizedFacility = {
+          id: room.facility_id,
+          name: "Unknown Facility",
+          location: "Unknown Location"
+        };
+      }
+      
+      // Return the room with normalized facility property
+      return {
+        ...room,
+        facility: normalizedFacility,
+        facilities: undefined // Remove the original joined property
+      };
+    });
+    
+    // For each room, get the resource details if needed
+    const roomsWithResourceDetails = await Promise.all(normalizedRooms.map(async (room) => {
       // If the room has no resources, return as is
       if (!room.room_resources || room.room_resources.length === 0) {
         return {
@@ -313,9 +381,9 @@ export async function getRooms(): Promise<types.Room[]> {
         ...room,
         resourceDetails: resourceDetails || []
       }
-    }))
+    }));
     
-    return roomsWithResourceDetails || []
+    return roomsWithResourceDetails;
   } catch (error) {
     console.error('Exception in getRooms:', error)
     throw error
@@ -324,12 +392,12 @@ export async function getRooms(): Promise<types.Room[]> {
 
 export async function getRoomById(id: string): Promise<types.Room | null> {
   try {
-    // Get the room with its resources
+    // Get the room with its resources using explicit join
     const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select(`
         *,
-        facility:facilities(id, name, location)
+        facilities!facility_id (id, name, location)
       `)
       .eq('id', id)
       .single()
@@ -341,10 +409,28 @@ export async function getRoomById(id: string): Promise<types.Room | null> {
     
     if (!room) return null
     
+    // Normalize facility property
+    let facility = null;
+    if (room.facilities) {
+      facility = {
+        id: room.facilities.id,
+        name: room.facilities.name,
+        location: room.facilities.location
+      };
+    } else if (room.facility_id) {
+      facility = {
+        id: room.facility_id,
+        name: "Unknown Facility",
+        location: "Unknown Location"
+      };
+    }
+    
     // If the room has no resources, return as is
     if (!room.room_resources || room.room_resources.length === 0) {
       return {
         ...room,
+        facility: facility,
+        facilities: undefined,
         resourceDetails: []
       }
     }
@@ -359,12 +445,16 @@ export async function getRoomById(id: string): Promise<types.Room | null> {
       console.error(`Error fetching resource details for room ${id}:`, resourcesError)
       return {
         ...room,
+        facility: facility,
+        facilities: undefined,
         resourceDetails: []
       }
     }
     
     return {
       ...room,
+      facility: facility,
+      facilities: undefined,
       resourceDetails: resourceDetails || []
     }
   } catch (error) {
@@ -375,6 +465,22 @@ export async function getRoomById(id: string): Promise<types.Room | null> {
 
 export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<types.Room> {
   try {
+    // If facility_id is provided but facility_name is not, look up the facility name
+    let facilityName = roomInput.facility_name;
+    
+    if (roomInput.facility_id && !facilityName) {
+      // Look up the facility name from the facility_id
+      const { data: facilityData } = await supabase
+        .from('facilities')
+        .select('name')
+        .eq('id', roomInput.facility_id)
+        .single();
+      
+      if (facilityData) {
+        facilityName = facilityData.name;
+      }
+    }
+    
     // Create the room with resources directly in the room record
     const { data: room, error } = await supabase
       .from('rooms')
@@ -386,7 +492,8 @@ export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<typ
         status: roomInput.status || 'available',
         image: roomInput.image || null,
         description: roomInput.description || null,
-        facility_id: roomInput.facility_id, // Add this line
+        facility_id: roomInput.facility_id,
+        facility_name: facilityName || 'Unknown Facility'
       })
       .select()
       .single()
@@ -406,6 +513,22 @@ export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<typ
 
 export async function updateRoom(id: string, roomInput: Partial<types.Room>): Promise<types.Room> {
   try {
+    // If facility_id is provided but facility_name is not, look up the facility name
+    let facilityName = roomInput.facility_name;
+    
+    if (roomInput.facility_id && !facilityName) {
+      // Look up the facility name from the facility_id
+      const { data: facilityData } = await supabase
+        .from('facilities')
+        .select('name')
+        .eq('id', roomInput.facility_id)
+        .single();
+      
+      if (facilityData) {
+        facilityName = facilityData.name;
+      }
+    }
+    
     // Update the room with resources directly in the room record
     const { data: room, error } = await supabase
       .from('rooms')
@@ -416,7 +539,9 @@ export async function updateRoom(id: string, roomInput: Partial<types.Room>): Pr
         room_resources: roomInput.room_resources,
         status: roomInput.status,
         image: roomInput.image,
-        description: roomInput.description
+        description: roomInput.description,
+        facility_id: roomInput.facility_id,
+        facility_name: facilityName
       })
       .eq('id', id)
       .select()
@@ -660,6 +785,26 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
   } catch (error) {
     console.error('Exception in updateBooking:', error)
     throw error
+  }
+}
+
+export async function deleteBooking(id: string): Promise<boolean> {
+  try {
+    // Delete the booking
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+      
+    if (error) {
+      console.error(`Error deleting booking ${id}:`, error)
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Exception in deleteBooking:', error)
+    return false
   }
 }
 
@@ -1255,5 +1400,113 @@ export async function getTodaysBookingsByFacilityManager(userId: string): Promis
   } catch (error) {
     console.error('Exception in getTodaysBookingsByFacilityManager:', error);
     throw error;
+  }
+} 
+
+export async function updateBookingStatus(
+  bookingId: string,
+  userId: string,
+  status: 'confirmed' | 'cancelled',
+  rejectionReason?: string
+): Promise<{ success: boolean; booking?: types.Booking; error?: string }> {
+  try {
+    // Step 1: Get the booking with room details
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*, rooms:room_id(*)')
+      .eq('id', bookingId)
+      .single();
+    
+    if (bookingError || !booking) {
+      console.error('Error fetching booking:', bookingError || 'Booking not found');
+      return { 
+        success: false, 
+        error: bookingError ? bookingError.message : 'Booking not found' 
+      };
+    }
+    
+    // Step 2: Get the room's facility
+    if (!booking.rooms || !booking.rooms.facility_id) {
+      return { 
+        success: false, 
+        error: 'Room or facility information missing' 
+      };
+    }
+    
+    // Step 3: Check if the user is the facility manager
+    const { data: facility, error: facilityError } = await supabase
+      .from('facilities')
+      .select('*')
+      .eq('id', booking.rooms.facility_id)
+      .eq('manager_id', userId)
+      .single();
+    
+    if (facilityError || !facility) {
+      console.error('Permission denied: User is not the facility manager', facilityError);
+      return { 
+        success: false, 
+        error: 'Permission denied: Only the facility manager can approve or reject bookings' 
+      };
+    }
+    
+    // Step 4: Update the booking status
+    const { data: updatedBooking, error: updateError } = await supabase
+      .from('bookings')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', bookingId)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('Error updating booking status:', updateError);
+      return { 
+        success: false, 
+        error: `Failed to update booking status: ${updateError.message}` 
+      };
+    }
+    
+    // Step 5: Create notification for the user who made the booking
+    try {
+      // Get user details for the notification
+      const user = await getUserById(booking.user_id);
+      
+      if (user) {
+        if (status === 'confirmed') {
+          // Create confirmation notification
+          await createBookingConfirmationNotification(
+            booking.user_id,
+            bookingId,
+            booking.title,
+            booking.rooms.name
+          );
+        } else if (status === 'cancelled') {
+          // Create rejection notification
+          await createBookingRejectionNotification(
+            booking.user_id,
+            bookingId,
+            booking.title,
+            booking.rooms.name,
+            rejectionReason
+          );
+        }
+      }
+    } catch (notificationError) {
+      // Log the error but don't fail the request
+      console.error('Failed to send user notification:', notificationError);
+    }
+    
+    return { 
+      success: true, 
+      booking: updatedBooking 
+    };
+  } catch (error) {
+    console.error('Exception in updateBookingStatus:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
   }
 } 

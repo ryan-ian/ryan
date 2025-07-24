@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Building, BookCheck, Clock, User, Calendar, Check, X, AlertCircle } from "lucide-react"
+import { Building, BookCheck, Clock, User, Calendar, Check, X, AlertCircle, Bell } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
+import { useNotifications } from "@/contexts/notifications-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,6 +12,7 @@ import { getPendingBookingsByFacilityManager, getTodaysBookingsByFacilityManager
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
 
 function DashboardSkeleton() {
   return (
@@ -83,6 +85,7 @@ function DashboardSkeleton() {
 
 export default function FacilityManagerDashboard() {
   const { user } = useAuth()
+  // Removed useNotifications import and usage
   const [pendingBookings, setPendingBookings] = useState<BookingWithDetails[]>([])
   const [todaysBookings, setTodaysBookings] = useState<BookingWithDetails[]>([])
   const [totalRooms, setTotalRooms] = useState(0)

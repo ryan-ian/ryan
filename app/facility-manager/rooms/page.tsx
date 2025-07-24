@@ -209,6 +209,7 @@ export default function RoomManagementPage() {
               actionLabel="Manage"
               onEdit={() => handleEdit(room)}
               onDelete={() => openDeleteDialog(room)}
+              isAdminView={true}
             />
           ))}
         </div>

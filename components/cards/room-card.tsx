@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { cn, slugify } from "@/lib/utils"
 import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
 import type { Room, Resource } from "@/types"
 
@@ -30,6 +30,7 @@ export interface RoomCardProps {
   onBookRoom?: (roomId: string, data: any) => Promise<void>
   children?: React.ReactNode
   facilities?: { id: string; name: string }[]
+  isAdminView?: boolean // Flag to determine if this is an admin view
 }
 
 export function RoomCard({
@@ -50,8 +51,28 @@ export function RoomCard({
   onBookRoom,
   children,
   facilities,
+  isAdminView = false,
 }: RoomCardProps) {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+
+  // Generate the appropriate href based on whether it's an admin view or user view
+  const generateHref = () => {
+    if (href) {
+      // If href is explicitly provided, use it
+      return href;
+    } 
+    
+    if (isAdminView) {
+      // Admin view - use the original URL structure
+      return `/admin/conference/rooms/${room.id}`;
+    } 
+    
+    // User view - use the new URL structure with slug and query parameter
+    const slug = slugify(room.name);
+    return `/conference-room-booking/${slug}?id=${room.id}`;
+  };
+
+  const cardHref = generateHref();
 
   const handleActionClick = (e: React.MouseEvent, action?: () => void) => {
     e.stopPropagation() // Prevent card click from firing
@@ -98,9 +119,19 @@ export function RoomCard({
   let facilityName = "Unknown facility"
   let facilityDetails = null
   
-  // First check if facilityName is already set on the room object (from enrichment)
-  if (room.facilityName) {
-    facilityName = room.facilityName
+  // First check if room has direct facility_name
+  if (room.facility_name) {
+    facilityName = room.facility_name;
+    facilityDetails = { 
+      id: room.facility_id, 
+      name: room.facility_name, 
+      location: room.facility?.location || 'Unknown Location'
+    };
+  }
+  // Then check if room has a facility object with a name
+  else if (room.facility && room.facility.name) {
+    facilityName = room.facility.name
+    facilityDetails = room.facility
   } 
   // Otherwise, try to look it up from facilities prop
   else if (facilities && room.facility_id) {
@@ -123,9 +154,9 @@ export function RoomCard({
       onClick: selectable ? onSelect : undefined,
     }
 
-    if (href) {
+    if (cardHref) {
       return (
-        <NextLink href={href} className="no-underline">
+        <NextLink href={cardHref} className="no-underline">
           <Card {...cardProps}>{children}</Card>
         </NextLink>
       )
@@ -218,26 +249,38 @@ export function RoomCard({
           {children ? (
             <CardFooter className="p-0 pt-4">{children}</CardFooter>
           ) : showBookButton && (
-            <div className={cn(compact ? "mt-4" : "mt-6")}>
-              {actionHref && !onBookRoom ? (
-                <Button asChild className="w-full" disabled={!isBookable}>
-                  <NextLink href={actionHref}>
+            <div className={cn(compact ? "mt-4" : "mt-6")}> 
+              {isAdminView ? (
+                // Admin/manager: preserve existing behavior
+                actionHref && !onBookRoom ? (
+                  <Button asChild className="w-full" disabled={!isBookable}>
+                    <NextLink href={actionHref}>
+                      {actionLabel}
+                    </NextLink>
+                  </Button>
+                ) : onAction ? (
+                  <Button onClick={(e) => handleActionClick(e, onAction)} className="w-full" disabled={!isBookable}>
                     {actionLabel}
-                  </NextLink>
-                </Button>
-              ) : onAction ? (
-                <Button onClick={(e) => handleActionClick(e, onAction)} className="w-full" disabled={!isBookable}>
-                  {actionLabel}
-                </Button>
-              ) : onBookRoom ? (
-                <Button onClick={(e) => handleActionClick(e, () => setIsBookingModalOpen(true))} className="w-full" disabled={!isBookable}>
-                  {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                </Button>
-              ) : (
-                <Button asChild className="w-full" disabled={!isBookable}>
-                  <NextLink href={`/conference-room-booking/bookings/new?roomId=${room.id}`}>
+                  </Button>
+                ) : onBookRoom ? (
+                  <Button onClick={(e) => handleActionClick(e, () => setIsBookingModalOpen(true))} className="w-full" disabled={!isBookable}>
                     {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                  </NextLink>
+                  </Button>
+                ) : (
+                  <Button asChild className="w-full" disabled={!isBookable}>
+                    <NextLink href={cardHref || `/conference-room-booking/bookings/new?roomId=${room.id}`}>
+                      {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
+                    </NextLink>
+                  </Button>
+                )
+              ) : (
+                // User: Book Now only opens modal, never navigates
+                <Button onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsBookingModalOpen(true);
+                }} className="w-full" disabled={!isBookable}>
+                  {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
                 </Button>
               )}
             </div>

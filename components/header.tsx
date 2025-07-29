@@ -4,20 +4,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { 
   Building, 
-  Menu, 
-  X, 
   User, 
   LogOut, 
   Settings, 
   ChevronDown,
   Calendar,
-  LayoutDashboard,
-  Clock,
-  Users,
-  BookOpen,
-  Home,
-  PanelLeft,
-  MonitorPlay
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
@@ -32,36 +23,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { ReactNode } from "react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { NotificationBell } from "@/components/ui/notification-bell"
-
-// Define the type for navigation items
-interface NavItem {
-  name: string;
-  href: string;
-  icon: ReactNode;
-}
+import { getRoleFromPathname } from "@/lib/navigation-config"
 
 export function Header() {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const isActive = (path: string) => {
-    return pathname === path || pathname?.startsWith(`${path}/`)
-  }
-
   // Determine which section of the app we're in
-  const isHome = pathname === "/"
-  const isAdmin = pathname?.startsWith("/admin")
-  const isFacilityManager = pathname?.startsWith("/facility-manager")
-  const isBooking = pathname?.startsWith("/conference-room-booking")
-  const isDisplays = pathname?.startsWith("/displays")
+  const currentRole = getRoleFromPathname(pathname || '')
+  const isAdmin = currentRole === 'admin'
+  const isFacilityManager = currentRole === 'facility_manager'
+  const isUser = currentRole === 'user'
   
-  // Determine if we should show the sidebar trigger
-  const showSidebarTrigger = isAdmin || isFacilityManager
-
   // Function to get user role display text
   const getUserRoleDisplay = (role: string) => {
     switch (role) {
@@ -75,63 +50,10 @@ export function Header() {
     }
   }
 
-  // Generate navigation items based on current section and user role
-  const getNavItems = () => {
-    // No base navigation (remove Home)
-    const baseNav: NavItem[] = []
-
-    // User-specific navigation
-    const userNav: NavItem[] = user?.role === "user" ? [
-      {
-        name: "Room Booking",
-        href: "/conference-room-booking",
-        icon: <Calendar className="h-4 w-4 mr-2" />,
-      },
-    ] : []
-
-    // Admin-specific navigation
-    const adminNav: NavItem[] = user?.role === "admin" ? [
-      {
-        name: "Admin Dashboard",
-        href: "/admin",
-        icon: <LayoutDashboard className="h-4 w-4 mr-2" />,
-      },
-    ] : []
-
-    // Context-specific navigation based on current section
-    let contextNav: NavItem[] = []
-
-    // If in booking section, show booking-specific navigation
-    if (isBooking && user?.role === "user") {
-      contextNav = []
-    }
-
-    // If in admin section, show admin-specific navigation
-    if (isAdmin && user?.role === "admin") {
-      contextNav = []
-    }
-
-    // If in displays section, show displays-specific navigation
-    if (isDisplays) {
-      contextNav = []  // Displays typically don't need navigation
-    }
-
-    // Combine all navigation items
-    return [...baseNav, ...userNav, ...adminNav, ...contextNav]
-  }
-
-  const navItems = getNavItems()
-
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          {showSidebarTrigger && (
-            <SidebarTrigger className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-md",
-              "-ml-2 hover:bg-slate-100 dark:hover:bg-slate-800"
-            )} />
-          )}
           <Link href="/" className="flex items-center gap-2">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Building className="h-5 w-5 text-primary" />
@@ -139,46 +61,11 @@ export function Header() {
             <span className="font-bold text-lg hidden sm:inline-block">Conference Hub</span>
             {isAdmin && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-md ml-2">Admin</span>}
             {isFacilityManager && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-md ml-2">Facility Manager</span>}
-            {isDisplays && <span className="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded-md ml-2">Display</span>}
+            {isUser && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-md ml-2">User</span>}
           </Link>
-          
-          <nav className="hidden md:flex items-center gap-6 ml-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary flex items-center",
-                  isActive(item.href) ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                {item.icon}
-                {item.name}
-              </Link>
-            ))}
-          </nav>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Context-specific actions */}
-          {/* {isBooking && user?.role === "user" && (
-            <Button variant="outline" size="sm" asChild className="mr-2">
-              <Link href="/conference-room-booking/bookings">
-                <Calendar className="h-4 w-4 mr-2" />
-                My Bookings
-              </Link>
-            </Button>
-          )} */}
-          
-          {/* {isAdmin && user?.role === "admin" && (
-            <Button variant="outline" size="sm" asChild className="mr-2">
-              <Link href="/admin/conference/settings">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Link>
-            </Button>
-          )} */}
-          
           <ThemeSwitcher />
           
           {user && <NotificationBell />}
@@ -250,48 +137,8 @@ export function Header() {
               </Button>
             </div>
           )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-            <span className="sr-only">Toggle menu</span>
-          </Button>
         </div>
       </div>
-      
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t">
-          <div className="container py-4">
-            <nav className="flex flex-col space-y-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center rounded-md px-3 py-2 text-sm font-medium",
-                    isActive(item.href)
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.icon}
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-      )}
     </header>
   )
 } 

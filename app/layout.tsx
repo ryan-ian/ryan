@@ -8,6 +8,20 @@ import { NotificationsProvider } from '@/contexts/notifications-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
 import ReactQueryProvider from '@/lib/react-query-provider'
+import { initEmailService } from '@/lib/email-service'
+
+// Initialize email service
+if (typeof window === 'undefined') {
+  initEmailService().then((success) => {
+    if (success) {
+      console.log('✅ Email service startup successful');
+    } else {
+      console.error('❌ Email service startup failed');
+    }
+  }).catch((error) => {
+    console.error('❌ Email service startup error:', error);
+  });
+}
 
 const inter = Inter({ subsets: ['latin'] })
 

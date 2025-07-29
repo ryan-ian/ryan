@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
 import { createPendingApprovalNotificationsForAdmins, createNotification, createFacilityManagerBookingNotification } from "@/lib/notifications"
+import { sendBookingRequestSubmittedEmail } from "@/lib/email-service"
 import { format } from "date-fns"
 
 export async function GET(request: NextRequest) {
@@ -154,6 +155,28 @@ async function createSingleBooking(bookingData: any, room: any) {
       resources: bookingData.resources || null
     })
     
+    // Send email notification to the user
+    try {
+      const user = await getUserById(bookingData.user_id)
+      if (user && user.email) {
+        console.log(`📧 Sending booking request submitted email to ${user.email}`)
+        await sendBookingRequestSubmittedEmail(
+          user.email,
+          user.name,
+          bookingData.title,
+          room.name,
+          start_time,
+          end_time
+        )
+        console.log(`📧 Booking request submitted email sent successfully`)
+      } else {
+        console.log(`⚠️ User not found or email missing for user ID: ${bookingData.user_id}`)
+      }
+    } catch (emailError) {
+      console.error("Failed to send booking request submitted email:", emailError)
+      // Don't fail the booking creation if email fails
+    }
+    
     return NextResponse.json(newBooking, { status: 201 })
   } catch (error) {
     console.error("Error in createSingleBooking:", error)
@@ -254,6 +277,27 @@ async function createMultipleBookings(bookingData: any, room: any) {
         })
         
         createdBookings.push(newBooking)
+        
+        // Send email notification to the user for this booking
+        try {
+          if (user && user.email) {
+            console.log(`📧 Sending booking request submitted email to ${user.email} for booking on ${bookingDate}`)
+            await sendBookingRequestSubmittedEmail(
+              user.email,
+              user.name,
+              bookingData.title,
+              room.name,
+              start_time,
+              end_time
+            )
+            console.log(`📧 Booking request submitted email sent successfully for booking on ${bookingDate}`)
+          } else {
+            console.log(`⚠️ User not found or email missing for user ID: ${bookingData.user_id}`)
+          }
+        } catch (emailError) {
+          console.error(`Failed to send booking request submitted email for booking on ${bookingDate}:`, emailError)
+          // Don't fail the booking creation if email fails
+        }
         
         // Send notification to facility manager
         if (user && room && facility && facility.manager && facility.manager.id) {

@@ -18,7 +18,9 @@ import {
   ArrowUpDown, 
   ChevronDown, 
   Eye, 
-  Loader2 
+  Loader2,
+  Ban,
+  Trash2
 } from "lucide-react"
 import {
   AlertDialog,
@@ -39,7 +41,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
-import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
+import { getAllBookingsByFacilityManager, updateBooking } from "@/lib/supabase-data"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -53,6 +55,33 @@ type StatusFilter = "all" | "pending" | "confirmed" | "cancelled"
 
 export default function BookingsManagementPage() {
   const { user } = useAuth()
+  
+  // Helper function to check if a booking can be re-approved
+  const canReapproveBooking = (booking: BookingWithDetails): boolean => {
+    if (booking.status === "pending") return true
+    if (booking.status === "cancelled") {
+      // Only allow re-approval for cancelled bookings that start tomorrow or later
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0) // Start of tomorrow
+      
+      const bookingDate = new Date(booking.start_time)
+      const canReapprove = bookingDate >= tomorrow
+      
+      // Debug logging for cancelled bookings
+      if (!canReapprove) {
+        console.log(`🚫 Cannot re-approve cancelled booking "${booking.title}":`, {
+          bookingDate: bookingDate.toLocaleDateString(),
+          tomorrow: tomorrow.toLocaleDateString(),
+          reason: 'Booking is today or in the past'
+        })
+      }
+      
+      return canReapprove
+    }
+    return false
+  }
   const [bookings, setBookings] = useState<BookingWithDetails[]>([])
   const [filteredBookings, setFilteredBookings] = useState<BookingWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -63,6 +92,8 @@ export default function BookingsManagementPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [processingStatus, setProcessingStatus] = useState(false)
   const { toast } = useToast()
@@ -208,31 +239,28 @@ export default function BookingsManagementPage() {
     setRejectDialogOpen(true)
   }
 
+  const openCancelDialog = (bookingId: string) => {
+    setSelectedBookingId(bookingId)
+    setCancelDialogOpen(true)
+  }
+
+  const openDeleteDialog = (bookingId: string) => {
+    setSelectedBookingId(bookingId)
+    setDeleteDialogOpen(true)
+  }
+
   const handleUpdateStatus = async (newStatus: "confirmed" | "cancelled") => {
     if (!selectedBookingId) return
     
     setProcessingStatus(true)
     
     try {
-      const response = await fetch(`/api/bookings/${selectedBookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("auth-token")}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      })
+      console.log(`📋 [Bookings Page] Updating booking ${selectedBookingId} to status: ${newStatus}`);
+      console.log(`👤 [Bookings Page] Current user ID: ${user?.id}`);
       
-      if (!response.ok) {
-        let errorMsg = `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking`;
-        try {
-          const errorData = await response.json()
-          errorMsg = errorData.error || errorMsg
-        } catch {}
-        throw new Error(errorMsg)
-      }
-      
-      const updatedBooking = await response.json()
+      // Use the same updateBooking function as the working dashboard
+      const updatedBooking = await updateBooking(selectedBookingId, { status: newStatus })
+      console.log(`📋 [Bookings Page] Update result:`, updatedBooking);
       
       // Update the bookings state
       const updatedBookings = bookings.map(booking => {
@@ -250,8 +278,10 @@ export default function BookingsManagementPage() {
         description: `The booking has been ${newStatus === "confirmed" ? "approved" : "rejected"} successfully.`,
         variant: newStatus === "confirmed" ? "default" : "destructive",
       })
+      
+      console.log(`✅ [Bookings Page] Successfully updated booking ${selectedBookingId} to ${newStatus}`);
     } catch (error: any) {
-      console.error(`Error ${newStatus === "confirmed" ? "approving" : "rejecting"} booking:`, error)
+      console.error(`❌ [Bookings Page] Error ${newStatus === "confirmed" ? "approving" : "rejecting"} booking:`, error)
       toast({
         title: "Error",
         description: error.message || `Failed to ${newStatus === "confirmed" ? "approve" : "reject"} booking. Please try again.`,
@@ -261,6 +291,103 @@ export default function BookingsManagementPage() {
       setProcessingStatus(false)
       setConfirmDialogOpen(false)
       setRejectDialogOpen(false)
+    }
+  }
+
+  const handleCancelBooking = async () => {
+    if (!selectedBookingId) return
+    
+    setProcessingStatus(true)
+    
+    try {
+      console.log(`📋 [Bookings Page] Canceling booking ${selectedBookingId}`);
+      console.log(`👤 [Bookings Page] Current user ID: ${user?.id}`);
+      
+      // Update booking status to cancelled
+      const updatedBooking = await updateBooking(selectedBookingId, { status: 'cancelled' })
+      console.log(`📋 [Bookings Page] Cancel result:`, updatedBooking);
+      
+      // Update the bookings state
+      const updatedBookings = bookings.map(booking => {
+        if (booking.id === selectedBookingId) {
+          return { ...booking, status: 'cancelled' as const }
+        }
+        return booking
+      })
+      
+      setBookings(updatedBookings)
+      setFilteredBookings(updatedBookings)
+      
+      toast({
+        title: "Booking Cancelled",
+        description: "The booking has been cancelled successfully.",
+        variant: "destructive",
+      })
+      
+      console.log(`✅ [Bookings Page] Successfully cancelled booking ${selectedBookingId}`);
+    } catch (error: any) {
+      console.error(`❌ [Bookings Page] Error cancelling booking:`, error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel booking. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingStatus(false)
+      setCancelDialogOpen(false)
+    }
+  }
+
+  const handleDeleteBooking = async () => {
+    if (!selectedBookingId) return
+    
+    setProcessingStatus(true)
+    
+    try {
+      console.log(`📋 [Bookings Page] Deleting booking ${selectedBookingId}`);
+      console.log(`👤 [Bookings Page] Current user ID: ${user?.id}`);
+      
+      // Delete the booking from database
+      const response = await fetch(`/api/bookings/${selectedBookingId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("auth-token")}`,
+        },
+      })
+      
+      if (!response.ok) {
+        let errorMsg = "Failed to delete booking";
+        try {
+          const errorData = await response.json()
+          errorMsg = errorData.error || errorMsg
+        } catch {}
+        throw new Error(errorMsg)
+      }
+      
+      // Remove the booking from state
+      const updatedBookings = bookings.filter(booking => booking.id !== selectedBookingId)
+      
+      setBookings(updatedBookings)
+      setFilteredBookings(updatedBookings)
+      
+      toast({
+        title: "Booking Deleted",
+        description: "The booking has been deleted successfully.",
+        variant: "default",
+      })
+      
+      console.log(`✅ [Bookings Page] Successfully deleted booking ${selectedBookingId}`);
+    } catch (error: any) {
+      console.error(`❌ [Bookings Page] Error deleting booking:`, error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete booking. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingStatus(false)
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -523,7 +650,7 @@ export default function BookingsManagementPage() {
                                 <Eye className="h-4 w-4" />
                                 <span>View Details</span>
                               </DropdownMenuItem>
-                              {booking.status === "pending" && (
+                              {canReapproveBooking(booking) && (
                                 <DropdownMenuItem onClick={() => openConfirmDialog(booking.id)} className="text-green-600 dark:text-green-400">
                                   <CheckCircle className="h-4 w-4 mr-2" />
                                   <span>Approve</span>
@@ -535,6 +662,16 @@ export default function BookingsManagementPage() {
                                   <span>Reject</span>
                                 </DropdownMenuItem>
                               )}
+                              {booking.status === "confirmed" && (
+                                <DropdownMenuItem onClick={() => openCancelDialog(booking.id)} className="text-orange-600 dark:text-orange-400">
+                                  <Ban className="h-4 w-4 mr-2" />
+                                  <span>Cancel</span>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => openDeleteDialog(booking.id)} className="text-red-600 dark:text-red-400">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -554,7 +691,7 @@ export default function BookingsManagementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Booking</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to approve this booking? This will confirm the room reservation.
+              Are you sure you want to approve this booking? This will confirm the room reservation and notify the organizer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -654,6 +791,70 @@ export default function BookingsManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this confirmed booking? This will make the room available again and notify the organizer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingStatus}>Cancel Action</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleCancelBooking()
+              }}
+              disabled={processingStatus}
+              className="bg-orange-500 hover:bg-orange-600 focus:ring-orange-500"
+            >
+              {processingStatus ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Cancel Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this booking? This action cannot be undone and will remove all booking data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleDeleteBooking()
+              }}
+              disabled={processingStatus}
+              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+            >
+              {processingStatus ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 } 

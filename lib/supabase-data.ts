@@ -1,6 +1,7 @@
 import { supabase, createAdminClient } from './supabase'
 import * as types from '@/types'
 import { createBookingConfirmationNotification, createBookingRejectionNotification } from '@/lib/notifications'
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email-service'
 
 // Users
 export async function getUsers(): Promise<types.User[]> {
@@ -1482,6 +1483,26 @@ export async function updateBookingStatus(
             booking.title,
             booking.rooms.name
           );
+          
+          // Send email notification
+          if (user.email) {
+            try {
+              console.log(`📧 Sending confirmation email to ${user.email} via updateBookingStatus`);
+              const emailSent = await sendBookingConfirmationEmail(
+                user.email,
+                user.name,
+                booking.title,
+                booking.rooms.name,
+                booking.start_time,
+                booking.end_time
+              );
+              console.log(`📧 Confirmation email result: ${emailSent}`);
+            } catch (emailError) {
+              console.error('❌ Failed to send confirmation email in updateBookingStatus:', emailError);
+            }
+          } else {
+            console.log(`❌ No email address for user ${user.name} (ID: ${user.id})`);
+          }
         } else if (status === 'cancelled') {
           // Create rejection notification
           await createBookingRejectionNotification(
@@ -1491,6 +1512,25 @@ export async function updateBookingStatus(
             booking.rooms.name,
             rejectionReason
           );
+          
+          // Send email notification
+          if (user.email) {
+            try {
+              console.log(`📧 Sending rejection email to ${user.email} via updateBookingStatus`);
+              const emailSent = await sendBookingRejectionEmail(
+                user.email,
+                user.name,
+                booking.title,
+                booking.rooms.name,
+                rejectionReason
+              );
+              console.log(`📧 Rejection email result: ${emailSent}`);
+            } catch (emailError) {
+              console.error('❌ Failed to send rejection email in updateBookingStatus:', emailError);
+            }
+          } else {
+            console.log(`❌ No email address for user ${user.name} (ID: ${user.id})`);
+          }
         }
       }
     } catch (notificationError) {

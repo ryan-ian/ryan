@@ -1,9 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { ProtectedRoute } from "@/components/protected-route"
-import { Header } from "@/components/header"
+import { UnifiedLayout } from "@/components/unified-layout"
 
 export default function ConferenceRoomBookingLayout({
   children,
@@ -11,9 +8,8 @@ export default function ConferenceRoomBookingLayout({
   children: React.ReactNode
 }) {
   return (
-    <ProtectedRoute>
-      <Header />
-      <main className="flex-1 container py-6">{children}</main>
-    </ProtectedRoute>
+    <UnifiedLayout requireAuth={true}>
+      {children}
+    </UnifiedLayout>
   )
 }

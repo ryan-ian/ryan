@@ -57,6 +57,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data || [])
     }
     
+    // For room-specific booking queries with user details
+    if (roomId) {
+      const includeUsers = searchParams.get("includeUsers") === "true"
+      
+      let query = supabase.from('bookings').select(
+        includeUsers 
+          ? `*, users:user_id(id, name, email)` 
+          : '*'
+      )
+      .eq('room_id', roomId)
+      .order('start_time', { ascending: true })
+      
+      const { data, error } = await query
+      
+      if (error) {
+        console.error('Error fetching room bookings with user details:', error)
+        return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
+      }
+      
+      return NextResponse.json(data || [])
+    }
+    
     // For all other booking queries, require authentication
     if (!token) {
       return NextResponse.json({ error: "Authorization required" }, { status: 401 })
@@ -155,10 +177,10 @@ async function createSingleBooking(bookingData: any, room: any) {
       resources: bookingData.resources || null
     })
     
-    // Send email notification to the user
+    // Send email notification to user about booking request submission
     try {
       const user = await getUserById(bookingData.user_id)
-      if (user && user.email) {
+      if (user && user.email && user.name) {
         console.log(`📧 Sending booking request submitted email to ${user.email}`)
         await sendBookingRequestSubmittedEmail(
           user.email,
@@ -168,12 +190,12 @@ async function createSingleBooking(bookingData: any, room: any) {
           start_time,
           end_time
         )
-        console.log(`📧 Booking request submitted email sent successfully`)
+        console.log(`✅ Booking request submitted email sent successfully to ${user.email}`)
       } else {
-        console.log(`⚠️ User not found or email missing for user ID: ${bookingData.user_id}`)
+        console.warn(`⚠️ Could not send email - user not found or missing email/name: ${bookingData.user_id}`)
       }
     } catch (emailError) {
-      console.error("Failed to send booking request submitted email:", emailError)
+      console.error("❌ Failed to send booking request submitted email:", emailError)
       // Don't fail the booking creation if email fails
     }
     
@@ -278,9 +300,9 @@ async function createMultipleBookings(bookingData: any, room: any) {
         
         createdBookings.push(newBooking)
         
-        // Send email notification to the user for this booking
-        try {
-          if (user && user.email) {
+        // Send email notification to user about booking request submission
+        if (user && user.email && user.name) {
+          try {
             console.log(`📧 Sending booking request submitted email to ${user.email} for booking on ${bookingDate}`)
             await sendBookingRequestSubmittedEmail(
               user.email,
@@ -290,13 +312,13 @@ async function createMultipleBookings(bookingData: any, room: any) {
               start_time,
               end_time
             )
-            console.log(`📧 Booking request submitted email sent successfully for booking on ${bookingDate}`)
-          } else {
-            console.log(`⚠️ User not found or email missing for user ID: ${bookingData.user_id}`)
+            console.log(`✅ Booking request submitted email sent successfully to ${user.email} for booking on ${bookingDate}`)
+          } catch (emailError) {
+            console.error(`❌ Failed to send booking request submitted email for booking on ${bookingDate}:`, emailError)
+            // Don't fail the booking creation if email fails
           }
-        } catch (emailError) {
-          console.error(`Failed to send booking request submitted email for booking on ${bookingDate}:`, emailError)
-          // Don't fail the booking creation if email fails
+        } else {
+          console.warn(`⚠️ Could not send email for booking on ${bookingDate} - user not found or missing email/name: ${bookingData.user_id}`)
         }
         
         // Send notification to facility manager

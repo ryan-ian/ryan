@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
@@ -16,7 +17,7 @@ import {
   XCircle, 
   AlertCircle, 
   ArrowUpDown, 
-  ChevronDown, 
+ 
   Eye, 
   Loader2,
   Ban,
@@ -32,16 +33,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
-import { getAllBookingsByFacilityManager, updateBooking } from "@/lib/supabase-data"
+import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -96,6 +92,7 @@ export default function BookingsManagementPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [processingStatus, setProcessingStatus] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState("")
   const { toast } = useToast()
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
@@ -258,9 +255,40 @@ export default function BookingsManagementPage() {
       console.log(`📋 [Bookings Page] Updating booking ${selectedBookingId} to status: ${newStatus}`);
       console.log(`👤 [Bookings Page] Current user ID: ${user?.id}`);
       
-      // Use the same updateBooking function as the working dashboard
-      const updatedBooking = await updateBooking(selectedBookingId, { status: newStatus })
-      console.log(`📋 [Bookings Page] Update result:`, updatedBooking);
+      // Use API route instead of direct function call
+      const requestData: any = { status: newStatus }
+      if (newStatus === "cancelled" && rejectionReason.trim()) {
+        requestData.rejection_reason = rejectionReason.trim()
+      }
+      
+      const response = await fetch(`/api/bookings/${selectedBookingId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      })
+      
+      if (!response.ok) {
+        let errorMessage = 'Failed to update booking'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (parseError) {
+          console.error('❌ [Bookings Page] Failed to parse error response:', parseError)
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+      
+      let responseData
+      try {
+        responseData = await response.json()
+      } catch (parseError) {
+        console.error('❌ [Bookings Page] Failed to parse success response:', parseError)
+        throw new Error('Server returned invalid response')
+      }
+      console.log(`📋 [Bookings Page] Update result:`, responseData);
       
       // Update the bookings state
       const updatedBookings = bookings.map(booking => {
@@ -291,6 +319,7 @@ export default function BookingsManagementPage() {
       setProcessingStatus(false)
       setConfirmDialogOpen(false)
       setRejectDialogOpen(false)
+      setRejectionReason("") // Reset rejection reason
     }
   }
 
@@ -303,8 +332,21 @@ export default function BookingsManagementPage() {
       console.log(`📋 [Bookings Page] Canceling booking ${selectedBookingId}`);
       console.log(`👤 [Bookings Page] Current user ID: ${user?.id}`);
       
-      // Update booking status to cancelled
-      const updatedBooking = await updateBooking(selectedBookingId, { status: 'cancelled' })
+      // Use API route to update booking status to cancelled
+      const response = await fetch(`/api/bookings/${selectedBookingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to cancel booking')
+      }
+      
+      const updatedBooking = await response.json()
       console.log(`📋 [Bookings Page] Cancel result:`, updatedBooking);
       
       // Update the bookings state
@@ -639,41 +681,68 @@ export default function BookingsManagementPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <ChevronDown className="h-4 w-4" />
+                          <div className="flex items-center justify-end gap-1 flex-wrap">
+                            {/* View Details Button */}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => openDetailsModal(booking)}
+                              className="h-8 px-2"
+                            >
+                              <Eye className="h-4 w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">View</span>
+                            </Button>
+
+                            {/* Approve Button */}
+                            {canReapproveBooking(booking) && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openConfirmDialog(booking.id)}
+                                className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                              >
+                                <CheckCircle className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Approve</span>
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openDetailsModal(booking)} className="flex items-center gap-2">
-                                <Eye className="h-4 w-4" />
-                                <span>View Details</span>
-                              </DropdownMenuItem>
-                              {canReapproveBooking(booking) && (
-                                <DropdownMenuItem onClick={() => openConfirmDialog(booking.id)} className="text-green-600 dark:text-green-400">
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  <span>Approve</span>
-                                </DropdownMenuItem>
-                              )}
-                              {booking.status === "pending" && (
-                                <DropdownMenuItem onClick={() => openRejectDialog(booking.id)} className="text-amber-600 dark:text-amber-400">
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  <span>Reject</span>
-                                </DropdownMenuItem>
-                              )}
-                              {booking.status === "confirmed" && (
-                                <DropdownMenuItem onClick={() => openCancelDialog(booking.id)} className="text-orange-600 dark:text-orange-400">
-                                  <Ban className="h-4 w-4 mr-2" />
-                                  <span>Cancel</span>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => openDeleteDialog(booking.id)} className="text-red-600 dark:text-red-400">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                <span>Delete</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            )}
+
+                            {/* Reject Button */}
+                            {booking.status === "pending" && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openRejectDialog(booking.id)}
+                                className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
+                              >
+                                <XCircle className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Reject</span>
+                              </Button>
+                            )}
+
+                            {/* Cancel Button */}
+                            {booking.status === "confirmed" && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openCancelDialog(booking.id)}
+                                className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
+                              >
+                                <Ban className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Cancel</span>
+                              </Button>
+                            )}
+
+                            {/* Delete Button */}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => openDeleteDialog(booking.id)}
+                              className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                            >
+                              <Trash2 className="h-4 w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Delete</span>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -718,14 +787,30 @@ export default function BookingsManagementPage() {
       </AlertDialog>
 
       {/* Reject Dialog */}
-      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+      <AlertDialog open={rejectDialogOpen} onOpenChange={(open) => {
+        setRejectDialogOpen(open)
+        if (!open) setRejectionReason("") // Reset when closing
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Booking</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject this booking? The room will remain available for other bookings.
+              Are you sure you want to reject this booking? Please provide a reason for rejection to help the organizer understand.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <label htmlFor="rejection-reason" className="text-sm font-medium text-foreground mb-2 block">
+              Reason for rejection (optional)
+            </label>
+            <Textarea
+              id="rejection-reason"
+              placeholder="Enter the reason for rejecting this booking..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[80px]"
+              disabled={processingStatus}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
             <AlertDialogAction
@@ -734,7 +819,7 @@ export default function BookingsManagementPage() {
                 handleUpdateStatus("cancelled")
               }}
               disabled={processingStatus}
-              className="bg-amber-500 hover:bg-amber-600 focus:ring-amber-500"
+              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
             >
               {processingStatus ? (
                 <>

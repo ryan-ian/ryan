@@ -691,7 +691,7 @@ export function BookingCreationModal({
         onClose()
       }
     }}>
-      <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-2xl">
+      <DialogContent className="sm:max-w-md md:max-w-lg max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Book {room.name}</DialogTitle>
@@ -710,9 +710,9 @@ export function BookingCreationModal({
 
         <form onSubmit={form.handleSubmit(step === 1 ? () => setStep(2) : handleSubmit)}>
           {step === 1 ? (
-            <div className="space-y-6 py-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
+            <div className="space-y-4 py-2">
+              <div className="space-y-3">
+                <div className="space-y-1">
                   <label htmlFor="title" className="text-sm font-medium">
                     Meeting Title
                   </label>
@@ -720,27 +720,28 @@ export function BookingCreationModal({
                     id="title"
                     placeholder="Weekly Team Meeting"
                     {...form.register("title")}
+                    className="h-9"
                   />
                   {form.formState.errors.title && (
-                    <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>
+                    <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label htmlFor="description" className="text-sm font-medium">
                     Description (Optional)
                   </label>
                   <Textarea
                     id="description"
                     placeholder="Meeting agenda and details..."
-                    className="resize-none"
+                    className="resize-none h-20"
                     {...form.register("description")}
                   />
                 </div>
               </div>
 
-              <div className="border-t border-border pt-4">
-                <div className="flex items-center justify-between mb-4">
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium">Select Dates & Times</h3>
                   <span className="text-xs text-muted-foreground">
                     {selectedBookings.length}/5 dates selected
@@ -748,16 +749,16 @@ export function BookingCreationModal({
                 </div>
 
                 {/* Date Selection */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-2">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
                       Select Date
                     </label>
                     <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal"
+                          className="w-full justify-start text-left font-normal h-9"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {currentSelectedDate ? formatShortDate(currentSelectedDate) : 'Choose a date'}
@@ -788,8 +789,8 @@ export function BookingCreationModal({
 
                   {/* Time Selection */}
                   {currentSelectedDate && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
                         <label className="block text-xs font-medium text-muted-foreground">
                           Start Time
                         </label>
@@ -798,11 +799,11 @@ export function BookingCreationModal({
                           onValueChange={setCurrentStartTime}
                           disabled={isLoadingTimeSlots || !!userBookingsOnDate}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9">
                             {isLoadingTimeSlots ? (
                               <div className="flex items-center">
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                <span>Loading...</span>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                <span className="text-sm">Loading...</span>
                               </div>
                             ) : (
                               <SelectValue placeholder="Select start time" />
@@ -818,6 +819,7 @@ export function BookingCreationModal({
                                   value={time}
                                   disabled={isBooked || isBuffer}
                                   className={cn(
+                                    "text-sm py-1",
                                     (isBooked || isBuffer) && "text-muted-foreground line-through opacity-50"
                                   )}
                                   title={isBuffer ? "Cannot start a meeting within 30 minutes after a previous booking." : undefined}
@@ -832,7 +834,7 @@ export function BookingCreationModal({
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="block text-xs font-medium text-muted-foreground">
                           End Time
                         </label>
@@ -841,11 +843,11 @@ export function BookingCreationModal({
                           onValueChange={setCurrentEndTime}
                           disabled={isLoadingTimeSlots || !currentStartTime || !!userBookingsOnDate}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9">
                             {isLoadingTimeSlots ? (
                               <div className="flex items-center">
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                <span>Loading...</span>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                <span className="text-sm">Loading...</span>
                               </div>
                             ) : (
                               <SelectValue placeholder="Select end time" />
@@ -878,6 +880,7 @@ export function BookingCreationModal({
                                   value={time}
                                   disabled={hasConflict}
                                   className={cn(
+                                    "text-sm py-1",
                                     hasConflict && "text-muted-foreground line-through opacity-50"
                                   )}
                                 >
@@ -898,17 +901,18 @@ export function BookingCreationModal({
                       type="button"
                       onClick={handleAddBooking}
                       disabled={!canAddBooking || !!userBookingsOnDate || isLoadingTimeSlots}
-                      className="w-full"
+                      className="w-full h-9 mt-1"
+                      size="sm"
                     >
                       {isLoadingTimeSlots ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading Availability...
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          <span className="text-xs">Loading Availability...</span>
                         </>
                       ) : (
                         <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Date & Time
+                          <Plus className="mr-1 h-3 w-3" />
+                          <span className="text-xs">Add Date & Time</span>
                         </>
                       )}
                     </Button>
@@ -926,15 +930,16 @@ export function BookingCreationModal({
                 )}
 
                 {/* Selected Bookings Display */}
-                <div className="mt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium">Selected Dates & Times</h3>
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xs font-medium">Selected Dates & Times</h3>
                     {selectedBookings.length > 0 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={handleClearAll}
+                        className="h-7 text-xs"
                       >
                         Clear All
                       </Button>
@@ -942,29 +947,29 @@ export function BookingCreationModal({
                   </div>
 
                   {selectedBookings.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <CalendarIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No dates selected yet</p>
-                      <p className="text-xs">Use the form above to add dates and times</p>
+                    <div className="text-center py-3 text-muted-foreground">
+                      <CalendarIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">No dates selected yet</p>
+                      <p className="text-xs opacity-70">Use the form above to add dates and times</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    <div className="space-y-1 max-h-[150px] overflow-y-auto pr-1">
                       {selectedBookings
                         .sort((a, b) => a.date.getTime() - b.date.getTime() || a.startTime.localeCompare(b.startTime))
                         .map((booking) => (
                           <div
                             key={booking.id}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-md border"
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded-md border"
                           >
-                            <div className="flex items-start gap-3">
-                              <CalendarIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <div className="flex items-start gap-2">
+                              <CalendarIcon className="h-3 w-3 text-muted-foreground mt-0.5" />
                               <div>
-                                <p className="text-sm font-medium">
+                                <p className="text-xs font-medium">
                                   {formatDate(booking.date)}
                                 </p>
-                                <div className="flex items-center gap-1 mt-1">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <p className="text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                                  <p className="text-[10px] text-muted-foreground">
                                     {formatTimeDisplay(booking.startTime)} - {formatTimeDisplay(booking.endTime)}
                                   </p>
                                 </div>
@@ -974,10 +979,10 @@ export function BookingCreationModal({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => handleRemoveBooking(booking.id)}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-3 w-3" />
                             </Button>
                           </div>
                         ))}
@@ -986,8 +991,8 @@ export function BookingCreationModal({
                 </div>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   All bookings will be created with <span className="font-medium">pending</span> status and require administrator approval.
                 </p>
               </div>
@@ -1051,39 +1056,58 @@ export function BookingCreationModal({
                 </div>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   All bookings will be created with <span className="font-medium">pending</span> status and require administrator approval.
                 </p>
               </div>
             </div>
           )}
 
-          <DialogFooter className="pt-4">
+          <DialogFooter className="pt-3 flex flex-col sm:flex-row gap-2">
             {step === 1 ? (
               <>
-                <Button type="button" variant="outline" onClick={() => {
-                  resetAndClose();
-                  onClose();
-                }}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    resetAndClose();
+                    onClose();
+                  }}
+                  className="h-8 text-xs"
+                  size="sm"
+                >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={selectedBookings.length === 0}
+                  className="h-8 text-xs"
+                  size="sm"
                 >
-                  Review Bookings <ArrowRight className="ml-2 h-4 w-4" />
+                  Review Bookings <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
               </>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setStep(1)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setStep(1)}
+                  className="h-8 text-xs"
+                  size="sm"
+                >
                   Back
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="h-8 text-xs"
+                  size="sm"
+                >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                       Booking...
                     </>
                   ) : (

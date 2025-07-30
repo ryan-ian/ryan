@@ -66,8 +66,6 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <ThemeSwitcher />
-          
           {user && <NotificationBell />}
           
           {user ? (
@@ -97,12 +95,20 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 {user.role === "user" && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/conference-room-booking/bookings" className="cursor-pointer flex w-full items-center">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>My Bookings</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/conference-room-booking" className="cursor-pointer flex w-full items-center">
+                        <Building className="mr-2 h-4 w-4" />
+                        <span>Browse Rooms</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/conference-room-booking/bookings" className="cursor-pointer flex w-full items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>My Bookings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
                 {user.role === "facility_manager" && (
                   <DropdownMenuItem asChild>
@@ -120,6 +126,16 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Theme</span>
+                    </span>
+                    <ThemeSwitcher />
+                  </div>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />

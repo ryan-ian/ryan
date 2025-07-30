@@ -19,7 +19,7 @@ interface BookingDetailsModalProps {
   room: Room | null;
   isOpen: boolean;
   onClose: () => void;
-  onCancel: (bookingId: string) => void;
+  onCancel: (bookingId: string, status: "pending" | "confirmed") => void;
 }
 
 export function BookingDetailsModal({
@@ -90,10 +90,10 @@ export function BookingDetailsModal({
     // Check if the booking is pending and show approval info
     if (booking.status === "pending") {
       return (
-        <Alert className="mt-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <AlertTitle className="text-amber-600 dark:text-amber-400">Pending Approval</AlertTitle>
-          <AlertDescription className="text-amber-700 dark:text-amber-300">
+        <Alert className="mt-3 sm:mt-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+          <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-xs sm:text-sm text-amber-600 dark:text-amber-400">Pending Approval</AlertTitle>
+          <AlertDescription className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
             This booking is waiting for administrator approval. You will be notified when it's approved or rejected.
           </AlertDescription>
         </Alert>
@@ -105,15 +105,16 @@ export function BookingDetailsModal({
 
   const renderBookingInfo = () => {
     return (
-      <Alert className="mt-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <AlertTitle className="text-blue-600 dark:text-blue-400">Booking Restrictions</AlertTitle>
-        <AlertDescription className="text-blue-700 dark:text-blue-300">
-          <ul className="list-disc list-inside space-y-1 mt-2">
+      <Alert className="mt-3 sm:mt-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <Info className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
+        <AlertTitle className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">Booking Rules</AlertTitle>
+        <AlertDescription className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
+          <ul className="list-disc list-inside space-y-0.5 sm:space-y-1 mt-1 sm:mt-2">
             <li>You can only book one room per day</li>
             <li>Bookings must be made at least 24 hours in advance</li>
             <li>All bookings require administrator approval</li>
-            <li>You can cancel pending bookings anytime</li>
+            <li><strong>Pending bookings</strong> can be deleted at any time</li>
+            <li><strong>Confirmed bookings</strong> can only be deleted up to 24 hours before the meeting time</li>
           </ul>
         </AlertDescription>
       </Alert>
@@ -124,42 +125,44 @@ export function BookingDetailsModal({
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) onClose();
     }}>
-      <DialogContent className="sm:max-w-md md:max-w-lg">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <span>{currentBooking.title || "Meeting"}</span>
-              <Badge className={getStatusColor(currentBooking.status)}>
-                {currentBooking.status}
-              </Badge>
-            </DialogTitle>
-            {/* <DialogClose className="h-6 w-6 rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer">
-              <X className="h-4 w-4" />
+      <DialogContent className="w-[95vw] max-w-md sm:max-w-lg md:max-w-xl max-h-[80vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-3 sm:pb-4 border-b">
+          <div className="flex items-start justify-between gap-2 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="flex items-center gap-2 flex-wrap text-base sm:text-lg">
+                <span className="truncate">{currentBooking.title || "Meeting"}</span>
+                <Badge className={getStatusColor(currentBooking.status)}>
+                  {currentBooking.status}
+                </Badge>
+              </DialogTitle>
+              <DialogDescription className="mt-1 sm:mt-2 text-xs sm:text-sm">
+                Booking details for {formatDate(currentBooking.start_time)}
+              </DialogDescription>
+            </div>
+            <DialogClose className="flex-shrink-0 h-7 w-7 sm:h-8 sm:w-8 rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer flex items-center justify-center border">
+              <X className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="sr-only">Close</span>
-            </DialogClose> */}
+            </DialogClose>
           </div>
-          <DialogDescription>
-            Booking details for {formatDate(currentBooking.start_time)}
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 max-h-[60vh] overflow-auto pr-2">
+        <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6 py-3 sm:py-4 pr-1 sm:pr-2 min-h-0 scrollbar-thin">
           {/* Room Info */}
-          <div className="bg-muted p-4 rounded-md">
-            <h4 className="font-medium mb-2 flex items-center gap-2">
-              <Building className="h-4 w-4" />
+          <div className="bg-muted p-3 sm:p-4 rounded-md">
+            <h4 className="font-medium mb-2 flex items-center gap-2 text-sm sm:text-base">
+              <Building className="h-3 w-3 sm:h-4 sm:w-4" />
               Room Details
             </h4>
-            <div className="space-y-2">
-              <p className="text-sm">
+            <div className="space-y-1 sm:space-y-2">
+              <p className="text-xs sm:text-sm">
                 <span className="font-medium">Room:</span> {room?.name || `Room ${currentBooking.room_id}`}
               </p>
               {room && (
                 <>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="font-medium">Location:</span> {room.location}
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <span className="font-medium">Capacity:</span> {room.capacity} people
                   </p>
                 </>
@@ -168,32 +171,35 @@ export function BookingDetailsModal({
           </div>
 
           {/* Time Info */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Date:</span> {formatDate(currentBooking.start_time)}
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <span className="font-medium text-xs sm:text-sm">Date:</span> 
+              <span className="text-xs sm:text-sm">{formatDate(currentBooking.start_time)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Time:</span> {formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <span className="font-medium text-xs sm:text-sm">Time:</span> 
+              <span className="text-xs sm:text-sm">{formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Duration:</span> {getDuration()}
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <span className="font-medium text-xs sm:text-sm">Duration:</span> 
+              <span className="text-xs sm:text-sm">{getDuration()}</span>
             </div>
           </div>
 
           {/* Attendees */}
           {currentBooking.attendees && currentBooking.attendees.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Attendees:</span>
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                <span className="font-medium text-xs sm:text-sm">Attendees:</span>
               </div>
-              <div className="pl-6">
-                <ul className="list-disc pl-4 space-y-1">
+              <div className="pl-5 sm:pl-6">
+                <ul className="list-disc pl-3 sm:pl-4 space-y-0.5 sm:space-y-1">
                   {currentBooking.attendees.map((attendee, index) => (
-                    <li key={index} className="text-sm">
+                    <li key={index} className="text-xs sm:text-sm">
                       {attendee}
                     </li>
                   ))}
@@ -204,19 +210,19 @@ export function BookingDetailsModal({
 
           {/* Description */}
           {currentBooking.description && (
-            <div className="space-y-2">
-              <h4 className="font-medium">Description:</h4>
-              <p className="text-sm">{currentBooking.description}</p>
+            <div className="space-y-1 sm:space-y-2">
+              <h4 className="font-medium text-xs sm:text-sm">Description:</h4>
+              <p className="text-xs sm:text-sm">{currentBooking.description}</p>
             </div>
           )}
 
           {/* Resources */}
           {currentBooking.resources && currentBooking.resources.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium">Resources:</h4>
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-1 sm:space-y-2">
+              <h4 className="font-medium text-xs sm:text-sm">Resources:</h4>
+              <div className="flex flex-wrap gap-1 sm:gap-2">
                 {currentBooking.resources.map((resource, index) => (
-                  <Badge key={index} variant="outline">
+                  <Badge key={index} variant="outline" className="text-xs">
                     {resource}
                   </Badge>
                 ))}
@@ -225,26 +231,55 @@ export function BookingDetailsModal({
           )}
 
           {/* Created/Updated Info */}
-          <div className="border-t pt-4 text-xs text-muted-foreground">
-            <p>Created: {new Date(currentBooking.created_at).toLocaleString()}</p>
-            <p>Last updated: {new Date(currentBooking.updated_at).toLocaleString()}</p>
+          <div className="border-t pt-3 sm:pt-4 text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs">Created: {new Date(currentBooking.created_at).toLocaleString()}</p>
+            <p className="text-[10px] sm:text-xs">Last updated: {new Date(currentBooking.updated_at).toLocaleString()}</p>
           </div>
 
           {renderBookingRestrictions()}
           {renderBookingInfo()}
         </div>
 
-        <DialogFooter className="flex sm:justify-between">
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:justify-between pt-3 sm:pt-4 border-t mt-3 sm:mt-4">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            className="order-2 sm:order-1 text-xs sm:text-sm h-8 sm:h-9"
+          >
             Close
           </Button>
-          {currentBooking.status !== "cancelled" && (
-            <Button 
-              variant="destructive" 
-              onClick={() => onCancel(currentBooking.id)}
-            >
-              Cancel Booking
-            </Button>
+          {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
+            (() => {
+              const now = new Date()
+              const startTime = new Date(currentBooking.start_time)
+              const hoursUntilMeeting = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+              
+              let canCancel = false
+              let disabledReason = ""
+              
+              if (currentBooking.status === "pending") {
+                // Pending bookings can always be cancelled
+                canCancel = true
+              } else if (currentBooking.status === "confirmed") {
+                // Confirmed bookings can be cancelled up to 24 hours before
+                canCancel = hoursUntilMeeting >= 24
+                disabledReason = hoursUntilMeeting < 0 
+                  ? "Cannot delete booking after it has started"
+                  : "Cannot delete confirmed booking less than 24 hours before start time"
+              }
+              
+              return (
+                <Button 
+                  variant="destructive" 
+                  onClick={() => onCancel(currentBooking.id, currentBooking.status as "pending" | "confirmed")}
+                  className="order-1 sm:order-2 text-xs sm:text-sm h-8 sm:h-9"
+                  disabled={!canCancel}
+                  title={!canCancel ? disabledReason : `Delete this ${currentBooking.status} booking`}
+                >
+                  {canCancel ? "Delete Booking" : "Cannot Delete"}
+                </Button>
+              )
+            })()
           )}
         </DialogFooter>
       </DialogContent>

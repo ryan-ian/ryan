@@ -1,7 +1,7 @@
 import { supabase, createAdminClient } from './supabase'
 import * as types from '@/types'
 import { createBookingConfirmationNotification, createBookingRejectionNotification } from '@/lib/notifications'
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email-service'
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendUserBookingCancellationEmail } from '@/lib/email-service'
 
 // Users
 export async function getUsers(): Promise<types.User[]> {
@@ -764,11 +764,28 @@ export async function createBooking(bookingData: Omit<types.Booking, 'id' | 'cre
 }
 
 export async function updateBooking(id: string, bookingData: Partial<types.Booking>): Promise<types.Booking> {
+  console.log(`🟢 [updateBooking] FUNCTION ENTRY - Booking ID: ${id}`)
+  console.log(`🟢 [updateBooking] Data to update:`, JSON.stringify(bookingData, null, 2))
+  
   try {
+    // First get the current booking to validate cancellation rules
+    const { data: currentBooking, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*, users:user_id(id, name, email), rooms:room_id(id, name)')
+      .eq('id', id)
+      .single()
+      
+    if (fetchError) {
+      console.error(`Error fetching booking ${id}:`, fetchError)
+      throw fetchError
+    }
+    
     const updates = {
       ...bookingData,
       updated_at: new Date().toISOString()
     }
+    
+    console.log(`🟢 [updateBooking] Prepared updates:`, JSON.stringify(updates, null, 2))
     
     const { data, error } = await supabase
       .from('bookings')
@@ -782,6 +799,122 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
       throw error
     }
     
+    // Send email notifications if status is being changed to confirmed or cancelled
+    console.log(`🎯 REACHED EMAIL SECTION - Booking ID: ${id}`)
+    console.log(`🔍 updateBooking Debug - Booking ID: ${id}`)
+    console.log(`🔍 Status being set to: ${bookingData.status}`)
+    console.log(`🔍 Current booking data structure:`, JSON.stringify(currentBooking, null, 2))
+    console.log(`🔍 User data type:`, typeof currentBooking.users, Array.isArray(currentBooking.users))
+    console.log(`🔍 User data:`, currentBooking.users)
+    console.log(`🔍 Room data type:`, typeof currentBooking.rooms, Array.isArray(currentBooking.rooms))
+    console.log(`🔍 Room data:`, currentBooking.rooms)
+    
+    // Handle potential array structure from Supabase joins
+    let user = currentBooking.users
+    let room = currentBooking.rooms
+    
+    // Sometimes Supabase returns joined data as arrays
+    if (Array.isArray(user) && user.length > 0) {
+      user = user[0]
+      console.log(`🔧 User was array, using first element:`, user)
+    }
+    if (Array.isArray(room) && room.length > 0) {
+      room = room[0]
+      console.log(`🔧 Room was array, using first element:`, room)
+    }
+    
+    console.log(`🔍 Final user object:`, user)
+    console.log(`🔍 Final room object:`, room)
+    
+    if (bookingData.status && user && room) {
+      try {
+        console.log(`🔍 Email notification conditions met:`)
+        console.log(`   - Status: ${bookingData.status}`)
+        console.log(`   - User email: ${user.email}`)
+        console.log(`   - User name: ${user.name}`)
+        console.log(`   - Room name: ${room.name}`)
+        console.log(`   - User has email: ${!!user.email}`)
+        console.log(`   - Email valid: ${user.email && user.email.includes('@')}`)
+        
+        if (bookingData.status === 'confirmed' && user.email && user.name) {
+          console.log(`📧 Sending booking confirmation email to ${user.email} for booking ${id}`)
+          console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
+          
+          const emailResult = await sendBookingConfirmationEmail(
+            user.email,
+            user.name,
+            currentBooking.title,
+            room.name,
+            currentBooking.start_time,
+            currentBooking.end_time
+          )
+          
+          if (emailResult) {
+            console.log(`✅ Booking confirmation email sent successfully to ${user.email}`)
+          } else {
+            console.log(`❌ Booking confirmation email failed to send to ${user.email}`)
+          }
+          
+          // Also create in-app notification
+          await createBookingConfirmationNotification(
+            currentBooking.user_id,
+            id,
+            currentBooking.title,
+            room.name
+          )
+        } else if (bookingData.status === 'cancelled' && user.email && user.name) {
+            // This is a manager rejection
+            console.log(`📧 Sending booking rejection email to ${user.email} for booking ${id}`)
+            console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
+            console.log(`📧 Rejection reason: ${bookingData.rejection_reason || 'No reason provided'}`)
+            
+            const emailResult = await sendBookingRejectionEmail(
+              user.email,
+              user.name,
+              currentBooking.title,
+              room.name,
+              bookingData.rejection_reason || 'No reason provided'
+            )
+            
+            if (emailResult) {
+              console.log(`✅ Booking rejection email sent successfully to ${user.email}`)
+            } else {
+              console.log(`❌ Booking rejection email failed to send to ${user.email}`)
+            }
+            
+            // Also create in-app notification for manager rejections
+            await createBookingRejectionNotification(
+              currentBooking.user_id,
+              id,
+              currentBooking.title,
+              room.name,
+              bookingData.rejection_reason
+            )
+        } else if (bookingData.status === 'confirmed' || bookingData.status === 'cancelled') {
+          console.warn(`⚠️ Could not send ${bookingData.status === 'confirmed' ? 'confirmation' : 'rejection'} email - user not found or missing email/name`)
+          console.warn(`   - User email: ${user?.email || 'MISSING'}`)
+          console.warn(`   - User name: ${user?.name || 'MISSING'}`)
+        }
+      } catch (emailError) {
+        console.error(`❌ Failed to send email notification for booking ${id}:`, emailError)
+        // Don't fail the booking update if email fails
+      }
+    } else {
+      console.log(`⚠️ Email notification NOT sent for booking ${id}:`)
+      console.log(`   - Status update: ${bookingData.status ? 'YES' : 'NO'}`)
+      console.log(`   - User data available: ${user ? 'YES' : 'NO'}`)
+      console.log(`   - Room data available: ${room ? 'YES' : 'NO'}`)
+      if (user) {
+        console.log(`   - User email: ${user.email || 'MISSING'}`)
+        console.log(`   - User name: ${user.name || 'MISSING'}`)
+      }
+      if (room) {
+        console.log(`   - Room name: ${room.name || 'MISSING'}`)
+      }
+      console.log(`   - Original user data:`, currentBooking.users)
+      console.log(`   - Original room data:`, currentBooking.rooms)
+    }
+    
     return data
   } catch (error) {
     console.error('Exception in updateBooking:', error)
@@ -791,6 +924,42 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
 
 export async function deleteBooking(id: string): Promise<boolean> {
   try {
+    console.log(`🗑️ [deleteBooking] Starting deletion of booking ${id}`)
+    
+    // First, get the booking to check if it can be deleted
+    const { data: booking, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', id)
+      .single()
+      
+    if (fetchError) {
+      console.error(`Error fetching booking ${id}:`, fetchError)
+      return false
+    }
+    
+    // Check if this is a confirmed booking and if it's within 24 hours of start time
+    if (booking.status === 'confirmed') {
+      const now = new Date()
+      const startTime = new Date(booking.start_time)
+      const hoursUntilMeeting = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+      
+      console.log(`🔍 [deleteBooking] Confirmed booking validation:`)
+      console.log(`   - Hours until meeting: ${hoursUntilMeeting.toFixed(1)}`)
+      
+      if (hoursUntilMeeting < 24) {
+        const errorMsg = hoursUntilMeeting < 0 
+          ? "Cannot delete booking after it has started"
+          : "Cannot delete confirmed booking less than 24 hours before start time"
+        console.error(`❌ [deleteBooking] Deletion validation failed: ${errorMsg}`)
+        throw new Error(errorMsg)
+      }
+      
+      console.log(`✅ [deleteBooking] Confirmed booking validation passed - more than 24 hours before start time`)
+    } else {
+      console.log(`✅ [deleteBooking] Booking is ${booking.status}, can be deleted without time restriction`)
+    }
+    
     // Delete the booking
     const { error } = await supabase
       .from('bookings')
@@ -802,10 +971,11 @@ export async function deleteBooking(id: string): Promise<boolean> {
       return false
     }
     
+    console.log(`✅ [deleteBooking] Successfully deleted booking ${id}`)
     return true
   } catch (error) {
     console.error('Exception in deleteBooking:', error)
-    return false
+    throw error // Rethrow to allow API to handle the error message
   }
 }
 
@@ -1522,7 +1692,7 @@ export async function updateBookingStatus(
                 user.name,
                 booking.title,
                 booking.rooms.name,
-                rejectionReason
+                rejectionReason || 'No reason provided'
               );
               console.log(`📧 Rejection email result: ${emailSent}`);
             } catch (emailError) {

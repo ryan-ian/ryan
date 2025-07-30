@@ -1,14 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Building, BookCheck, Clock, User, Calendar, Check, X, AlertCircle, Bell } from "lucide-react"
+import { Building, BookCheck, Clock, User, Calendar, Check, X, AlertCircle, Bell, Loader2 } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
 import { useNotifications } from "@/contexts/notifications-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getPendingBookingsByFacilityManager, getTodaysBookingsByFacilityManager, updateBooking, getRoomsByFacilityManager } from "@/lib/supabase-data"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/components/ui/use-toast"
+import { getPendingBookingsByFacilityManager, getTodaysBookingsByFacilityManager, getRoomsByFacilityManager } from "@/lib/supabase-data"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -91,6 +102,12 @@ export default function FacilityManagerDashboard() {
   const [totalRooms, setTotalRooms] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
+  const [selectedBookingTitle, setSelectedBookingTitle] = useState<string>("")
+  const [processingStatus, setProcessingStatus] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -115,13 +132,83 @@ export default function FacilityManagerDashboard() {
     loadDashboardData()
   }, [user])
 
-  const handleUpdateStatus = async (bookingId: string, status: "confirmed" | "cancelled") => {
+  const openApproveDialog = (bookingId: string, bookingTitle: string) => {
+    setSelectedBookingId(bookingId)
+    setSelectedBookingTitle(bookingTitle)
+    setConfirmDialogOpen(true)
+  }
+
+  const openRejectDialog = (bookingId: string, bookingTitle: string) => {
+    setSelectedBookingId(bookingId)
+    setSelectedBookingTitle(bookingTitle)
+    setRejectDialogOpen(true)
+  }
+
+  const handleUpdateStatus = async (status: "confirmed" | "cancelled") => {
+    if (!selectedBookingId) return
+    
+    setProcessingStatus(true)
+    
     try {
-      await updateBooking(bookingId, { status })
-      setPendingBookings(pendingBookings.filter(b => b.id !== bookingId))
-    } catch (err) {
-      console.error(`Failed to ${status === "confirmed" ? "approve" : "reject"} booking`, err)
-      setError("Failed to update booking status.")
+      console.log(`🎯 [Dashboard] Updating booking ${selectedBookingId} to status: ${status}`)
+      
+      const updateData: any = { status }
+      if (status === "cancelled") {
+        updateData.rejection_reason = "Rejected by facility manager"
+      }
+      
+      // Use API route instead of direct function call
+      const response = await fetch(`/api/bookings/${selectedBookingId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      })
+      
+      if (!response.ok) {
+        let errorMessage = 'Failed to update booking'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (parseError) {
+          console.error('❌ [Dashboard] Failed to parse error response:', parseError)
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+      
+      let responseData
+      try {
+        responseData = await response.json()
+      } catch (parseError) {
+        console.error('❌ [Dashboard] Failed to parse success response:', parseError)
+        throw new Error('Server returned invalid response')
+      }
+      console.log(`✅ [Dashboard] Successfully updated booking:`, responseData)
+      
+      setPendingBookings(pendingBookings.filter(b => b.id !== selectedBookingId))
+      
+      toast({
+        title: `Booking ${status === "confirmed" ? "Approved" : "Rejected"}`,
+        description: `The booking "${selectedBookingTitle}" has been ${status === "confirmed" ? "approved" : "rejected"} successfully.`,
+        variant: status === "confirmed" ? "default" : "destructive",
+      })
+      
+      setError(null)
+    } catch (err: any) {
+      console.error(`❌ [Dashboard] Failed to ${status === "confirmed" ? "approve" : "reject"} booking:`, err)
+      toast({
+        title: "Error",
+        description: err.message || `Failed to ${status === "confirmed" ? "approve" : "reject"} booking. Please try again.`,
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingStatus(false)
+      setConfirmDialogOpen(false)
+      setRejectDialogOpen(false)
+      setSelectedBookingId(null)
+      setSelectedBookingTitle("")
     }
   }
 
@@ -206,10 +293,10 @@ export default function FacilityManagerDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
+                      <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id, booking.title)}>
                         <X className="mr-1 h-4 w-4" /> Reject
                       </Button>
-                      <Button size="sm" onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="bg-green-600 hover:bg-green-700">
+                      <Button size="sm" onClick={() => openApproveDialog(booking.id, booking.title)} className="bg-green-600 hover:bg-green-700">
                         <Check className="mr-1 h-4 w-4" /> Approve
                       </Button>
                     </div>
@@ -259,6 +346,69 @@ export default function FacilityManagerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Modals */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to approve the booking "{selectedBookingTitle}"? This will confirm the room reservation and notify the organizer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleUpdateStatus("confirmed")
+              }}
+              disabled={processingStatus}
+              className="bg-green-500 hover:bg-green-600 focus:ring-green-500"
+            >
+              {processingStatus ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Approve Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reject the booking "{selectedBookingTitle}"? The room will remain available for other bookings and the organizer will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleUpdateStatus("cancelled")
+              }}
+              disabled={processingStatus}
+              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+            >
+              {processingStatus ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Reject Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 } 

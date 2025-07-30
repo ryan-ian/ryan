@@ -1,6 +1,6 @@
 "use client"
 
-import { UnifiedLayout } from "@/components/unified-layout"
+import { UserLayout } from "@/components/user-layout"
 
 export default function ConferenceRoomBookingLayout({
   children,
@@ -8,8 +8,8 @@ export default function ConferenceRoomBookingLayout({
   children: React.ReactNode
 }) {
   return (
-    <UnifiedLayout requireAuth={true}>
+    <UserLayout requireAuth={true}>
       {children}
-    </UnifiedLayout>
+    </UserLayout>
   )
 }

@@ -71,6 +71,7 @@ export interface Booking {
   attendees?: string[]
   status: "pending" | "confirmed" | "cancelled"
   resources?: string[]
+  rejection_reason?: string
   created_at: string
   updated_at: string
 }

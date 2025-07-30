@@ -16,6 +16,7 @@ interface DeleteBookingDialogProps {
   isLoading: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  bookingStatus?: "pending" | "confirmed";
 }
 
 export function DeleteBookingDialog({
@@ -23,6 +24,7 @@ export function DeleteBookingDialog({
   isLoading,
   onClose,
   onConfirm,
+  bookingStatus = "pending",
 }: DeleteBookingDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -30,7 +32,18 @@ export function DeleteBookingDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Booking</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete this booking? This action is permanent and cannot be undone.
+            {bookingStatus === "pending" ? (
+              <>
+                Are you sure you want to delete this pending booking request? This action is permanent and cannot be undone.
+              </>
+            ) : (
+              <>
+                Are you sure you want to delete this confirmed booking? This action is permanent and cannot be undone.
+                <p className="mt-2 text-amber-600 font-medium">
+                  Remember: You can only delete confirmed bookings up to 24 hours before the meeting time.
+                </p>
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">

@@ -1,59 +1,24 @@
-// import nodemailer from 'nodemailer';
-import nodemailer from 'nodemailer';
-import { format } from 'date-fns';
+import nodemailer from 'nodemailer'
+import { format } from 'date-fns'
 
-// Email transporter configuration
-let transporter: nodemailer.Transporter;
-let isEmailServiceReady = false;
+// Email configuration
+let transporter: nodemailer.Transporter | null = null
 
-/**
- * Test the email connection
- */
-async function testEmailConnection(): Promise<boolean> {
-  if (!transporter) {
-    console.error('❌ Cannot test email connection - transporter not initialized');
-    return false;
+// Initialize email service
+export function initEmailService() {
+  if (typeof window !== 'undefined') {
+    // Don't initialize on client side
+    return
   }
 
   try {
-    console.log('🔍 Testing SMTP connection...');
-    await transporter.verify();
-    console.log('✅ SMTP connection test successful');
-    return true;
-  } catch (error) {
-    console.error('❌ SMTP connection test failed:', error);
-    return false;
-  }
-}
+    console.log('📧 Initializing email service...')
+    
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+      console.error('❌ Missing required SMTP environment variables')
+      return
+    }
 
-/**
- * Initialize the email service with configuration
- * Should be called during app startup
- */
-export async function initEmailService(): Promise<boolean> {
-  console.log('🚀 ===== EMAIL SERVICE INITIALIZATION =====');
-  console.log('📧 SMTP Configuration:');
-  console.log('  - Host:', process.env.SMTP_HOST || 'NOT SET');
-  console.log('  - Port:', process.env.SMTP_PORT || 'NOT SET');
-  console.log('  - Secure:', process.env.SMTP_SECURE || 'NOT SET');
-  console.log('  - User:', process.env.SMTP_USER || 'NOT SET');
-  console.log('  - From Name:', process.env.EMAIL_FROM_NAME || 'NOT SET');
-  console.log('  - From Address:', process.env.EMAIL_FROM_ADDRESS || 'NOT SET');
-  console.log('  - Password:', process.env.SMTP_PASSWORD ? 'SET' : 'NOT SET');
-  
-  // Check if all required environment variables are set
-  const requiredVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM_NAME', 'EMAIL_FROM_ADDRESS'];
-  const missingVars = requiredVars.filter(varName => !process.env[varName]);
-  
-  if (missingVars.length > 0) {
-    console.error('❌ MISSING EMAIL CONFIGURATION VARIABLES:', missingVars);
-    console.error('❌ Email service will not work without these variables!');
-    isEmailServiceReady = false;
-    return false;
-  }
-  
-  try {
-    // Create a transporter object using SMTP transport
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -62,44 +27,15 @@ export async function initEmailService(): Promise<boolean> {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
       },
-    });
-    
-    console.log('📧 Transporter created, testing connection...');
-    
-    // Test the connection
-    const connectionSuccess = await testEmailConnection();
-    isEmailServiceReady = connectionSuccess;
-    
-    if (connectionSuccess) {
-      console.log('✅ Email service initialized and tested successfully');
-    } else {
-      console.error('❌ Email service initialized but connection test failed');
-    }
-    
-    console.log('🚀 ===== EMAIL SERVICE INITIALIZATION END =====');
-    return connectionSuccess;
+    })
+
+    console.log('✅ Email service initialized successfully')
   } catch (error) {
-    console.error('❌ Failed to initialize email service:', error);
-    isEmailServiceReady = false;
-    return false;
+    console.error('❌ Failed to initialize email service:', error)
   }
 }
 
-/**
- * Check if email service is ready
- */
-export function isEmailReady(): boolean {
-  return isEmailServiceReady && !!transporter;
-}
-
-/**
- * Send an email
- * @param to Recipient email address
- * @param subject Email subject
- * @param html HTML content of the email
- * @param text Plain text content of the email (fallback)
- * @returns Promise resolving to the send result
- */
+// Send basic email
 export async function sendEmail(
   to: string,
   subject: string,
@@ -107,76 +43,112 @@ export async function sendEmail(
   text: string
 ): Promise<boolean> {
   try {
-    console.log('📧 ===== EMAIL SEND PROCESS START =====');
-    console.log(`📧 RECIPIENT EMAIL ADDRESS: ${to}`);
-    console.log(`📧 Subject: ${subject}`);
-    console.log(`📧 HTML length: ${html.length} characters`);
-    console.log(`📧 Text length: ${text.length} characters`);
-    console.log(`📧 Email service ready: ${isEmailServiceReady}`);
+    console.log(`📧 ===== SEND EMAIL START =====`)
+    console.log(`📧 To: ${to}`)
+    console.log(`📧 Subject: ${subject}`)
     
     if (!transporter) {
-      console.error('❌ Email service not initialized - transporter is null');
-      console.error('❌ Check if initEmailService() was called and environment variables are set');
+      console.log('📧 Transporter not initialized, initializing now...')
+      initEmailService()
       
-      // Try to initialize the email service
-      console.log('🔄 Attempting to initialize email service...');
-      const initResult = await initEmailService();
-      if (!initResult) {
-        console.error('❌ Failed to initialize email service');
-        return false;
+      if (!transporter) {
+        console.error('❌ Failed to initialize email transporter')
+        return false
       }
     }
-    
-    if (!isEmailServiceReady) {
-      console.error('❌ Email service is not ready - connection test failed');
-      return false;
-    }
-    
-    // Validate email address
-    if (!to || !to.includes('@')) {
-      console.error('❌ Invalid email address:', to);
-      return false;
-    }
-    
-    const mailOptions = {
-      from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
-      to: to,
-      subject: subject,
-      html: html,
-      text: text,
-    };
-    
-    console.log('📧 Mail options:');
-    console.log('  - From:', mailOptions.from);
-    console.log('  - To:', mailOptions.to);
-    console.log('  - Subject:', mailOptions.subject);
 
-    console.log('📧 Attempting to send email via SMTP...');
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully!');
-    console.log('  - Message ID:', info.messageId);
-    console.log('  - Response:', info.response);
-    console.log('📧 ===== EMAIL SEND PROCESS END =====');
-    return true;
+    const mailOptions = {
+      from: `${process.env.EMAIL_FROM_NAME || 'Conference Hub'} <${process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+      text,
+    }
+
+    console.log(`📧 Sending email...`)
+    const result = await transporter.sendMail(mailOptions)
+    console.log(`✅ Email sent successfully:`, result.messageId)
+    console.log(`📧 ===== SEND EMAIL END =====`)
+    
+    return true
   } catch (error) {
-    console.error('❌ ===== EMAIL SEND ERROR =====');
-    console.error('❌ Error sending email:', error);
-    console.error('❌ Error details:', error instanceof Error ? error.message : String(error));
-    console.error('❌ ===== EMAIL SEND ERROR END =====');
-    return false;
+    console.error('❌ Failed to send email:', error)
+    console.log(`📧 ===== SEND EMAIL END (ERROR) =====`)
+    return false
   }
 }
 
-/**
- * Send a booking confirmation email
- * @param userEmail User's email address
- * @param userName User's name
- * @param bookingTitle Title of the booking
- * @param roomName Name of the room
- * @param startTime Start time of the booking
- * @param endTime End time of the booking
- * @returns Promise resolving to the send result
- */
+// Send booking request submitted email
+export async function sendBookingRequestSubmittedEmail(
+  userEmail: string,
+  userName: string,
+  bookingTitle: string,
+  roomName: string,
+  startTime: string,
+  endTime: string
+): Promise<boolean> {
+  console.log('📧 ===== BOOKING REQUEST SUBMITTED EMAIL START =====');
+  console.log(`📧 User Email: ${userEmail}`);
+  console.log(`📧 User Name: ${userName}`);
+  console.log(`📧 Booking Title: ${bookingTitle}`);
+  console.log(`📧 Room Name: ${roomName}`);
+  console.log(`📧 Start Time: ${startTime}`);
+  console.log(`📧 End Time: ${endTime}`);
+
+  if (!userEmail || !userEmail.includes('@')) {
+    console.error('❌ Invalid user email address:', userEmail);
+    return false;
+  }
+
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
+  const formattedDate = format(startDate, 'EEEE, MMMM d, yyyy');
+  const formattedStartTime = format(startDate, 'h:mm a');
+  const formattedEndTime = format(endDate, 'h:mm a');
+
+  const subject = `Booking Request Submitted: ${bookingTitle}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2196F3;">Booking Request Received</h2>
+      <p>Hello ${userName},</p>
+      <p>Thank you for submitting your booking request. We have received your request and it is now pending approval from the facility manager.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Title:</strong> ${bookingTitle}</p>
+        <p><strong>Room:</strong> ${roomName}</p>
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+        <p><strong>Status:</strong> <span style="color: #FF9800; font-weight: bold;">Pending Approval</span></p>
+      </div>
+      <p>You will receive another email notification once your booking has been reviewed. You can also check the status of your booking by logging into the Conference Hub application.</p>
+      <p>If you have any questions or need to make changes to your request, please contact your facility manager.</p>
+      <p>Thank you for using Conference Hub!</p>
+    </div>
+  `;
+
+  const text = `
+    Booking Request Received
+    Hello ${userName},
+    Thank you for submitting your booking request. We have received your request and it is now pending approval from the facility manager.
+    
+    Title: ${bookingTitle}
+    Room: ${roomName}
+    Date: ${formattedDate}
+    Time: ${formattedStartTime} - ${formattedEndTime}
+    Status: Pending Approval
+    
+    You will receive another email notification once your booking has been reviewed. You can also check the status of your booking by logging into the Conference Hub application.
+    If you have any questions or need to make changes to your request, please contact your facility manager.
+    Thank you for using Conference Hub!
+  `;
+
+  const result = await sendEmail(userEmail, subject, html, text);
+  console.log(`📧 sendEmail result: ${result}`);
+  console.log('📧 ===== BOOKING REQUEST SUBMITTED EMAIL END =====');
+  
+  return result;
+}
+
+// Send booking confirmation email
 export async function sendBookingConfirmationEmail(
   userEmail: string,
   userName: string,
@@ -186,230 +158,194 @@ export async function sendBookingConfirmationEmail(
   endTime: string
 ): Promise<boolean> {
   console.log('📧 ===== BOOKING CONFIRMATION EMAIL START =====');
-  console.log(`📧 USER EMAIL ADDRESS: ${userEmail}`);
+  console.log(`📧 User Email: ${userEmail}`);
   console.log(`📧 User Name: ${userName}`);
   console.log(`📧 Booking Title: ${bookingTitle}`);
   console.log(`📧 Room Name: ${roomName}`);
-  console.log(`📧 Start Time: ${startTime}`);
-  console.log(`📧 End Time: ${endTime}`);
-  
-  // Validate email address
+
   if (!userEmail || !userEmail.includes('@')) {
     console.error('❌ Invalid user email address:', userEmail);
-    console.log('📧 ===== BOOKING CONFIRMATION EMAIL END (INVALID EMAIL) =====');
     return false;
   }
-  
+
   const startDate = new Date(startTime);
   const endDate = new Date(endTime);
-  
   const formattedDate = format(startDate, 'EEEE, MMMM d, yyyy');
   const formattedStartTime = format(startDate, 'h:mm a');
   const formattedEndTime = format(endDate, 'h:mm a');
-  
+
   const subject = `Booking Confirmed: ${bookingTitle}`;
- 
-  console.log(`📧 Formatted Date: ${formattedDate}`);
-  console.log(`📧 Formatted Time: ${formattedStartTime} - ${formattedEndTime}`);
-  console.log(`📧 Email Subject: ${subject}`);
-  
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Booking Confirmed</h2>
+      <h2 style="color: #4CAF50;">Booking Confirmed!</h2>
       <p>Hello ${userName},</p>
-      <p>Your booking has been confirmed:</p>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p>Great news! Your booking request has been approved and confirmed.</p>
+      <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4CAF50;">
         <p><strong>Title:</strong> ${bookingTitle}</p>
         <p><strong>Room:</strong> ${roomName}</p>
         <p><strong>Date:</strong> ${formattedDate}</p>
         <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+        <p><strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">✅ Confirmed</span></p>
       </div>
-      
-      <p>You can view or manage your booking through the Conference Hub application.</p>
+      <p>Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.</p>
+      <p>If you need to make any changes or cancel this booking, please contact your facility manager as soon as possible.</p>
       <p>Thank you for using Conference Hub!</p>
     </div>
   `;
-  
+
   const text = `
-    Booking Confirmed
-    
+    Booking Confirmed!
     Hello ${userName},
-    
-    Your booking has been confirmed:
+    Great news! Your booking request has been approved and confirmed.
     
     Title: ${bookingTitle}
     Room: ${roomName}
     Date: ${formattedDate}
     Time: ${formattedStartTime} - ${formattedEndTime}
+    Status: ✅ Confirmed
     
-    You can view or manage your booking through the Conference Hub application.
-    
+    Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.
+    If you need to make any changes or cancel this booking, please contact your facility manager as soon as possible.
     Thank you for using Conference Hub!
   `;
-  
-  console.log('📧 Calling sendEmail function...');
+
   const result = await sendEmail(userEmail, subject, html, text);
   console.log(`📧 sendEmail result: ${result}`);
   console.log('📧 ===== BOOKING CONFIRMATION EMAIL END =====');
+  
   return result;
 }
 
-/**
- * Send a booking rejection email
- * @param userEmail User's email address
- * @param userName User's name
- * @param bookingTitle Title of the booking
- * @param roomName Name of the room
- * @param reason Optional reason for rejection
- * @returns Promise resolving to the send result
- */
+// Send booking rejection email
 export async function sendBookingRejectionEmail(
   userEmail: string,
   userName: string,
   bookingTitle: string,
   roomName: string,
-  reason?: string
+  rejectionReason: string
 ): Promise<boolean> {
   console.log('📧 ===== BOOKING REJECTION EMAIL START =====');
-  console.log(`📧 USER EMAIL ADDRESS: ${userEmail}`);
+  console.log(`📧 User Email: ${userEmail}`);
   console.log(`📧 User Name: ${userName}`);
   console.log(`📧 Booking Title: ${bookingTitle}`);
   console.log(`📧 Room Name: ${roomName}`);
-  console.log(`📧 Rejection Reason: ${reason || 'No reason provided'}`);
-  
-  // Validate email address
+  console.log(`📧 Rejection Reason: ${rejectionReason}`);
+
   if (!userEmail || !userEmail.includes('@')) {
     console.error('❌ Invalid user email address:', userEmail);
-    console.log('📧 ===== BOOKING REJECTION EMAIL END (INVALID EMAIL) =====');
     return false;
   }
-  
-  // Validate email address
-  if (!userEmail || !userEmail.includes('@')) {
-    console.error('❌ Invalid user email address:', userEmail);
-    console.log('📧 ===== BOOKING REJECTION EMAIL END (INVALID EMAIL) =====');
-    return false;
-  }
-  
-  const subject = `Booking Rejected: ${bookingTitle}`;
-  console.log(`📧 Email Subject: ${subject}`);
-  
+
+  const subject = `Booking Request Update: ${bookingTitle}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #F44336;">Booking Rejected</h2>
+      <h2 style="color: #f44336;">Booking Request Update</h2>
       <p>Hello ${userName},</p>
-      <p>Unfortunately, your booking request has been rejected:</p>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p>We regret to inform you that your booking request could not be approved at this time.</p>
+      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
         <p><strong>Title:</strong> ${bookingTitle}</p>
         <p><strong>Room:</strong> ${roomName}</p>
-        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+        <p><strong>Status:</strong> <span style="color: #f44336; font-weight: bold;">❌ Not Approved</span></p>
+        <p><strong>Reason:</strong> ${rejectionReason}</p>
       </div>
-      
-      <p>If you have any questions, please contact your facility manager.</p>
-      <p>Thank you for using Conference Hub!</p>
+      <p>Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.</p>
+      <p>Thank you for your understanding.</p>
     </div>
   `;
-  
+
   const text = `
-    Booking Rejected
-    
+    Booking Request Update
     Hello ${userName},
-    
-    Unfortunately, your booking request has been rejected:
+    We regret to inform you that your booking request could not be approved at this time.
     
     Title: ${bookingTitle}
     Room: ${roomName}
-    ${reason ? `Reason: ${reason}` : ''}
+    Status: ❌ Not Approved
+    Reason: ${rejectionReason}
     
-    If you have any questions, please contact your facility manager.
-    
-    Thank you for using Conference Hub!
+    Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.
+    Thank you for your understanding.
   `;
-  
-  console.log('📧 Calling sendEmail function...');
+
   const result = await sendEmail(userEmail, subject, html, text);
   console.log(`📧 sendEmail result: ${result}`);
   console.log('📧 ===== BOOKING REJECTION EMAIL END =====');
+  
   return result;
 }
 
-/**
- * Send a booking reminder email
- * @param userEmail User's email address
- * @param userName User's name
- * @param bookingTitle Title of the booking
- * @param roomName Name of the room
- * @param startTime Start time of the booking
- * @returns Promise resolving to the send result
- */
-export async function sendBookingReminderEmail(
+// Send user booking cancellation email
+export async function sendUserBookingCancellationEmail(
   userEmail: string,
   userName: string,
   bookingTitle: string,
   roomName: string,
-  startTime: string
+  startTime: string,
+  endTime: string
 ): Promise<boolean> {
-  console.log('📧 ===== BOOKING REMINDER EMAIL START =====');
-  console.log(`📧 USER EMAIL ADDRESS: ${userEmail}`);
+  console.log('📧 ===== USER BOOKING CANCELLATION EMAIL START =====');
+  console.log(`📧 User Email: ${userEmail}`);
   console.log(`📧 User Name: ${userName}`);
   console.log(`📧 Booking Title: ${bookingTitle}`);
   console.log(`📧 Room Name: ${roomName}`);
-  console.log(`📧 Start Time: ${startTime}`);
-  
-  // Validate email address
+
   if (!userEmail || !userEmail.includes('@')) {
     console.error('❌ Invalid user email address:', userEmail);
-    console.log('📧 ===== BOOKING REMINDER EMAIL END (INVALID EMAIL) =====');
     return false;
   }
-  
+
   const startDate = new Date(startTime);
-  
+  const endDate = new Date(endTime);
   const formattedDate = format(startDate, 'EEEE, MMMM d, yyyy');
-  const formattedTime = format(startDate, 'h:mm a');
-  
-  const subject = `Reminder: ${bookingTitle} starts soon`;
-  
+  const formattedStartTime = format(startDate, 'h:mm a');
+  const formattedEndTime = format(endDate, 'h:mm a');
+
+  const subject = `Booking Cancelled: ${bookingTitle}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2196F3;">Meeting Reminder</h2>
+      <h2 style="color: #f44336;">Booking Cancelled</h2>
       <p>Hello ${userName},</p>
-      <p>This is a reminder about your upcoming meeting:</p>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p>This email confirms that you have successfully cancelled your booking.</p>
+      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
         <p><strong>Title:</strong> ${bookingTitle}</p>
         <p><strong>Room:</strong> ${roomName}</p>
         <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedTime}</p>
+        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+        <p><strong>Status:</strong> <span style="color: #f44336; font-weight: bold;">❌ Cancelled</span></p>
       </div>
-      
-      <p>We look forward to seeing you there!</p>
+      <p>If you need to book another room or time slot, please visit the Conference Hub application to make a new reservation.</p>
       <p>Thank you for using Conference Hub!</p>
     </div>
   `;
-  
+
   const text = `
-    Meeting Reminder
-    
+    Booking Cancelled
     Hello ${userName},
-    
-    This is a reminder about your upcoming meeting:
+    This email confirms that you have successfully cancelled your booking.
     
     Title: ${bookingTitle}
     Room: ${roomName}
     Date: ${formattedDate}
-    Time: ${formattedTime}
+    Time: ${formattedStartTime} - ${formattedEndTime}
+    Status: ❌ Cancelled
     
-    We look forward to seeing you there!
-    
+    If you need to book another room or time slot, please visit the Conference Hub application to make a new reservation.
     Thank you for using Conference Hub!
   `;
-  
-  console.log('📧 Calling sendEmail function...');
+
   const result = await sendEmail(userEmail, subject, html, text);
   console.log(`📧 sendEmail result: ${result}`);
-  console.log('📧 ===== BOOKING REMINDER EMAIL END =====');
+  console.log('📧 ===== USER BOOKING CANCELLATION EMAIL END =====');
+  
   return result;
-} 
+}
+
+// Check if email service is ready
+export function isEmailReady(): boolean {
+  return transporter !== null
+}
+
+// Initialize email service when module loads (server-side only)
+if (typeof window === 'undefined') {
+  initEmailService()
+}

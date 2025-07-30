@@ -91,10 +91,34 @@ export default function RoomDetailPage() {
 
   const fetchRoomBookings = async () => {
     try {
-      const response = await fetch(`/api/bookings?roomId=${roomId}`)
+      // Include user data in the bookings query
+      const response = await fetch(`/api/bookings?roomId=${roomId}&includeUsers=true`)
       const bookingsData = await response.json()
       const bookingsArray = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || []
-      setBookings(bookingsArray)
+      
+      // Process bookings to ensure they have user information
+      const processedBookings = bookingsArray.map(booking => {
+        // If users field exists and is an array (from join query), extract the first user
+        if (booking.users && Array.isArray(booking.users) && booking.users.length > 0) {
+          const user = booking.users[0];
+          return {
+            ...booking,
+            user_name: user.name || "Unknown user"
+          };
+        }
+        
+        // If user_name doesn't exist, add a placeholder
+        if (!booking.user_name) {
+          return {
+            ...booking,
+            user_name: "Unknown user"
+          };
+        }
+        
+        return booking;
+      });
+      
+      setBookings(processedBookings)
     } catch (error) {
       console.error("Failed to fetch room bookings:", error)
     }
@@ -125,12 +149,14 @@ export default function RoomDetailPage() {
   }
 
   const getUpcomingBookings = () => {
-    if (!user) return []
     const now = new Date()
     return bookings
-      .filter((booking) => booking.user_id === user.id && new Date(booking.start_time) > now)
+      .filter((booking) => {
+        // Filter for confirmed bookings that haven't started yet
+        return booking.status === "confirmed" && new Date(booking.start_time) > now
+      })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-      .slice(0, 5)
+      .slice(0, 5) // Show only the next 5 bookings
   }
 
   // Handler for booking modal submit
@@ -310,34 +336,54 @@ export default function RoomDetailPage() {
 
           {/* Upcoming Bookings Section (side card) */}
           <div className="w-full md:w-96 md:ml-0 mt-8 md:mt-0 flex-shrink-0">
-            <Card className="bg-card border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
+            <Card className="bg-card border-border/50 sticky top-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-foreground text-lg">
                   <Calendar className="h-5 w-5" />
                   <span>Upcoming Bookings</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="max-h-[500px] overflow-y-auto">
                 {upcomingBookings.length > 0 ? (
                   <ul className="space-y-4">
                     {upcomingBookings.map((booking) => (
-                      <li key={booking.id} className="p-4 bg-muted/50 rounded-lg">
-                        <p className="font-semibold text-foreground">
-                          {new Date(booking.start_time).toLocaleDateString(undefined, {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                      <li key={booking.id} className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between mb-1">
+                          <Badge variant="outline" className="text-xs">
+                            {booking.status}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(booking.start_time).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        
+                        <p className="font-semibold text-foreground truncate">
+                          {booking.title || "Untitled Meeting"}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                          {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        
+                        <div className="flex items-center gap-2 mt-2">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                            {new Date(booking.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mt-1">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {booking.user_name || "Unknown user"}
+                          </p>
+                        </div>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div className="text-center py-8">
+                    <Calendar className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
                     <p className="text-muted-foreground">No upcoming bookings for this room.</p>
                   </div>
                 )}

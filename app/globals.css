@@ -14,65 +14,132 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light Theme - Conference Hub Base Colors */
+    --background: 0 0% 99%;
+    --foreground: 216 67% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 216 67% 14%;
  
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 216 67% 14%;
  
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 216 67% 14%; /* Logo Navy #0A2540 */
+    --primary-foreground: 0 0% 98%;
  
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 25% 96%;
+    --secondary-foreground: 216 67% 14%;
  
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 25% 96%;
+    --muted-foreground: 215 15% 45%;
  
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 175 100% 39%; /* Logo Green #00C49A */
+    --accent-foreground: 0 0% 98%;
  
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 25% 90%;
+    --input: 214 25% 90%;
+    --ring: 175 100% 39%;
+ 
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    
+    --warning: 43 89% 54%;
+    --warning-foreground: 216 67% 14%;
+    
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
  
     --radius: 0.5rem;
+    
+    /* Role-specific accent colors */
+    --user-accent: 175 100% 39%; /* Teal for users */
+    --admin-accent: 348 83% 47%; /* Red for admin */
+    --manager-accent: 43 89% 54%; /* Amber for facility managers */
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark Theme - Conference Hub */
+    --background: 216 67% 6%;
+    --foreground: 210 20% 92%;
  
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 216 50% 8%;
+    --card-foreground: 210 20% 92%;
  
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 216 50% 8%;
+    --popover-foreground: 210 20% 92%;
  
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 175 100% 39%; /* Inverted: Green as primary in dark */
+    --primary-foreground: 216 67% 14%;
  
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 216 30% 15%;
+    --secondary-foreground: 210 20% 92%;
  
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 216 30% 15%;
+    --muted-foreground: 215 15% 65%;
  
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 216 67% 14%; /* Navy as accent in dark */
+    --accent-foreground: 210 20% 92%;
  
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 20% 92%;
  
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 216 30% 15%;
+    --input: 216 30% 15%;
+    --ring: 175 100% 39%;
+    
+    --success: 142 84% 47%;
+    --success-foreground: 216 67% 14%;
+    
+    --warning: 43 89% 54%;
+    --warning-foreground: 216 67% 14%;
+    
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
+    
+    /* Role-specific accent colors for dark mode */
+    --user-accent: 175 100% 45%;
+    --admin-accent: 348 83% 55%;
+    --manager-accent: 43 89% 62%;
+  }
+  
+  /* Role-based theme variants */
+  .theme-user {
+    --role-primary: var(--user-accent);
+    --role-primary-foreground: var(--accent-foreground);
+    --role-secondary: 175 50% 95%;
+    --role-secondary-foreground: 175 100% 25%;
+  }
+  
+  .theme-admin {
+    --role-primary: var(--admin-accent);
+    --role-primary-foreground: var(--accent-foreground);
+    --role-secondary: 348 50% 95%;
+    --role-secondary-foreground: 348 83% 25%;
+  }
+  
+  .theme-manager {
+    --role-primary: var(--manager-accent);
+    --role-primary-foreground: var(--accent-foreground);
+    --role-secondary: 43 50% 95%;
+    --role-secondary-foreground: 43 89% 25%;
+  }
+  
+  .dark.theme-user {
+    --role-secondary: 175 30% 15%;
+    --role-secondary-foreground: 175 50% 85%;
+  }
+  
+  .dark.theme-admin {
+    --role-secondary: 348 30% 15%;
+    --role-secondary-foreground: 348 50% 85%;
+  }
+  
+  .dark.theme-manager {
+    --role-secondary: 43 30% 15%;
+    --role-secondary-foreground: 43 50% 85%;
   }
 }
 

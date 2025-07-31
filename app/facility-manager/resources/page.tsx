@@ -20,6 +20,7 @@ import { ResourceCard } from "@/components/cards/resource-card"
 import { getResourcesByFacility, createResource, updateResource, deleteResource, getFacilitiesByManager, getRoomsWithResource } from "@/lib/supabase-data"
 import type { Resource, Room } from "@/types"
 import { useToast } from "@/components/ui/use-toast"
+import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 
 export default function ResourceManagementPage() {
   const { user } = useAuth()
@@ -148,7 +149,7 @@ export default function ResourceManagementPage() {
     }
   }
 
-  if (isLoading) return <div className="text-center py-10">Loading resources...</div>
+  if (isLoading) return <FacilityManagerSkeleton />
   if (error) {
     return (
       <div className="text-center py-10 text-destructive flex flex-col items-center gap-4">
@@ -251,4 +252,4 @@ export default function ResourceManagementPage() {
       </AlertDialog>
     </div>
   )
-} 
+}

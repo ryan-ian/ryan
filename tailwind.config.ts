@@ -51,6 +51,54 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        // Role-based colors
+        role: {
+          primary: "hsl(var(--role-primary))",
+          "primary-foreground": "hsl(var(--role-primary-foreground))",
+          secondary: "hsl(var(--role-secondary))",
+          "secondary-foreground": "hsl(var(--role-secondary-foreground))",
+        },
+        // Conference Hub brand colors
+        brand: {
+          navy: {
+            50: "#f8fafc",
+            100: "#f1f5f9",
+            200: "#e2e8f0",
+            300: "#cbd5e1",
+            400: "#94a3b8",
+            500: "#64748b",
+            600: "#475569",
+            700: "#334155",
+            800: "#1e293b",
+            900: "#0a2540", // Logo navy
+            950: "#020617",
+          },
+          teal: {
+            50: "#f0fdfa",
+            100: "#ccfbf1",
+            200: "#99f6e4",
+            300: "#5eead4",
+            400: "#2dd4bf",
+            500: "#00c49a", // Logo teal
+            600: "#0d9488",
+            700: "#0f766e",
+            800: "#115e59",
+            900: "#134e4a",
+            950: "#042f2e",
+          },
+        },
         // Vibrant accent colors for gradients and highlights
         blue: {
           50: '#eff6ff',

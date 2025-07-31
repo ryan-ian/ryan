@@ -1,7 +1,7 @@
 import { supabase, createAdminClient } from './supabase'
 import * as types from '@/types'
 import { createBookingConfirmationNotification, createBookingRejectionNotification } from '@/lib/notifications'
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendUserBookingCancellationEmail } from '@/lib/email-service'
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendUserBookingCancellationEmail, ensureEmailReady } from '@/lib/email-service'
 
 // Users
 export async function getUsers(): Promise<types.User[]> {
@@ -840,19 +840,25 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
           console.log(`📧 Sending booking confirmation email to ${user.email} for booking ${id}`)
           console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
           
-          const emailResult = await sendBookingConfirmationEmail(
-            user.email,
-            user.name,
-            currentBooking.title,
-            room.name,
-            currentBooking.start_time,
-            currentBooking.end_time
-          )
-          
-          if (emailResult) {
-            console.log(`✅ Booking confirmation email sent successfully to ${user.email}`)
+          // Ensure email service is ready before sending
+          const emailReady = await ensureEmailReady()
+          if (!emailReady) {
+            console.error('❌ Email service not ready, cannot send confirmation email')
           } else {
-            console.log(`❌ Booking confirmation email failed to send to ${user.email}`)
+            const emailResult = await sendBookingConfirmationEmail(
+              user.email,
+              user.name,
+              currentBooking.title,
+              room.name,
+              currentBooking.start_time,
+              currentBooking.end_time
+            )
+            
+            if (emailResult) {
+              console.log(`✅ Booking confirmation email sent successfully to ${user.email}`)
+            } else {
+              console.log(`❌ Booking confirmation email failed to send to ${user.email}`)
+            }
           }
           
           // Also create in-app notification
@@ -868,18 +874,24 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
             console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
             console.log(`📧 Rejection reason: ${bookingData.rejection_reason || 'No reason provided'}`)
             
-            const emailResult = await sendBookingRejectionEmail(
-              user.email,
-              user.name,
-              currentBooking.title,
-              room.name,
-              bookingData.rejection_reason || 'No reason provided'
-            )
-            
-            if (emailResult) {
-              console.log(`✅ Booking rejection email sent successfully to ${user.email}`)
+            // Ensure email service is ready before sending
+            const emailReady = await ensureEmailReady()
+            if (!emailReady) {
+              console.error('❌ Email service not ready, cannot send rejection email')
             } else {
-              console.log(`❌ Booking rejection email failed to send to ${user.email}`)
+              const emailResult = await sendBookingRejectionEmail(
+                user.email,
+                user.name,
+                currentBooking.title,
+                room.name,
+                bookingData.rejection_reason || 'No reason provided'
+              )
+              
+              if (emailResult) {
+                console.log(`✅ Booking rejection email sent successfully to ${user.email}`)
+              } else {
+                console.log(`❌ Booking rejection email failed to send to ${user.email}`)
+              }
             }
             
             // Also create in-app notification for manager rejections
@@ -1658,15 +1670,22 @@ export async function updateBookingStatus(
           if (user.email) {
             try {
               console.log(`📧 Sending confirmation email to ${user.email} via updateBookingStatus`);
-              const emailSent = await sendBookingConfirmationEmail(
-                user.email,
-                user.name,
-                booking.title,
-                booking.rooms.name,
-                booking.start_time,
-                booking.end_time
-              );
-              console.log(`📧 Confirmation email result: ${emailSent}`);
+              
+              // Ensure email service is ready before sending
+              const emailReady = await ensureEmailReady()
+              if (!emailReady) {
+                console.error('❌ Email service not ready, cannot send confirmation email')
+              } else {
+                const emailSent = await sendBookingConfirmationEmail(
+                  user.email,
+                  user.name,
+                  booking.title,
+                  booking.rooms.name,
+                  booking.start_time,
+                  booking.end_time
+                );
+                console.log(`📧 Confirmation email result: ${emailSent}`);
+              }
             } catch (emailError) {
               console.error('❌ Failed to send confirmation email in updateBookingStatus:', emailError);
             }
@@ -1687,14 +1706,21 @@ export async function updateBookingStatus(
           if (user.email) {
             try {
               console.log(`📧 Sending rejection email to ${user.email} via updateBookingStatus`);
-              const emailSent = await sendBookingRejectionEmail(
-                user.email,
-                user.name,
-                booking.title,
-                booking.rooms.name,
-                rejectionReason || 'No reason provided'
-              );
-              console.log(`📧 Rejection email result: ${emailSent}`);
+              
+              // Ensure email service is ready before sending
+              const emailReady = await ensureEmailReady()
+              if (!emailReady) {
+                console.error('❌ Email service not ready, cannot send rejection email')
+              } else {
+                const emailSent = await sendBookingRejectionEmail(
+                  user.email,
+                  user.name,
+                  booking.title,
+                  booking.rooms.name,
+                  rejectionReason || 'No reason provided'
+                );
+                console.log(`📧 Rejection email result: ${emailSent}`);
+              }
             } catch (emailError) {
               console.error('❌ Failed to send rejection email in updateBookingStatus:', emailError);
             }

@@ -67,7 +67,12 @@ export const navigationConfig: SidebarConfig = {
       icon: Boxes,
     },
     {
-      title: "Facilities",
+      title: "Reports",
+      href: "/facility-manager/reports",
+      icon: BarChart4,
+    },
+    {
+      title: "Facility",
       href: "/facility-manager/facilities",
       icon: Building,
     },

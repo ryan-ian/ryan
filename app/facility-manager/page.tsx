@@ -221,7 +221,7 @@ export default function FacilityManagerDashboard() {
       <div className="text-center py-10">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
         <h2 className="mt-4 text-xl font-semibold text-destructive">An error occurred</h2>
-        <p className="mt-2 text-muted-foreground">{error}</p>
+        <p className="mt-2 text-brand-navy-700 dark:text-brand-navy-300">{error}</p>
       </div>
     )
   }
@@ -230,8 +230,8 @@ export default function FacilityManagerDashboard() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name.split(" ")[0]}!</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-brand-navy-900 dark:text-brand-navy-50">Welcome, {user?.name.split(" ")[0]}!</h1>
+          <p className="text-brand-navy-700 dark:text-brand-navy-300">
             Here's a summary of your facility's activity.
           </p>
         </div>
@@ -239,64 +239,79 @@ export default function FacilityManagerDashboard() {
       
       {/* Quick Stats */}
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-blue-500 w-full" />
+        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
+          <div className="h-1 bg-blue-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Rooms</CardTitle>
-            <Building className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Total Rooms</CardTitle>
+            <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-2">
+              <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalRooms}</div>
-            <p className="text-xs text-muted-foreground">Managed rooms</p>
+            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{totalRooms}</div>
+            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Managed rooms</p>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-amber-500 w-full" />
+        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
+          <div className="h-1 bg-amber-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Pending Requests</CardTitle>
+            <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full p-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingBookings.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting your approval</p>
+            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{pendingBookings.length}</div>
+            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Awaiting your approval</p>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden">
-          <div className="h-1.5 bg-green-500 w-full" />
+        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
+          <div className="h-1 bg-green-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Bookings</CardTitle>
-            <BookCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Today's Bookings</CardTitle>
+            <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-2">
+              <BookCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todaysBookings.length}</div>
-            <p className="text-xs text-muted-foreground">Confirmed for today</p>
+            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{todaysBookings.length}</div>
+            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Confirmed for today</p>
           </CardContent>
         </Card>
       </div>
       
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
           <CardHeader>
-            <CardTitle>Pending Booking Requests</CardTitle>
-            <CardDescription>Review and respond to new booking requests.</CardDescription>
+            <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Pending Booking Requests</CardTitle>
+            <CardDescription className="text-brand-navy-700 dark:text-brand-navy-300">Review and respond to new booking requests.</CardDescription>
           </CardHeader>
           <CardContent>
             {pendingBookings.length > 0 ? (
               <div className="space-y-4">
                 {pendingBookings.map((booking) => (
-                  <div key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+                  <div key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-colors">
                     <div>
-                      <p className="font-semibold text-primary">{booking.title}</p>
-                      <div className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
-                        <span className="flex items-center gap-1.5"><Building className="h-4 w-4" /> {booking.rooms.name}</span>
-                        <span className="flex items-center gap-1.5"><User className="h-4 w-4" /> {booking.users.name}</span>
+                      <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title}</p>
+                      <div className="text-sm text-brand-navy-700 dark:text-brand-navy-300 flex items-center gap-4 mt-1">
+                        <span className="flex items-center gap-1.5"><Building className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.rooms.name}</span>
+                        <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.users.name}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id, booking.title)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => openRejectDialog(booking.id, booking.title)}
+                        className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                      >
                         <X className="mr-1 h-4 w-4" /> Reject
                       </Button>
-                      <Button size="sm" onClick={() => openApproveDialog(booking.id, booking.title)} className="bg-green-600 hover:bg-green-700">
+                      <Button 
+                        size="sm" 
+                        onClick={() => openApproveDialog(booking.id, booking.title)} 
+                        className="bg-success hover:bg-success/90 text-success-foreground"
+                      >
                         <Check className="mr-1 h-4 w-4" /> Approve
                       </Button>
                     </div>
@@ -304,44 +319,48 @@ export default function FacilityManagerDashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">No pending requests.</p>
+              <p className="text-brand-navy-700 dark:text-brand-navy-300 text-center py-8">No pending requests.</p>
             )}
           </CardContent>
           {pendingBookings.length > 0 && (
             <CardFooter>
-              <Button variant="outline" className="w-full" asChild>
+              <Button 
+                variant="outline" 
+                className="w-full border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50" 
+                asChild
+              >
                 <Link href="/facility-manager/bookings">View All Bookings</Link>
               </Button>
             </CardFooter>
           )}
         </Card>
         
-        <Card>
+        <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
           <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
-            <CardDescription>A summary of today's confirmed bookings.</CardDescription>
+            <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Today's Schedule</CardTitle>
+            <CardDescription className="text-brand-navy-700 dark:text-brand-navy-300">A summary of today's confirmed bookings.</CardDescription>
           </CardHeader>
           <CardContent>
             {todaysBookings.length > 0 ? (
               <div className="space-y-4">
                 {todaysBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center gap-4 p-3 rounded-lg border bg-background">
-                    <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
-                      <Calendar className="h-5 w-5" />
+                  <div key={booking.id} className="flex items-center gap-4 p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-colors">
+                    <div className="flex-shrink-0">
+                      <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="flex-grow">
-                      <p className="font-semibold">{booking.title}</p>
-                      <p className="text-sm text-muted-foreground">{booking.rooms.name}</p>
+                      <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title}</p>
+                      <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">{booking.rooms.name}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{format(new Date(booking.start_time), 'h:mm a')}</p>
-                      <p className="text-xs text-muted-foreground">to {format(new Date(booking.end_time), 'h:mm a')}</p>
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{format(new Date(booking.start_time), 'h:mm a')}</p>
+                      <p className="text-xs text-brand-navy-700 dark:text-brand-navy-300">to {format(new Date(booking.end_time), 'h:mm a')}</p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">No bookings scheduled for today.</p>
+              <p className="text-brand-navy-700 dark:text-brand-navy-300 text-center py-8">No bookings scheduled for today.</p>
             )}
           </CardContent>
         </Card>
@@ -349,22 +368,28 @@ export default function FacilityManagerDashboard() {
 
       {/* Confirmation Modals */}
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg">
+          <div className="h-1 bg-success w-full absolute top-0 left-0 right-0 rounded-t-lg"></div>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Booking</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50">Approve Booking</AlertDialogTitle>
+            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300">
               Are you sure you want to approve the booking "{selectedBookingTitle}"? This will confirm the room reservation and notify the organizer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel 
+              disabled={processingStatus}
+              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
                 handleUpdateStatus("confirmed")
               }}
               disabled={processingStatus}
-              className="bg-green-500 hover:bg-green-600 focus:ring-green-500"
+              className="bg-success hover:bg-success/90 text-success-foreground"
             >
               {processingStatus ? (
                 <>
@@ -380,22 +405,28 @@ export default function FacilityManagerDashboard() {
       </AlertDialog>
 
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg">
+          <div className="h-1 bg-destructive w-full absolute top-0 left-0 right-0 rounded-t-lg"></div>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Booking</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50">Reject Booking</AlertDialogTitle>
+            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300">
               Are you sure you want to reject the booking "{selectedBookingTitle}"? The room will remain available for other bookings and the organizer will be notified.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={processingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel 
+              disabled={processingStatus}
+              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
                 handleUpdateStatus("cancelled")
               }}
               disabled={processingStatus}
-              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {processingStatus ? (
                 <>

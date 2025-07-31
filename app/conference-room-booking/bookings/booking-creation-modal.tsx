@@ -625,14 +625,14 @@ export function BookingCreationModal({
     // If user already has a booking on this date, show warning instead
     if (userBookingsOnDate) {
       return (
-        <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+        <div className="mt-4 p-3 bg-warning/10 border border-warning/30 rounded-md">
           <div className="flex items-center">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-2" />
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-4 w-4 text-warning mr-2" />
+            <p className="text-sm font-medium text-warning">
               Booking Limit Reached
             </p>
           </div>
-          <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+          <p className="text-sm text-warning-foreground mt-1">
             You already have a booking for {userBookingsOnDate.room} on {format(currentSelectedDate, 'MMMM d, yyyy')}.
             You can only book one room per day.
           </p>
@@ -777,10 +777,10 @@ export function BookingCreationModal({
 
                   {/* User booking warning */}
                   {currentSelectedDate && userBookingsOnDate && (
-                    <Alert variant="default" className="mb-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Booking Limit Reached</AlertTitle>
-                      <AlertDescription>
+                    <Alert variant="default" className="mb-2 border-warning bg-warning/10 text-warning-foreground">
+                      <AlertCircle className="h-4 w-4 text-warning" />
+                      <AlertTitle className="font-semibold text-warning">Booking Limit Reached</AlertTitle>
+                      <AlertDescription className="text-warning-foreground">
                         You already have a booking on {format(currentSelectedDate, 'MMM d, yyyy')} for {userBookingsOnDate.room}. 
                         You can only book one room per day.
                       </AlertDescription>

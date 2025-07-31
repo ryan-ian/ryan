@@ -44,6 +44,7 @@ import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { getRoomsByFacilityManager } from "@/lib/supabase-data"
+import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 
 type SortField = "title" | "room" | "organizer" | "date" | "status"
 type SortDirection = "asc" | "desc"
@@ -455,7 +456,7 @@ export default function BookingsManagementPage() {
   }).length;
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return <FacilityManagerSkeleton />
   }
 
   if (error) {
@@ -463,15 +464,15 @@ export default function BookingsManagementPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight mb-1">Booking Management</h2>
-          <p className="text-muted-foreground">Manage all bookings for your facility</p>
+          <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Booking Management</h2>
+          <p className="text-muted-foreground mt-1">Manage all bookings for your facility</p>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="overflow-hidden">
           <div className="h-1.5 bg-blue-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -530,64 +531,70 @@ export default function BookingsManagementPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>All Bookings</CardTitle>
-              <CardDescription>View and manage all bookings for your facility</CardDescription>
+        <CardHeader className="pb-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex-1">
+              <CardTitle className="text-xl">All Bookings</CardTitle>
+              <CardDescription className="mt-1">View and manage all bookings for your facility</CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button 
-                  variant={statusFilter === "all" ? "default" : "outline"} 
+                  variant={statusFilter === "all" ? "secondary" : "ghost"} 
                   size="sm"
                   onClick={() => setStatusFilter("all")}
+                  className="flex-1 sm:flex-none"
                 >
                   All
                 </Button>
                 <Button 
-                  variant={statusFilter === "pending" ? "default" : "outline"} 
+                  variant={statusFilter === "pending" ? "secondary" : "ghost"} 
                   size="sm"
                   onClick={() => setStatusFilter("pending")}
+                  className="flex-1 sm:flex-none"
                 >
                   Pending
                 </Button>
                 <Button 
-                  variant={statusFilter === "confirmed" ? "default" : "outline"} 
+                  variant={statusFilter === "confirmed" ? "secondary" : "ghost"} 
                   size="sm"
                   onClick={() => setStatusFilter("confirmed")}
+                  className="flex-1 sm:flex-none"
                 >
                   Confirmed
                 </Button>
                 <Button 
-                  variant={statusFilter === "cancelled" ? "default" : "outline"} 
+                  variant={statusFilter === "cancelled" ? "secondary" : "ghost"} 
                   size="sm"
                   onClick={() => setStatusFilter("cancelled")}
+                  className="flex-1 sm:flex-none"
                 >
                   Cancelled
                 </Button>
               </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search bookings..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="w-full sm:w-64">
-                <Select value={roomFilter} onValueChange={setRoomFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Filter by room" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Rooms</SelectItem>
-                    {rooms.map(room => (
-                      <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                </div>
+                <div className="flex-1 sm:w-48">
+                  <Select value={roomFilter} onValueChange={setRoomFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by room" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Rooms</SelectItem>
+                      {rooms.map(room => (
+                        <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
@@ -608,148 +615,154 @@ export default function BookingsManagementPage() {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border overflow-hidden">
-              <ScrollArea className="h-[500px]">
-                <Table>
-                  <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0">
-                    <TableRow>
-                      <TableHead className="w-[250px] cursor-pointer" onClick={() => toggleSort("title")}>
-                        <div className="flex items-center">
-                          Booking
-                          {getSortIcon("title")}
+            <>
+              {/* Mobile View - Cards */}
+              <div className="grid gap-4 md:hidden">
+                {filteredBookings.map((booking) => (
+                  <Card key={booking.id} className="overflow-hidden">
+                    <CardHeader className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <CardTitle className="text-base font-semibold leading-tight truncate">{booking.title}</CardTitle>
+                          <CardDescription className="text-xs mt-1">
+                            {booking.rooms?.name || "Unknown Room"}
+                          </CardDescription>
                         </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => toggleSort("room")}>
-                        <div className="flex items-center">
-                          Room
-                          {getSortIcon("room")}
+                        <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1 text-xs">
+                          {getStatusIcon(booking.status)}
+                          <span className="capitalize">{booking.status}</span>
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-3">
+                      <div className="text-sm text-muted-foreground space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span>{booking.users?.name || "Unknown User"}</span>
                         </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => toggleSort("organizer")}>
-                        <div className="flex items-center">
-                          Organizer
-                          {getSortIcon("organizer")}
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{format(new Date(booking.start_time), "MMM d, yyyy")}</span>
                         </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => toggleSort("date")}>
-                        <div className="flex items-center">
-                          Date & Time
-                          {getSortIcon("date")}
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          <span>{format(new Date(booking.start_time), "h:mm a")} - {format(new Date(booking.end_time), "h:mm a")}</span>
                         </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => toggleSort("status")}>
-                        <div className="flex items-center">
-                          Status
-                          {getSortIcon("status")}
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredBookings.map((booking) => (
-                      <TableRow key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
-                        <TableCell className="font-medium">
-                          <div className="truncate max-w-[250px]">{booking.title}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.rooms?.name || "Unknown Room"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.users?.name || "Unknown User"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {format(new Date(booking.start_time), "MMM d, yyyy")}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(booking.start_time), "h:mm a")} - {format(new Date(booking.end_time), "h:mm a")}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1">
-                            {getStatusIcon(booking.status)}
-                            <span className="capitalize">{booking.status}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1 flex-wrap">
-                            {/* View Details Button */}
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => openDetailsModal(booking)}
-                              className="h-8 px-2"
-                            >
-                              <Eye className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">View</span>
-                            </Button>
+                      </div>
+                      <div className="flex items-center justify-end gap-1 flex-wrap pt-2 border-t border-border -mx-4 px-4">
+                        <Button variant="ghost" size="sm" onClick={() => openDetailsModal(booking)} className="h-8 px-2">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {canReapproveBooking(booking) && (
+                          <Button variant="outline" size="sm" onClick={() => openConfirmDialog(booking.id)} className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950">
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {booking.status === "pending" && (
+                          <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id)} className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950">
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {booking.status === "confirmed" && (
+                          <Button variant="outline" size="sm" onClick={() => openCancelDialog(booking.id)} className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(booking.id)} className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-                            {/* Approve Button */}
-                            {canReapproveBooking(booking) && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => openConfirmDialog(booking.id)}
-                                className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
-                              >
-                                <CheckCircle className="h-4 w-4 sm:mr-1" />
-                                <span className="hidden sm:inline">Approve</span>
-                              </Button>
-                            )}
-
-                            {/* Reject Button */}
-                            {booking.status === "pending" && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => openRejectDialog(booking.id)}
-                                className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
-                              >
-                                <XCircle className="h-4 w-4 sm:mr-1" />
-                                <span className="hidden sm:inline">Reject</span>
-                              </Button>
-                            )}
-
-                            {/* Cancel Button */}
-                            {booking.status === "confirmed" && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => openCancelDialog(booking.id)}
-                                className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
-                              >
-                                <Ban className="h-4 w-4 sm:mr-1" />
-                                <span className="hidden sm:inline">Cancel</span>
-                              </Button>
-                            )}
-
-                            {/* Delete Button */}
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => openDeleteDialog(booking.id)}
-                              className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-                            >
-                              <Trash2 className="h-4 w-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Delete</span>
-                            </Button>
-                          </div>
-                        </TableCell>
+              {/* Desktop View - Table */}
+              <div className="hidden md:block rounded-md border overflow-hidden">
+                <ScrollArea className="h-[500px] relative">
+                  <Table>
+                    <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10">
+                      <TableRow>
+                        <TableHead className="w-[250px] cursor-pointer" onClick={() => toggleSort("title")}>
+                          <div className="flex items-center">Booking{getSortIcon("title")}</div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => toggleSort("room")}>
+                          <div className="flex items-center">Room{getSortIcon("room")}</div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => toggleSort("organizer")}>
+                          <div className="flex items-center">Organizer{getSortIcon("organizer")}</div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => toggleSort("date")}>
+                          <div className="flex items-center">Date & Time{getSortIcon("date")}</div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer" onClick={() => toggleSort("status")}>
+                          <div className="flex items-center">Status{getSortIcon("status")}</div>
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookings.map((booking) => (
+                        <TableRow key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                          <TableCell className="font-medium">
+                            <div className="truncate max-w-[250px]">{booking.title}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Building className="h-4 w-4 text-muted-foreground" />
+                              <span>{booking.rooms?.name || "Unknown Room"}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span>{booking.users?.name || "Unknown User"}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{format(new Date(booking.start_time), "MMM d, yyyy")}</span>
+                              <span className="text-xs text-muted-foreground">{format(new Date(booking.start_time), "h:mm a")} - {format(new Date(booking.end_time), "h:mm a")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1">
+                              {getStatusIcon(booking.status)}
+                              <span className="capitalize">{booking.status}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1 flex-wrap">
+                              <Button variant="ghost" size="sm" onClick={() => openDetailsModal(booking)} className="h-8 px-2">
+                                <Eye className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">View</span>
+                              </Button>
+                              {canReapproveBooking(booking) && (
+                                <Button variant="outline" size="sm" onClick={() => openConfirmDialog(booking.id)} className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950">
+                                  <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Approve</span>
+                                </Button>
+                              )}
+                              {booking.status === "pending" && (
+                                <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id)} className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950">
+                                  <XCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Reject</span>
+                                </Button>
+                              )}
+                              {booking.status === "confirmed" && (
+                                <Button variant="outline" size="sm" onClick={() => openCancelDialog(booking.id)} className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                                  <Ban className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Cancel</span>
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(booking.id)} className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950">
+                                <Trash2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Delete</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -942,4 +955,4 @@ export default function BookingsManagementPage() {
       </AlertDialog>
     </div>
   )
-} 
+}

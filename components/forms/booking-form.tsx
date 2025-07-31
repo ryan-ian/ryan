@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Calendar as CalendarIcon, Clock, Users, Building, Info, Loader2 } from "lucide-react"
+import { Calendar as CalendarIcon, Clock, Users, Building, Info, Loader2, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,7 @@ const bookingFormSchema = z.object({
   attendees: z.number().int().min(1, { message: "At least one attendee is required." }).optional(),
 })
 .refine((data) => {
+  if (!data.start_time || !data.end_time || !data.date) return true
   const start = new Date(`${format(data.date, 'yyyy-MM-dd')}T${data.start_time}`)
   const end = new Date(`${format(data.date, 'yyyy-MM-dd')}T${data.end_time}`)
   return end > start
@@ -159,9 +160,9 @@ export function BookingForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Booking Details</CardTitle>
+        <Card className="border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Booking Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormField
@@ -172,8 +173,15 @@ export function BookingForm({
                   <FormLabel>Meeting Title</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Info className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input className="pl-10" placeholder="Weekly Team Meeting" {...field} />
+                      <Info className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+                      <Input 
+                        className={cn(
+                          "pl-10 border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                          form.formState.errors.title && "border-destructive focus-visible:ring-destructive"
+                        )} 
+                        placeholder="Weekly Team Meeting" 
+                        {...field} 
+                      />
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -190,7 +198,10 @@ export function BookingForm({
                   <FormControl>
                     <Textarea 
                       placeholder="Meeting agenda and details..." 
-                      className="resize-none" 
+                      className={cn(
+                        "resize-none border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                        form.formState.errors.description && "border-destructive focus-visible:ring-destructive"
+                      )}
                       {...field} 
                     />
                   </FormControl>
@@ -212,11 +223,12 @@ export function BookingForm({
                           <Button
                             variant="outline"
                             className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              "pl-3 text-left font-normal border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                              !field.value && "text-brand-navy-500 dark:text-brand-navy-400",
+                              form.formState.errors.date && "border-destructive focus-visible:ring-destructive"
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <CalendarIcon className="mr-2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
@@ -225,13 +237,19 @@ export function BookingForm({
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
                           initialFocus
                           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          className="text-brand-navy-900 dark:text-brand-navy-100"
+                          classNames={{
+                            day_selected: "bg-brand-teal-500 text-white hover:bg-brand-teal-600 focus:bg-brand-teal-600",
+                            day_today: "border border-brand-teal-500 text-brand-teal-600 dark:text-brand-teal-400",
+                            day_disabled: "text-brand-navy-400 dark:text-brand-navy-500 opacity-50"
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
@@ -248,9 +266,12 @@ export function BookingForm({
                     <FormLabel>Number of Attendees</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                         <Input 
-                          className="pl-10" 
+                          className={cn(
+                            "pl-10 border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                            form.formState.errors.attendees && "border-destructive focus-visible:ring-destructive"
+                          )}
                           type="number" 
                           min={1} 
                           placeholder="5" 
@@ -261,9 +282,15 @@ export function BookingForm({
                       </div>
                     </FormControl>
                     {selectedRoom && (
-                      <FormDescription>
-                        Room capacity: {selectedRoom.capacity} people
+                      <FormDescription className="text-brand-navy-600 dark:text-brand-navy-400">
+                        Room capacity: <span className="font-medium text-brand-teal-600 dark:text-brand-teal-400">{selectedRoom.capacity}</span> people
                       </FormDescription>
+                    )}
+                    {selectedRoom && field.value && field.value > selectedRoom.capacity && (
+                      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Exceeds room capacity of {selectedRoom.capacity}</span>
+                      </p>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -271,6 +298,17 @@ export function BookingForm({
               />
             </div>
             
+            {/* Time Conflict Warning */}
+            {form.formState.errors.end_time && form.formState.errors.end_time.message === "End time must be after start time" && (
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Time Conflict</p>
+                  <p className="text-xs text-destructive/90">End time must be after start time. Please select a valid time range.</p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -280,14 +318,17 @@ export function BookingForm({
                     <FormLabel>Start Time</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={cn(
+                          "border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                          form.formState.errors.start_time && "border-destructive focus-visible:ring-destructive"
+                        )}>
                           <div className="flex items-center">
-                            <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                            <Clock className="mr-2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                             <SelectValue placeholder="Select start time" />
                           </div>
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
                         {timeOptions.map((time) => (
                           <SelectItem key={`start-${time}`} value={time}>
                             {time}
@@ -308,14 +349,17 @@ export function BookingForm({
                     <FormLabel>End Time</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={cn(
+                          "border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                          form.formState.errors.end_time && "border-destructive focus-visible:ring-destructive"
+                        )}>
                           <div className="flex items-center">
-                            <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                            <Clock className="mr-2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                             <SelectValue placeholder="Select end time" />
                           </div>
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
                         {timeOptions.map((time) => (
                           <SelectItem key={`end-${time}`} value={time}>
                             {time}
@@ -338,17 +382,20 @@ export function BookingForm({
                     <FormLabel>Room</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={cn(
+                          "border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
+                          form.formState.errors.room_id && "border-destructive focus-visible:ring-destructive"
+                        )}>
                           <div className="flex items-center">
-                            <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                            <Building className="mr-2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                             <SelectValue placeholder="Select a room" />
                           </div>
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
                         {rooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
-                            {room.name} ({room.capacity} capacity)
+                            {room.name} (<span className="text-brand-teal-600 dark:text-brand-teal-400">{room.capacity}</span> capacity)
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -363,17 +410,31 @@ export function BookingForm({
         
         <CardFooter className="flex justify-between px-0">
           {onCancel ? (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
+            >
               Cancel
             </Button>
           ) : cancelHref ? (
-            <Button type="button" variant="outline" asChild>
+            <Button 
+              type="button" 
+              variant="outline" 
+              asChild
+              className="border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
+            >
               <a href={cancelHref}>Cancel</a>
             </Button>
           ) : (
             <div></div>
           )}
-          <Button type="submit" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            disabled={isLoading}
+            className="bg-brand-teal-500 hover:bg-brand-teal-600 text-white"
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {submitLabel}
           </Button>

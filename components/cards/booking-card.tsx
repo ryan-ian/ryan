@@ -36,11 +36,11 @@ export function BookingCard({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-300 border-green-500/20"
+        return "bg-success/10 text-success-foreground border-success/20"
       case "pending":
-        return "bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300 border-yellow-500/20"
+        return "bg-warning/10 text-warning-foreground border-warning/20"
       case "cancelled":
-        return "bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-500/20"
+        return "bg-destructive/10 text-destructive-foreground border-destructive/20"
       default:
         return ""
     }
@@ -49,11 +49,11 @@ export function BookingCard({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "confirmed":
-        return <CheckCircle className="h-3.5 w-3.5" />
+        return <CheckCircle className="h-3.5 w-3.5 text-success" />
       case "pending":
-        return <AlertCircle className="h-3.5 w-3.5" />
+        return <AlertCircle className="h-3.5 w-3.5 text-warning" />
       case "cancelled":
-        return <XCircle className="h-3.5 w-3.5" />
+        return <XCircle className="h-3.5 w-3.5 text-destructive" />
       default:
         return null
     }
@@ -74,23 +74,23 @@ export function BookingCard({
       <Link 
         href={`/conference-room-booking/bookings/${booking.id}`}
         className={cn(
-          "block p-4 rounded-lg hover:bg-muted/50 transition-colors border border-border/50",
+          "block p-4 rounded-lg hover:bg-brand-navy-50 dark:hover:bg-brand-navy-800/50 transition-colors border border-brand-navy-200 dark:border-brand-navy-700",
           className
         )}
       >
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Building className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold text-foreground">{room?.name || `Room ${booking.room_id}`}</span>
+              <Building className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+              <span className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{room?.name || `Room ${booking.room_id}`}</span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-4 text-sm text-brand-navy-700 dark:text-brand-navy-300">
               <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>{formatDate(booking.start_time)}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>
                   {formatTime(booking.start_time)} - 
                   {formatTime(booking.end_time)}
@@ -98,8 +98,11 @@ export function BookingCard({
               </div>
             </div>
           </div>
-          <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className={cn("capitalize", getStatusColor(booking.status))}>
-            {booking.status}
+          <Badge variant="secondary" className={cn("capitalize", getStatusColor(booking.status))}>
+            <span className="flex items-center gap-1">
+              {getStatusIcon(booking.status)}
+              {booking.status}
+            </span>
           </Badge>
         </div>
       </Link>
@@ -108,11 +111,11 @@ export function BookingCard({
 
   if (variant === "dashboard") {
     return (
-      <Card className={cn("hover:shadow-md transition-shadow", className)}>
+      <Card className={cn("hover:shadow-md transition-shadow border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800", className)}>
         <CardContent className={cn(compact ? "p-4" : "p-6")}>
           <div className="flex flex-col space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{booking.title || "Meeting"}</h3>
+              <h3 className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title || "Meeting"}</h3>
               <Badge className={cn("capitalize", getStatusColor(booking.status))} variant="secondary">
                 <span className="flex items-center gap-1">
                   {getStatusIcon(booking.status)}
@@ -122,20 +125,20 @@ export function BookingCard({
             </div>
             
             <div className="flex flex-col space-y-1.5">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
+              <div className="flex items-center gap-1.5 text-sm text-brand-navy-700 dark:text-brand-navy-300">
+                <Calendar className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>{formatDate(booking.start_time)}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
+              <div className="flex items-center gap-1.5 text-sm text-brand-navy-700 dark:text-brand-navy-300">
+                <Clock className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>
                   {formatTime(booking.start_time)} - 
                   {formatTime(booking.end_time)}
                 </span>
               </div>
               {showRoom && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Building className="h-4 w-4" />
+                <div className="flex items-center gap-1.5 text-sm text-brand-navy-700 dark:text-brand-navy-300">
+                  <Building className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                   <span>{room?.name || `Room ${booking.room_id}`}</span>
                 </div>
               )}
@@ -146,7 +149,7 @@ export function BookingCard({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="w-full"
+                  className="w-full border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
                   onClick={onView}
                   asChild={!onView}
                 >
@@ -172,12 +175,12 @@ export function BookingCard({
 
   // Default variant
   return (
-    <Card className={cn("hover:shadow-md transition-shadow", className)}>
+    <Card className={cn("hover:shadow-md transition-shadow border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800", className)}>
       <CardContent className={cn(compact ? "p-4" : "p-6")}>
         <div className="flex items-start justify-between">
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-3">
-              <h3 className="font-semibold">{booking.title || "Meeting"}</h3>
+              <h3 className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title || "Meeting"}</h3>
               <Badge className={cn("capitalize", getStatusColor(booking.status))} variant="secondary">
                 <span className="flex items-center gap-1">
                   {getStatusIcon(booking.status)}
@@ -186,16 +189,16 @@ export function BookingCard({
               </Badge>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-4 text-sm text-brand-navy-700 dark:text-brand-navy-300">
               {showRoom && (
                 <>
                   <div className="flex items-center gap-1">
-                    <Building className="h-4 w-4" />
+                    <Building className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                     <span>{room?.name || `Room ${booking.room_id}`}</span>
                   </div>
                   {room?.location && (
                     <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
+                      <MapPin className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                       <span>{room.location}</span>
                     </div>
                   )}
@@ -203,13 +206,13 @@ export function BookingCard({
               )}
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-4 text-sm text-brand-navy-700 dark:text-brand-navy-300">
               <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>{formatDate(booking.start_time)}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span>
                   {formatTime(booking.start_time)} - 
                   {formatTime(booking.end_time)}
@@ -225,6 +228,7 @@ export function BookingCard({
                 size="sm"
                 onClick={onView}
                 asChild={!onView}
+                className="border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
               >
                 {onView ? (
                   <>
@@ -245,6 +249,7 @@ export function BookingCard({
                   size="sm"
                   onClick={onEdit}
                   asChild={!onEdit}
+                  className="border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
                 >
                   {onEdit ? (
                     <>
@@ -265,6 +270,7 @@ export function BookingCard({
                   variant="outline" 
                   size="sm"
                   onClick={onCancel}
+                  className="border-destructive/50 text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Cancel

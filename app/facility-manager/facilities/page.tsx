@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/components/ui/use-toast"
 import { getFacilitiesByManager, updateFacility } from "@/lib/supabase-data"
 import type { Facility } from "@/types"
+import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 
 // Simple facility form component
 function FacilityForm({ facility, onSubmit, onCancel }: { 
@@ -152,7 +153,7 @@ export default function FacilityManagementPage() {
     }
   }
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <FacilityManagerSkeleton />
   if (error) return <div>{error}</div>
 
   return (
@@ -215,4 +216,4 @@ export default function FacilityManagementPage() {
       </Dialog>
     </div>
   )
-} 
+}

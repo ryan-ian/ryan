@@ -5,18 +5,21 @@ import { format } from 'date-fns'
 let transporter: nodemailer.Transporter | null = null
 
 // Initialize email service
-export function initEmailService() {
+export async function initEmailService(): Promise<boolean> {
   if (typeof window !== 'undefined') {
     // Don't initialize on client side
-    return
+    return false
   }
 
   try {
     console.log('📧 Initializing email service...')
     
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-      console.error('❌ Missing required SMTP environment variables')
-      return
+      console.error('❌ Missing required SMTP environment variables:')
+      console.error(`   SMTP_HOST: ${process.env.SMTP_HOST ? 'SET' : 'MISSING'}`)
+      console.error(`   SMTP_USER: ${process.env.SMTP_USER ? 'SET' : 'MISSING'}`)
+      console.error(`   SMTP_PASSWORD: ${process.env.SMTP_PASSWORD ? 'SET' : 'MISSING'}`)
+      return false
     }
 
     transporter = nodemailer.createTransport({
@@ -29,9 +32,16 @@ export function initEmailService() {
       },
     })
 
-    console.log('✅ Email service initialized successfully')
+    // Verify the connection
+    console.log('📧 Verifying SMTP connection...')
+    await transporter.verify()
+    
+    console.log('✅ Email service initialized and verified successfully')
+    return true
   } catch (error) {
     console.error('❌ Failed to initialize email service:', error)
+    transporter = null
+    return false
   }
 }
 
@@ -49,9 +59,9 @@ export async function sendEmail(
     
     if (!transporter) {
       console.log('📧 Transporter not initialized, initializing now...')
-      initEmailService()
+      const initResult = await initEmailService()
       
-      if (!transporter) {
+      if (!initResult || !transporter) {
         console.error('❌ Failed to initialize email transporter')
         return false
       }
@@ -345,7 +355,20 @@ export function isEmailReady(): boolean {
   return transporter !== null
 }
 
+// Ensure email service is ready (for deployment environments)
+export async function ensureEmailReady(): Promise<boolean> {
+  if (isEmailReady()) {
+    return true
+  }
+  
+  console.log('📧 Email service not ready, initializing...')
+  return await initEmailService()
+}
+
 // Initialize email service when module loads (server-side only)
 if (typeof window === 'undefined') {
-  initEmailService()
+  // Don't await here to avoid blocking module loading
+  initEmailService().catch(error => {
+    console.error('❌ Failed to initialize email service on module load:', error)
+  })
 }

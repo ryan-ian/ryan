@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/contexts/auth-context'
 import { NotificationsProvider } from '@/contexts/notifications-context'
+import { ThemeProvider as RoleThemeProvider } from '@/contexts/theme-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
 import ReactQueryProvider from '@/lib/react-query-provider'
@@ -13,8 +14,14 @@ import ReactQueryProvider from '@/lib/react-query-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Conference Room Booking',
+  title: 'Conference Hub',
   description: 'Book conference rooms for your meetings',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icons/favicon.svg', type: 'image/svg+xml' }
+    ]
+  }
 }
 
 export default function RootLayout({
@@ -28,13 +35,15 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ReactQueryProvider>
             <AuthProvider>
-              <NotificationsProvider>
-                <DisplaysStyleHandler />
-                <MainWrapper>
-                  {children}
-                </MainWrapper>
-                <Toaster />
-              </NotificationsProvider>
+              <RoleThemeProvider>
+                <NotificationsProvider>
+                  <DisplaysStyleHandler />
+                  <MainWrapper>
+                    {children}
+                  </MainWrapper>
+                  <Toaster />
+                </NotificationsProvider>
+              </RoleThemeProvider>
             </AuthProvider>
           </ReactQueryProvider>
         </ThemeProvider>

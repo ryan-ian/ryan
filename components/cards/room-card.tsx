@@ -82,11 +82,11 @@ export function RoomCard({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return <Badge variant="default" className="bg-green-400 text-green-900 font-semibold">Available</Badge>
+        return <Badge variant="default" className="bg-success text-success-foreground font-semibold">Available</Badge>
       case "occupied":
-        return <Badge variant="destructive" className="bg-red-500 text-white font-semibold">Occupied</Badge>
+        return <Badge variant="destructive" className="bg-destructive text-destructive-foreground font-semibold">Occupied</Badge>
       case "maintenance":
-        return <Badge variant="secondary" className="bg-yellow-300 text-yellow-900 font-semibold">Maintenance</Badge>
+        return <Badge variant="secondary" className="bg-warning text-warning-foreground font-semibold">Maintenance</Badge>
       default:
         return <Badge variant="outline" className="font-semibold">{status}</Badge>
     }
@@ -145,9 +145,9 @@ export function RoomCard({
   const CardContentWrapper = ({ children }: { children: React.ReactNode }) => {
     const cardProps = {
       className: cn(
-        "overflow-hidden bg-card border-border/50 hover:shadow-xl transition-shadow duration-300 flex flex-col group",
+        "overflow-hidden bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 hover:shadow-xl transition-all duration-300 flex flex-col group",
         selectable && "cursor-pointer",
-        selected && "border-primary ring-2 ring-primary/30",
+        selected && "border-brand-teal-500 ring-2 ring-brand-teal-500/30",
         !isBookable && "opacity-80",
         className
       ),
@@ -208,28 +208,28 @@ export function RoomCard({
         
         <div className={cn("flex-grow flex flex-col", compact ? "p-4" : "p-6")}>
           <CardHeader className={cn("p-0", compact ? "mb-2" : "mb-4")}>
-            <CardTitle className={cn(compact ? "text-lg" : "text-xl", "font-bold text-foreground group-hover:text-primary transition-colors")}>
+            <CardTitle className={cn(compact ? "text-lg" : "text-xl", "font-bold text-brand-navy-900 dark:text-brand-navy-50 group-hover:text-brand-teal-600 dark:group-hover:text-brand-teal-400 transition-colors")}>
               {room.name}
             </CardTitle>
-            <CardDescription className="flex items-center gap-2 pt-1">
+            <CardDescription className="flex items-center gap-2 pt-1 text-brand-navy-700 dark:text-brand-navy-300">
               {room.location && (
                 <>
-                  <MapPin className="h-4 w-4" />
+                  <MapPin className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
                   {room.location}
                   <span className="mx-1">·</span>
                 </>
               )}
-              <Building className="h-4 w-4" />
-              <span className={facilityName === "Unknown facility" ? "text-muted-foreground italic" : ""}>
+              <Building className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+              <span className={facilityName === "Unknown facility" ? "text-brand-navy-500 dark:text-brand-navy-500 italic" : ""}>
                 {facilityName}
               </span>
             </CardDescription>
           </CardHeader>
           
           <CardContent className="p-0 flex-grow space-y-4">
-            <div className="flex items-center gap-4 text-muted-foreground">
+            <div className="flex items-center gap-4 text-brand-navy-700 dark:text-brand-navy-300">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+                <Users className="h-5 w-5 text-brand-navy-600 dark:text-brand-navy-400" />
                 <span className="font-medium">{room.capacity}</span>
               </div>
             </div>
@@ -237,7 +237,11 @@ export function RoomCard({
             {resourceDetails && resourceDetails.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {resourceDetails.map((resource) => (
-                  <Badge key={resource.id} variant="secondary" className="flex items-center gap-1">
+                  <Badge 
+                    key={resource.id} 
+                    variant="secondary" 
+                    className="flex items-center gap-1 bg-brand-teal-100 text-brand-teal-800 dark:bg-brand-teal-900/30 dark:text-brand-teal-300 border-brand-teal-200 dark:border-brand-teal-800"
+                  >
                     <ResourceIcon type={resource.type} name={resource.name} />
                     {resource.name}
                   </Badge>
@@ -275,11 +279,22 @@ export function RoomCard({
                 )
               ) : (
                 // User: Book Now only opens modal, never navigates
-                <Button onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsBookingModalOpen(true);
-                }} className="w-full" disabled={!isBookable}>
+                <Button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsBookingModalOpen(true);
+                  }} 
+                  className={cn(
+                    "w-full",
+                    isBookable 
+                      ? "bg-brand-teal-500 hover:bg-brand-teal-600 text-white" 
+                      : room.status === "maintenance"
+                        ? "bg-warning text-warning-foreground hover:bg-warning/90"
+                        : "bg-destructive/80 text-destructive-foreground hover:bg-destructive/70"
+                  )}
+                  disabled={!isBookable}
+                >
                   {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
                 </Button>
               )}

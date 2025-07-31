@@ -21,22 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getRoomsByFacilityManager, createRoom, updateRoom, deleteRoom, getResourcesByFacility, getFacilitiesByManager } from "@/lib/supabase-data" 
 import type { Room, Resource } from "@/types"
 import { useToast } from "@/components/ui/use-toast"
-
-function RoomManagementSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-10 w-36" />
-      </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(3)].map((_, i) => (
-          <RoomCardSkeleton key={i} />
-        ))}
-      </div>
-    </div>
-  )
-}
+import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 
 export default function RoomManagementPage() {
   const { user } = useAuth()
@@ -178,7 +163,7 @@ export default function RoomManagementPage() {
     }
   }
   
-  if (isLoading) return <RoomManagementSkeleton />
+  if (isLoading) return <FacilityManagerSkeleton />
   if (error) {
     return (
       <div className="text-center py-10 text-destructive flex flex-col items-center gap-4">
@@ -259,4 +244,4 @@ export default function RoomManagementPage() {
       </AlertDialog>
     </div>
   )
-} 
+}

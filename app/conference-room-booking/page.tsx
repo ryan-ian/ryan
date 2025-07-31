@@ -349,7 +349,7 @@ export default function ConferenceRoomBookingPage() {
           toast({
             title: "Booking limit reached",
             description: "You can only book one room per day. Please select a different date.",
-            variant: "destructive"
+            variant: "warning"
           })
           return
         }
@@ -452,8 +452,8 @@ export default function ConferenceRoomBookingPage() {
       <div className="p-6 space-y-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Browse Rooms</h1>
-              <p className="text-muted-foreground">Find and book the perfect space for your meeting</p>
+              <h1 className="text-3xl font-bold tracking-tight text-brand-navy-900 dark:text-brand-navy-50">Browse Rooms</h1>
+              <p className="text-brand-navy-700 dark:text-brand-navy-300">Find and book the perfect space for your meeting</p>
           </div>
         </header>
 
@@ -461,18 +461,18 @@ export default function ConferenceRoomBookingPage() {
         <div className="w-full flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
               <Input
                 placeholder="Search by name, location, or facility..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 bg-background border-border/50 focus-visible:ring-primary h-11 w-full"
+                className="pl-10 pr-4 bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 focus-visible:ring-brand-teal-500 h-11 w-full"
               />
               {searchTerm && (
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full hover:bg-muted"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700 text-brand-navy-600 dark:text-brand-navy-400"
                   onClick={() => setSearchTerm("")}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -485,16 +485,16 @@ export default function ConferenceRoomBookingPage() {
                 <Button 
                   variant="outline" 
                   className={cn(
-                    "h-11 flex items-center gap-1.5 px-3 border-border/50 w-full sm:w-auto", 
-                    activeFiltersCount > 0 && "border-primary"
+                    "h-11 flex items-center gap-1.5 px-3 border-brand-navy-200 dark:border-brand-navy-700 w-full sm:w-auto", 
+                    activeFiltersCount > 0 && "border-brand-teal-500 dark:border-brand-teal-500"
                   )}
                 >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span>Filters</span>
+                  <SlidersHorizontal className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+                  <span className="text-brand-navy-800 dark:text-brand-navy-200">Filters</span>
                   {activeFiltersCount > 0 && (
                     <Badge 
                       variant="secondary" 
-                      className="ml-1 h-5 rounded-full bg-primary text-primary-foreground"
+                      className="ml-1 h-5 rounded-full bg-brand-teal-500 text-white"
                     >
                       {activeFiltersCount}
                     </Badge>
@@ -502,24 +502,24 @@ export default function ConferenceRoomBookingPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent 
-                className="w-[calc(100vw-2rem)] sm:w-80 md:w-96 p-4 border border-border/50 shadow-lg"
+                className="w-[calc(100vw-2rem)] sm:w-80 md:w-96 p-4 border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 shadow-lg"
                 align="end"
                 sideOffset={8}
               >
                 <div className="space-y-5">
-                  <h3 className="text-lg font-medium tracking-tight flex items-center gap-2">
-                    <Filter className="h-5 w-5" /> 
+                  <h3 className="text-lg font-medium tracking-tight flex items-center gap-2 text-brand-navy-900 dark:text-brand-navy-50">
+                    <Filter className="h-5 w-5 text-brand-teal-600 dark:text-brand-teal-400" /> 
                     <span>Filter Options</span>
                   </h3>
 
                   {/* Capacity Filter */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Minimum Capacity</label>
+                    <label className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Minimum Capacity</label>
                     <Select value={capacityFilter} onValueChange={setCapacityFilter}>
-                      <SelectTrigger className="bg-background/50">
+                      <SelectTrigger className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700">
                         <SelectValue placeholder="Any capacity" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700">
                         <SelectItem value="0">Any capacity</SelectItem>
                         <SelectItem value="2">2+ people</SelectItem>
                         <SelectItem value="5">5+ people</SelectItem>
@@ -531,12 +531,12 @@ export default function ConferenceRoomBookingPage() {
 
                   {/* Status Filter */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <label className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Status</label>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="bg-background/50">
+                      <SelectTrigger className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700">
                         <SelectValue placeholder="Any status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700">
                         <SelectItem value="any">Any status</SelectItem>
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="occupied">Occupied</SelectItem>
@@ -548,12 +548,12 @@ export default function ConferenceRoomBookingPage() {
                   {/* Facility Filter */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-muted-foreground">Facility</label>
+                      <label className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Facility</label>
                       {facilityFilter && facilityFilter !== "any" && (
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-6 px-2 text-xs"
+                          className="h-6 px-2 text-xs text-brand-teal-600 dark:text-brand-teal-400 hover:bg-brand-teal-50 dark:hover:bg-brand-teal-900/20"
                           onClick={() => setFacilityFilter("any")}
                         >
                           Clear
@@ -561,10 +561,13 @@ export default function ConferenceRoomBookingPage() {
                       )}
                     </div>
                     <Select value={facilityFilter} onValueChange={setFacilityFilter}>
-                      <SelectTrigger className={cn("bg-background/50", facilityFilter !== "any" && "border-primary")}>
+                      <SelectTrigger className={cn(
+                        "bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700", 
+                        facilityFilter !== "any" && "border-brand-teal-500 dark:border-brand-teal-500"
+                      )}>
                         <SelectValue placeholder="Any facility" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700">
                         <SelectItem value="any">Any facility</SelectItem>
                         {availableFacilities.length > 0 ? (
                           // Sort facilities alphabetically by name for better UX
@@ -576,7 +579,7 @@ export default function ConferenceRoomBookingPage() {
                               </SelectItem>
                             ))
                         ) : (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          <div className="px-2 py-1.5 text-sm text-brand-navy-500 dark:text-brand-navy-400">
                             No facilities found
                           </div>
                         )}
@@ -588,9 +591,13 @@ export default function ConferenceRoomBookingPage() {
                   <div className="space-y-3">
                     <Collapsible open={showResourceFilters} onOpenChange={setShowResourceFilters}>
                       <CollapsibleTrigger asChild>
-                        <div className="flex items-center justify-between cursor-pointer hover:text-primary">
-                          <label className="text-sm font-medium text-muted-foreground">Resources</label>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                        <div className="flex items-center justify-between cursor-pointer hover:text-brand-teal-600 dark:hover:text-brand-teal-400">
+                          <label className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Resources</label>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 w-7 p-0 text-brand-navy-600 dark:text-brand-navy-400 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
+                          >
                             {showResourceFilters ? 
                               <ChevronUp className="h-4 w-4" /> : 
                               <ChevronDown className="h-4 w-4" />
@@ -608,10 +615,11 @@ export default function ConferenceRoomBookingPage() {
                                 onCheckedChange={(checked) => 
                                   handleResourceCheckboxChange(resource.id, checked === true)
                                 }
+                                className="border-brand-navy-300 dark:border-brand-navy-600 data-[state=checked]:bg-brand-teal-500 data-[state=checked]:border-brand-teal-500"
                               />
                               <label 
                                 htmlFor={`resource-${resource.id}`}
-                                className="text-sm font-medium flex items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+                                className="text-sm font-medium flex items-center gap-2 cursor-pointer text-brand-navy-700 dark:text-brand-navy-300 hover:text-brand-navy-900 dark:hover:text-brand-navy-100"
                               >
                                 <ResourceIcon type={resource.type} name={resource.name} />
                                 {resource.name}
@@ -625,12 +633,12 @@ export default function ConferenceRoomBookingPage() {
 
                   {/* Active Filter Badges */}
                   {activeFiltersCount > 0 && (
-                    <div className="pt-4 border-t border-border/50">
+                    <div className="pt-4 border-t border-brand-navy-200 dark:border-brand-navy-700">
                       <div className="flex flex-wrap gap-2">
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          className="h-7 text-xs hover:bg-destructive/10 hover:text-destructive"
+                          className="h-7 text-xs hover:bg-destructive/10 hover:text-destructive text-brand-navy-700 dark:text-brand-navy-300"
                           onClick={() => {
                             setSearchTerm("");
                             setCapacityFilter("");
@@ -653,12 +661,15 @@ export default function ConferenceRoomBookingPage() {
           {activeFiltersCount > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
               {searchTerm && (
-                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap border-brand-teal-200 dark:border-brand-teal-800 bg-brand-teal-50 dark:bg-brand-teal-900/20 text-brand-teal-800 dark:text-brand-teal-300"
+                >
                   <span>Search: {searchTerm}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    className="h-5 w-5 p-0 rounded-full hover:bg-brand-teal-100 dark:hover:bg-brand-teal-800/50 text-brand-teal-700 dark:text-brand-teal-400"
                     onClick={() => setSearchTerm("")}
                   >
                     <X className="h-3 w-3" />
@@ -667,12 +678,15 @@ export default function ConferenceRoomBookingPage() {
               )}
               
               {capacityFilter && (
-                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap border-brand-teal-200 dark:border-brand-teal-800 bg-brand-teal-50 dark:bg-brand-teal-900/20 text-brand-teal-800 dark:text-brand-teal-300"
+                >
                   <span>Min. capacity: {capacityFilter}+</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    className="h-5 w-5 p-0 rounded-full hover:bg-brand-teal-100 dark:hover:bg-brand-teal-800/50 text-brand-teal-700 dark:text-brand-teal-400"
                     onClick={() => setCapacityFilter("")}
                   >
                     <X className="h-3 w-3" />
@@ -681,12 +695,15 @@ export default function ConferenceRoomBookingPage() {
               )}
               
               {statusFilter !== "any" && (
-                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap border-brand-teal-200 dark:border-brand-teal-800 bg-brand-teal-50 dark:bg-brand-teal-900/20 text-brand-teal-800 dark:text-brand-teal-300"
+                >
                   <span>Status: {statusFilter}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    className="h-5 w-5 p-0 rounded-full hover:bg-brand-teal-100 dark:hover:bg-brand-teal-800/50 text-brand-teal-700 dark:text-brand-teal-400"
                     onClick={() => setStatusFilter("any")}
                   >
                     <X className="h-3 w-3" />
@@ -695,14 +712,17 @@ export default function ConferenceRoomBookingPage() {
               )}
               
               {facilityFilter !== "any" && (
-                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap border-brand-teal-200 dark:border-brand-teal-800 bg-brand-teal-50 dark:bg-brand-teal-900/20 text-brand-teal-800 dark:text-brand-teal-300"
+                >
                   <span>
                     Facility: {availableFacilities.find(f => f.id === facilityFilter)?.name || 'Unknown'}
                   </span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    className="h-5 w-5 p-0 rounded-full hover:bg-brand-teal-100 dark:hover:bg-brand-teal-800/50 text-brand-teal-700 dark:text-brand-teal-400"
                     onClick={() => setFacilityFilter("any")}
                   >
                     <X className="h-3 w-3" />
@@ -711,12 +731,15 @@ export default function ConferenceRoomBookingPage() {
               )}
               
               {selectedResources.length > 0 && (
-                <Badge variant="outline" className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap">
+                <Badge 
+                  variant="outline" 
+                  className="flex items-center gap-1 py-1 pl-2 pr-1 whitespace-nowrap border-brand-teal-200 dark:border-brand-teal-800 bg-brand-teal-50 dark:bg-brand-teal-900/20 text-brand-teal-800 dark:text-brand-teal-300"
+                >
                   <span>Resources: {selectedResources.length}</span>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-muted"
+                    className="h-5 w-5 p-0 rounded-full hover:bg-brand-teal-100 dark:hover:bg-brand-teal-800/50 text-brand-teal-700 dark:text-brand-teal-400"
                     onClick={() => setSelectedResources([])}
                   >
                     <X className="h-3 w-3" />
@@ -747,9 +770,9 @@ export default function ConferenceRoomBookingPage() {
                 )
               })
             ) : (
-              <div className="col-span-full p-8 text-center bg-muted/20 rounded-lg border border-dashed">
-                <h3 className="text-lg font-medium mb-2">No rooms found</h3>
-                <p className="text-muted-foreground">Try adjusting your filters to find available rooms.</p>
+              <div className="col-span-full p-8 text-center bg-brand-navy-50/30 dark:bg-brand-navy-800/30 rounded-lg border border-dashed border-brand-navy-200 dark:border-brand-navy-700">
+                <h3 className="text-lg font-medium mb-2 text-brand-navy-900 dark:text-brand-navy-50">No rooms found</h3>
+                <p className="text-brand-navy-700 dark:text-brand-navy-300">Try adjusting your filters to find available rooms.</p>
               </div>
             )}
           </div>

@@ -16,6 +16,7 @@ export interface Facility {
   name: string
   location: string
   description?: string
+  manager_id?: string
   created_at: string
   updated_at: string
   roomCount?: number

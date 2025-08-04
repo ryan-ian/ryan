@@ -12,9 +12,10 @@ export function Favicon({ size = 32 }: { size?: number }) {
         <path 
           d="M 45,30 A 20 20, 0, 1, 1, 25,10"
           fill="none"
-          stroke="#0A2540"
+          stroke="currentColor"
           strokeWidth="8"
-          strokeLinecap="round" 
+          strokeLinecap="round"
+          className="text-foreground"
         />
         
         <line 
@@ -22,17 +23,19 @@ export function Favicon({ size = 32 }: { size?: number }) {
           y1="10" 
           x2="25" 
           y2="50" 
-          stroke="#0A2540" 
+          stroke="currentColor" 
           strokeWidth="8" 
           strokeLinecap="round"
+          className="text-foreground"
         />
         
         <path 
           d="M 25 30 L 45 30"
           fill="none"
-          stroke="#00C49A"
+          stroke="currentColor"
           strokeWidth="8"
-          strokeLinecap="round" 
+          strokeLinecap="round"
+          className="text-primary"
         />
       </g>
     </svg>

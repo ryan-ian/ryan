@@ -152,7 +152,7 @@ export function useFacilityManagerReports(): UseReportsResult {
       // Get the facility managed by the user
       const facilities = await getFacilitiesByManager(user.id);
       if (facilities.length === 0) {
-        setError("No facility found for this manager.");
+        setError("no_facility");
         setIsLoading(false);
         return;
       }

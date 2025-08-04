@@ -13,9 +13,10 @@ export function LogoWithPaths({ className = "", width = 250, height = 60 }: { cl
         <path 
           d="M 45,30 A 20 20, 0, 1, 1, 25,10"
           fill="none"
-          stroke="#0A2540"
+          stroke="currentColor"
           strokeWidth="8"
-          strokeLinecap="round" 
+          strokeLinecap="round"
+          className="text-foreground"
         />
         
         <line 
@@ -23,17 +24,19 @@ export function LogoWithPaths({ className = "", width = 250, height = 60 }: { cl
           y1="10" 
           x2="25" 
           y2="50" 
-          stroke="#0A2540" 
+          stroke="currentColor" 
           strokeWidth="8" 
           strokeLinecap="round"
+          className="text-foreground"
         />
         
         <path 
           d="M 25 30 L 45 30"
           fill="none"
-          stroke="#00C49A"
+          stroke="currentColor"
           strokeWidth="8"
-          strokeLinecap="round" 
+          strokeLinecap="round"
+          className="text-primary"
         />
       </g>
       
@@ -42,8 +45,9 @@ export function LogoWithPaths({ className = "", width = 250, height = 60 }: { cl
         <text x="0" y="30" 
               fontFamily="Poppins, sans-serif" 
               fontSize="22" 
-              fill="#0A2540" 
-              dominantBaseline="middle">
+              fill="currentColor"
+              dominantBaseline="middle"
+              className="text-foreground">
             <tspan fontWeight="600">Conference</tspan>
             <tspan fontWeight="400">Hub</tspan>
         </text>

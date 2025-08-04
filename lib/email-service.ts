@@ -22,7 +22,14 @@ export async function initEmailService(): Promise<boolean> {
       return false
     }
 
-    transporter = nodemailer.createTransport({
+    // Log current configuration (without sensitive data)
+    console.log('📧 SMTP Configuration:')
+    console.log(`   Host: ${process.env.SMTP_HOST}`)
+    console.log(`   Port: ${process.env.SMTP_PORT || '587'}`)
+    console.log(`   Secure: ${process.env.SMTP_SECURE === 'true'}`)
+    console.log(`   User: ${process.env.SMTP_USER}`)
+
+    const config = {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true',
@@ -30,16 +37,41 @@ export async function initEmailService(): Promise<boolean> {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
       },
-    })
+      // Add additional options for better reliability
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      socketTimeout: 60000, // 60 seconds
+      debug: true, // Enable debug output
+      logger: true, // Enable logging
+    }
 
-    // Verify the connection
+    transporter = nodemailer.createTransport(config)
+
+    // Verify the connection with timeout
     console.log('📧 Verifying SMTP connection...')
-    await transporter.verify()
+    const verifyPromise = transporter.verify()
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('SMTP verification timeout')), 30000)
+    })
+    
+    await Promise.race([verifyPromise, timeoutPromise])
     
     console.log('✅ Email service initialized and verified successfully')
     return true
   } catch (error) {
     console.error('❌ Failed to initialize email service:', error)
+    
+    // Provide specific troubleshooting based on error
+    if (error.code === 'ECONNREFUSED') {
+      console.error('🔧 TROUBLESHOOTING: Connection refused - Check your SMTP_HOST and SMTP_PORT')
+    } else if (error.code === 'ENOTFOUND') {
+      console.error('🔧 TROUBLESHOOTING: Host not found - Check your SMTP_HOST')
+    } else if (error.responseCode === 421) {
+      console.error('🔧 TROUBLESHOOTING: Service not available - Try different port or check with email provider')
+    } else if (error.code === 'EAUTH') {
+      console.error('🔧 TROUBLESHOOTING: Authentication failed - Check your SMTP_USER and SMTP_PASSWORD')
+    }
+    
     transporter = null
     return false
   }

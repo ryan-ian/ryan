@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Package, PlusCircle, AlertCircle, Building, Loader2 } from "lucide-react"
+import { Package, PlusCircle, AlertCircle, Building, Loader2, ExternalLink } from "lucide-react"
+import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -48,7 +49,7 @@ export default function ResourceManagementPage() {
         const resourcesData = await getResourcesByFacility(currentFacilityId)
         setResources(resourcesData)
       } else {
-        setError("You are not assigned to any facility. Please contact an admin.")
+        setError("no_facility")
       }
     } catch (err) {
       console.error("Failed to load resources", err)
@@ -151,6 +152,27 @@ export default function ResourceManagementPage() {
 
   if (isLoading) return <FacilityManagerSkeleton />
   if (error) {
+    if (error === "no_facility") {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <Package className="h-6 w-6 text-slate-500" />
+          </div>
+          <h3 className="text-lg font-medium mb-1">No Facility Assigned</h3>
+          <p className="text-muted-foreground mb-4">
+            You need to create a facility before you can manage resources.
+          </p>
+          <Link href="/facility-manager/facilities">
+            <Button className="gap-2">
+              <Building className="h-4 w-4" />
+              Create Facility
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      )
+    }
+    
     return (
       <div className="text-center py-10 text-destructive flex flex-col items-center gap-4">
         <AlertCircle className="h-8 w-8" />

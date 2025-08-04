@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { AlertCircle, Calendar, Download, BarChart3, PieChart, Clock, Users, Building } from "lucide-react"
+import { AlertCircle, Calendar, Download, BarChart3, PieChart, Clock, Users, Building, ExternalLink } from "lucide-react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 import { Button } from "@/components/ui/button"
@@ -56,6 +57,27 @@ export default function ReportsPage() {
   }
 
   if (error) {
+    if (error === "no_facility") {
+      return (
+        <div className="text-center py-12">
+          <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <BarChart3 className="h-6 w-6 text-slate-500" />
+          </div>
+          <h3 className="text-lg font-medium mb-1">No Facility Assigned</h3>
+          <p className="text-muted-foreground mb-4">
+            You need to create a facility before you can view reports.
+          </p>
+          <Link href="/facility-manager/facilities">
+            <Button className="gap-2">
+              <Building className="h-4 w-4" />
+              Create Facility
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      )
+    }
+    
     return (
       <div className="text-center py-10">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive" />

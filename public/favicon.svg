@@ -1,11 +1,22 @@
 <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .logo-main { stroke: #ffffff; }
+      .logo-accent { stroke: #00C49A; }
+    }
+    @media (prefers-color-scheme: light) {
+      .logo-main { stroke: #0A2540; }
+      .logo-accent { stroke: #00C49A; }
+    }
+  </style>
   <g id="Logomark">
     <path 
       d="M 45,30 A 20 20, 0, 1, 1, 25,10"
       fill="none"
       stroke="#0A2540"
       stroke-width="8"
-      stroke-linecap="round" 
+      stroke-linecap="round"
+      class="logo-main"
     />
     
     <line 
@@ -16,6 +27,7 @@
       stroke="#0A2540" 
       stroke-width="8" 
       stroke-linecap="round"
+      class="logo-main"
     />
     
     <path 
@@ -23,7 +35,8 @@
       fill="none"
       stroke="#00C49A"
       stroke-width="8"
-      stroke-linecap="round" 
+      stroke-linecap="round"
+      class="logo-accent"
     />
   </g>
 </svg>

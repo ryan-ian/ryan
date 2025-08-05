@@ -1,0 +1,109 @@
+---
+type: "manual"
+---
+
+# User Personas and Stories
+
+## Primary Personas
+
+### Sarah Chen - Regular User
+**Role:** Marketing Manager  
+**Age:** 32  
+**Technical Proficiency:** Moderate  
+**Goals:**
+- Efficiently book meeting rooms for team and client meetings
+- Ensure rooms have the necessary resources for presentations
+- Manage recurring team meetings without repetitive booking processes
+- Make last-minute booking changes when needed
+- Check in to meetings and extend time when discussions run long
+
+**Pain Points:**
+- Difficulty finding available rooms with specific requirements
+- Time wasted on administrative booking processes
+- Frustration with double-bookings and scheduling conflicts
+- Inability to make quick changes to bookings when plans change
+
+### Marcus Johnson - Administrator
+**Role:** Facilities Manager  
+**Age:** 45  
+**Technical Proficiency:** High  
+**Goals:**
+- Optimize room utilization across the organization
+- Generate reports on space usage for executive decisions
+- Maintain system integrity and ensure fair resource allocation
+- Respond to user support requests regarding the booking system
+- Make data-driven decisions about space configuration
+
+**Pain Points:**
+- Lack of visibility into actual room usage patterns
+- Difficulty managing maintenance schedules without disrupting bookings
+- Challenges in balancing resource allocation between departments
+- Time spent manually resolving booking conflicts
+
+## Key User Journeys
+
+### Regular User Journey
+
+1. **Registration and First-time Experience**
+   - User creates account and sets up profile
+   - System guides user through a brief tutorial
+   - User connects calendar for synchronization
+
+2. **Basic Booking Flow**
+   - User selects date and time for meeting
+   - System displays available rooms matching requirements
+   - User selects room and enters meeting details
+   - System confirms booking and sends notifications
+
+3. **Managing Bookings**
+   - User views their upcoming and past bookings
+   - User can modify or cancel existing bookings
+   - System handles notifications for any changes
+
+4. **Advanced Booking Features**
+   - Setting up recurring meetings
+   - Booking rooms via mobile device
+   - Checking in to meetings
+   - Extending meeting duration when needed
+
+### Administrator Journey
+
+1. **Daily Management**
+   - Review daily booking schedule
+   - Monitor room utilization in real-time
+   - Respond to support requests
+   - Manage room and resource status
+
+2. **Resource Administration**
+   - Add/update room information
+   - Manage resource inventory
+   - Mark rooms for maintenance
+   - Resolve booking conflicts
+
+3. **Reporting and Analytics**
+   - Generate utilization reports
+   - Analyze booking patterns
+   - Identify optimization opportunities
+   - Present data to stakeholders
+
+## Success Criteria
+
+For a successful user experience, the application should enable:
+
+1. **For Regular Users:**
+   - Reduced time spent finding and booking meeting spaces
+   - Elimination of scheduling conflicts and double-bookings
+   - Seamless calendar integration across devices
+   - Confidence that rooms will have required resources
+
+2. **For Administrators:**
+   - Data-driven decisions about space utilization
+   - Reduced administrative overhead
+   - Better visibility into usage patterns
+   - Improved user satisfaction with meeting facilities
+
+3. **For the Organization:**
+   - Optimized use of limited meeting space
+   - Reduced costs through better resource allocation
+   - Improved employee productivity
+   - Data to inform future workspace planning 

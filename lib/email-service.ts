@@ -230,8 +230,17 @@ export async function sendBookingConfirmationEmail(
         <p><strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">✅ Confirmed</span></p>
       </div>
       <p>Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.</p>
-      <p>If you need to make any changes or cancel this booking, please contact your facility manager as soon as possible.</p>
+      <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
+        <h4 style="margin-top: 0; color: #2196F3;">Important Reminders:</h4>
+        <ul style="margin-bottom: 0;">
+          <li>Please arrive on time for your meeting</li>
+          <li>Ensure you have all necessary materials and equipment</li>
+          <li>If you need to make changes or cancel, contact your facility manager as soon as possible</li>
+          <li>Please leave the room clean and ready for the next user</li>
+        </ul>
+      </div>
       <p>Thank you for using Conference Hub!</p>
+      <p>Best regards,<br>Conference Hub Team</p>
     </div>
   `;
 
@@ -239,16 +248,25 @@ export async function sendBookingConfirmationEmail(
     Booking Confirmed!
     Hello ${userName},
     Great news! Your booking request has been approved and confirmed.
-    
+
     Title: ${bookingTitle}
     Room: ${roomName}
     Date: ${formattedDate}
     Time: ${formattedStartTime} - ${formattedEndTime}
     Status: ✅ Confirmed
-    
-    Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.
-    If you need to make any changes or cancel this booking, please contact your facility manager as soon as possible.
+
+    Your room is now reserved for the specified time.
+
+    Important Reminders:
+    - Please arrive on time for your meeting
+    - Ensure you have all necessary materials and equipment
+    - If you need to make changes or cancel, contact your facility manager as soon as possible
+    - Please leave the room clean and ready for the next user
+
     Thank you for using Conference Hub!
+
+    Best regards,
+    Conference Hub Team
   `;
 
   const result = await sendEmail(userEmail, subject, html, text);
@@ -264,7 +282,9 @@ export async function sendBookingRejectionEmail(
   userName: string,
   bookingTitle: string,
   roomName: string,
-  rejectionReason: string
+  rejectionReason: string,
+  startTime?: string,
+  endTime?: string
 ): Promise<boolean> {
   console.log('📧 ===== BOOKING REJECTION EMAIL START =====');
   console.log(`📧 User Email: ${userEmail}`);
@@ -272,10 +292,40 @@ export async function sendBookingRejectionEmail(
   console.log(`📧 Booking Title: ${bookingTitle}`);
   console.log(`📧 Room Name: ${roomName}`);
   console.log(`📧 Rejection Reason: ${rejectionReason}`);
+  console.log(`📧 Start Time: ${startTime || 'N/A'}`);
+  console.log(`📧 End Time: ${endTime || 'N/A'}`);
 
   if (!userEmail || !userEmail.includes('@')) {
     console.error('❌ Invalid user email address:', userEmail);
     return false;
+  }
+
+  // Format date and time if provided
+  let formattedDate = '';
+  let formattedStartTime = '';
+  let formattedEndTime = '';
+  let dateTimeSection = '';
+
+  if (startTime && endTime) {
+    try {
+      const startDateTime = new Date(startTime);
+      const endDateTime = new Date(endTime);
+
+      formattedDate = startDateTime.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      formattedStartTime = startDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      formattedEndTime = endDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      dateTimeSection = `
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>`;
+    } catch (error) {
+      console.warn('📧 Could not format date/time for rejection email:', error);
+    }
   }
 
   const subject = `Booking Request Update: ${bookingTitle}`;
@@ -286,33 +336,41 @@ export async function sendBookingRejectionEmail(
       <p>We regret to inform you that your booking request could not be approved at this time.</p>
       <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
         <p><strong>Title:</strong> ${bookingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>
+        <p><strong>Room:</strong> ${roomName}</p>${dateTimeSection}
         <p><strong>Status:</strong> <span style="color: #f44336; font-weight: bold;">❌ Not Approved</span></p>
         <p><strong>Reason:</strong> ${rejectionReason}</p>
       </div>
       <p>Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.</p>
       <p>Thank you for your understanding.</p>
+      <p>Best regards,<br>Conference Hub Team</p>
     </div>
   `;
+
+  const textDateTimeSection = startTime && endTime ? `
+    Date: ${formattedDate}
+    Time: ${formattedStartTime} - ${formattedEndTime}` : '';
 
   const text = `
     Booking Request Update
     Hello ${userName},
     We regret to inform you that your booking request could not be approved at this time.
-    
+
     Title: ${bookingTitle}
-    Room: ${roomName}
+    Room: ${roomName}${textDateTimeSection}
     Status: ❌ Not Approved
     Reason: ${rejectionReason}
-    
+
     Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.
     Thank you for your understanding.
+
+    Best regards,
+    Conference Hub Team
   `;
 
   const result = await sendEmail(userEmail, subject, html, text);
   console.log(`📧 sendEmail result: ${result}`);
   console.log('📧 ===== BOOKING REJECTION EMAIL END =====');
-  
+
   return result;
 }
 

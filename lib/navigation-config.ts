@@ -71,6 +71,16 @@ export const navigationConfig: SidebarConfig = {
       href: "/facility-manager/reports",
       icon: BarChart4,
     },
+    // {
+    //   title: "Settings",
+    //   href: "/facility-manager/settings",
+    //   icon: Settings,
+    // },
+    // {
+    //   title: "Calendar",
+    //   href: "/facility-manager/calendar",
+    //   icon: Calendar,
+    // },
     {
       title: "Facility",
       href: "/facility-manager/facilities",

@@ -36,27 +36,56 @@ export function RoomInfoCarousel({
   // Define carousel slides
   const slides = [
     {
+      id: "visual",
+      title: "Room Visualization",
+      content: (
+        <div className="h-full flex items-center justify-center">
+          <div className="relative w-full h-48 rounded-lg overflow-hidden">
+            <img
+              src="/room-bg-1.svg"
+              alt="Conference Room Layout"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+            <div className="absolute bottom-4 left-4 right-4">
+              <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg p-3">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  Modern conference room with state-of-the-art facilities
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
       id: "overview",
       title: "Room Overview",
       content: (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold">{room.name}</h3>
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+              {room.name}
+            </h3>
             <StatusBadge status={room.status} size="lg" />
           </div>
-          <p className="text-muted-foreground">{room.location}</p>
-          <div className="flex items-center gap-2">
-            <div className="bg-primary/10 text-primary rounded-full px-3 py-1 text-sm font-medium">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
+            <p className="text-slate-700 dark:text-slate-300 font-medium">{room.location}</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full px-4 py-2 text-sm font-bold shadow-lg">
               Capacity: {room.capacity} people
             </div>
             {room.status === "available" && (
-              <div className="bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-full px-3 py-1 text-sm font-medium">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full px-4 py-2 text-sm font-bold shadow-lg animate-pulse">
                 Available Now
               </div>
             )}
           </div>
           {room.description && (
-            <p className="text-sm text-muted-foreground">{room.description}</p>
+            <div className="bg-white/50 dark:bg-slate-700/50 backdrop-blur-sm rounded-lg p-4 border border-white/30 dark:border-slate-600/30">
+              <p className="text-slate-700 dark:text-slate-300">{room.description}</p>
+            </div>
           )}
         </div>
       )
@@ -77,22 +106,22 @@ export function RoomInfoCarousel({
       id: "details",
       title: "Room Details",
       content: (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium">{room.location}</p>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
+            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-2">Location</p>
+            <p className="font-bold text-slate-800 dark:text-slate-200">{room.location}</p>
           </div>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Capacity</p>
-            <p className="font-medium">{room.capacity} people</p>
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-lg p-4 border border-emerald-200/50 dark:border-emerald-700/50">
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">Capacity</p>
+            <p className="font-bold text-slate-800 dark:text-slate-200">{room.capacity} people</p>
           </div>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Status</p>
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg p-4 border border-purple-200/50 dark:border-purple-700/50">
+            <p className="text-sm text-purple-600 dark:text-purple-400 font-medium mb-2">Status</p>
             <StatusBadge status={room.status} />
           </div>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Room ID</p>
-            <p className="font-medium">{room.id}</p>
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-lg p-4 border border-amber-200/50 dark:border-amber-700/50">
+            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mb-2">Room ID</p>
+            <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">{room.id.slice(0, 8)}...</p>
           </div>
         </div>
       )
@@ -192,10 +221,14 @@ export function RoomInfoCarousel({
               activeSlide === index ? "opacity-100 z-10" : "opacity-0 z-0"
             )}
           >
-            <Card className="h-full border-none shadow-none">
+            <Card className="h-full border-none shadow-none bg-gradient-to-br from-white/60 to-white/30 dark:from-slate-800/60 dark:to-slate-800/30 backdrop-blur-sm">
               <CardContent className="p-6 h-full">
-                <h3 className="text-lg font-medium mb-4">{slide.title}</h3>
-                {slide.content}
+                <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">
+                  {slide.title}
+                </h3>
+                <div className="animate-scale-in">
+                  {slide.content}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -203,41 +236,41 @@ export function RoomInfoCarousel({
       </div>
       
       {/* Navigation buttons */}
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-20">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
             className={cn(
-              "w-2.5 h-2.5 rounded-full transition-all duration-300",
-              activeSlide === index 
-                ? "bg-primary w-8" 
-                : "bg-primary/30 hover:bg-primary/50"
+              "h-3 rounded-full transition-all duration-300 backdrop-blur-sm border border-white/30 dark:border-slate-600/30",
+              activeSlide === index
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 w-8 shadow-lg"
+                : "bg-white/60 dark:bg-slate-700/60 w-3 hover:bg-white/80 dark:hover:bg-slate-600/80 hover:scale-110"
             )}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
       </div>
-      
+
       {/* Left/Right navigation buttons */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full z-20 opacity-70 hover:opacity-100"
+        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full z-20 opacity-70 hover:opacity-100 border border-white/30 dark:border-slate-600/30 shadow-lg hover:scale-110 transition-all duration-300"
         onClick={goToPrevSlide}
         aria-label="Previous slide"
       >
-        <ChevronLeft className="h-6 w-6" />
+        <ChevronLeft className="h-6 w-6 text-slate-700 dark:text-slate-300" />
       </Button>
-      
+
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm rounded-full z-20 opacity-70 hover:opacity-100"
+        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full z-20 opacity-70 hover:opacity-100 border border-white/30 dark:border-slate-600/30 shadow-lg hover:scale-110 transition-all duration-300"
         onClick={goToNextSlide}
         aria-label="Next slide"
       >
-        <ChevronRight className="h-6 w-6" />
+        <ChevronRight className="h-6 w-6 text-slate-700 dark:text-slate-300" />
       </Button>
     </div>
   )

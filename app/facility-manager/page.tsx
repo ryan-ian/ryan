@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { getPendingBookingsByFacilityManager, getTodaysBookingsByFacilityManager, getRoomsByFacilityManager } from "@/lib/supabase-data"
+import { expirePendingBookings } from "@/lib/room-availability"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -102,6 +103,7 @@ export default function FacilityManagerDashboard() {
   const [totalRooms, setTotalRooms] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expiredBookingsCount, setExpiredBookingsCount] = useState(0)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
@@ -114,6 +116,19 @@ export default function FacilityManagerDashboard() {
       if (!user) return
       try {
         setIsLoading(true)
+
+        // First, expire any overdue pending bookings
+        const expiration = await expirePendingBookings()
+        setExpiredBookingsCount(expiration.expiredCount)
+
+        if (expiration.expiredCount > 0) {
+          toast({
+            title: "Expired Bookings",
+            description: `${expiration.expiredCount} pending booking(s) have been automatically expired due to passing their scheduled time.`,
+            variant: "default"
+          })
+        }
+
         const [pending, today, rooms] = await Promise.all([
           getPendingBookingsByFacilityManager(user.id),
           getTodaysBookingsByFacilityManager(user.id),
@@ -130,7 +145,7 @@ export default function FacilityManagerDashboard() {
       }
     }
     loadDashboardData()
-  }, [user])
+  }, [user, toast])
 
   const openApproveDialog = (bookingId: string, bookingTitle: string) => {
     setSelectedBookingId(bookingId)
@@ -280,6 +295,21 @@ export default function FacilityManagerDashboard() {
         </Card>
       </div>
       
+      {/* Show expired bookings notification if any */}
+      {expiredBookingsCount > 0 && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <CardHeader>
+            <CardTitle className="text-amber-800 dark:text-amber-200 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Expired Bookings Notification
+            </CardTitle>
+            <CardDescription className="text-amber-700 dark:text-amber-300">
+              {expiredBookingsCount} pending booking(s) were automatically expired because they passed their scheduled time without approval.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
           <CardHeader>

@@ -21,7 +21,7 @@ export function LoginForm() {
   // Helper to redirect based on role
   const redirectByRole = (role: string) => {
     if (role === "admin") {
-      router.push("/admin")
+      router.push("/admin/conference/dashboard")
     } else if (role === "facility_manager") {
       router.push("/facility-manager")
     } else {

@@ -13,9 +13,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoomForm } from "@/components/forms/room-form"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { useToast } from "@/components/ui/use-toast"
+import { RoomAvailabilitySettings } from "@/components/facility-manager/room-availability-settings"
+import { RoomBlackoutManagement } from "@/components/facility-manager/room-blackout-management"
+import { RoomCalendarView } from "@/components/facility-manager/room-calendar-view"
 
 export default function RoomDetailsPage() {
   const { id: roomId } = useParams()
@@ -126,81 +130,118 @@ export default function RoomDetailsPage() {
           <Edit className="mr-2 h-4 w-4" /> Edit Room
         </Button>
       </div>
-      
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardContent className="p-0">
-              {room.image ? (
-                <img src={room.image} alt={room.name} className="w-full h-80 object-cover rounded-lg" />
-              ) : (
-                <div className="w-full h-80 bg-muted flex items-center justify-center rounded-lg">
-                  <Building className="h-16 w-16 text-muted-foreground" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5" /> Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{room.description || "No description provided."}</p>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Tag className="h-5 w-5" /> Status & Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Status</span>
-                <Select value={room.status} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
-                  <SelectTrigger className="w-[180px]">
-                    {isUpdatingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : <SelectValue />}
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="reserved">Reserved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Capacity</span>
-                <Badge variant="secondary" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  {room.capacity} people
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
 
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="availability">Availability</TabsTrigger>
+          <TabsTrigger value="blackouts">Blackouts</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-6">
+              <Card>
+                <CardContent className="p-0">
+                  {room.image ? (
+                    <img src={room.image} alt={room.name} className="w-full h-80 object-cover rounded-lg" />
+                  ) : (
+                    <div className="w-full h-80 bg-muted flex items-center justify-center rounded-lg">
+                      <Building className="h-16 w-16 text-muted-foreground" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5" /> Description</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{room.description || "No description provided."}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Tag className="h-5 w-5" /> Status & Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Status</span>
+                    <Select value={room.status} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
+                      <SelectTrigger className="w-[180px]">
+                        {isUpdatingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : <SelectValue />}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="reserved">Reserved</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Capacity</span>
+                    <Badge variant="secondary" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      {room.capacity} people
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> Resources</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {room.resourceDetails && room.resourceDetails.length > 0 ? (
+                    <ul className="space-y-3">
+                      {room.resourceDetails.map(resource => (
+                        <li key={resource.id} className="flex items-center gap-2">
+                          <ResourceIcon type={resource.type} name={resource.name} />
+                          <span className="font-medium">{resource.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No resources assigned to this room.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <RoomCalendarView roomId={room.id} roomName={room.name} />
+        </TabsContent>
+
+        <TabsContent value="availability">
+          <RoomAvailabilitySettings roomId={room.id} roomName={room.name} />
+        </TabsContent>
+
+        <TabsContent value="blackouts">
+          <RoomBlackoutManagement roomId={room.id} roomName={room.name} />
+        </TabsContent>
+
+        <TabsContent value="analytics">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> Resources</CardTitle>
+              <CardTitle>Room Analytics</CardTitle>
             </CardHeader>
             <CardContent>
-              {room.resourceDetails && room.resourceDetails.length > 0 ? (
-                <ul className="space-y-3">
-                  {room.resourceDetails.map(resource => (
-                    <li key={resource.id} className="flex items-center gap-2">
-                      <ResourceIcon type={resource.type} name={resource.name} />
-                      <span className="font-medium">{resource.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-sm">No resources assigned to this room.</p>
-              )}
+              <p className="text-muted-foreground">
+                Analytics and reporting features will be available in a future update.
+              </p>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
         <DialogContent className="max-w-2xl">

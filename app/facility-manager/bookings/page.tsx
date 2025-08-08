@@ -38,6 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
+import { expirePendingBookings } from "@/lib/room-availability"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -106,6 +107,18 @@ export default function BookingsManagementPage() {
 
       try {
         setIsLoading(true)
+
+        // First, expire any overdue pending bookings
+        const expiration = await expirePendingBookings()
+
+        if (expiration.expiredCount > 0) {
+          toast({
+            title: "Expired Bookings",
+            description: `${expiration.expiredCount} pending booking(s) have been automatically expired.`,
+            variant: "default"
+          })
+        }
+
         const bookingsData = await getAllBookingsByFacilityManager(user.id)
         setBookings(bookingsData)
         setFilteredBookings(bookingsData)
@@ -117,7 +130,7 @@ export default function BookingsManagementPage() {
       }
     }
     loadBookings()
-  }, [user])
+  }, [user, toast])
 
   useEffect(() => {
     async function loadRooms() {

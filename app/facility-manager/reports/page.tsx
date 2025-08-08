@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { AlertCircle, Calendar, Download, BarChart3, PieChart, Clock, Users, Building, ExternalLink } from "lucide-react"
+import { AlertCircle, Calendar, Download, BarChart3, PieChart, Clock, Users, Building, ExternalLink, RefreshCw, Eye } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
@@ -15,22 +15,29 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { useFacilityManagerReports, DateRangeOption } from "@/hooks/useFacilityManagerReports"
+import { BookingDebugPanel } from "@/components/debug/booking-debug-panel"
+import { TroubleshootingGuide } from "@/components/debug/troubleshooting-guide"
+import { useFacilityManagerRealtimeUpdates } from "@/hooks/use-booking-realtime"
 
 export default function ReportsPage() {
-  const { 
-    isLoading, 
-    error, 
-    reportData, 
-    dateRange, 
+  const {
+    isLoading,
+    error,
+    reportData,
+    dateRange,
     setDateRange,
     customStartDate,
     setCustomStartDate,
     customEndDate,
     setCustomEndDate,
-    facility
+    facility,
+    refreshData
   } = useFacilityManagerReports()
   
   const [activeTab, setActiveTab] = useState("overview")
+
+  // Set up real-time updates for booking changes
+  const { isConnected } = useFacilityManagerRealtimeUpdates(refreshData, facility?.id)
   
   // Function to export data as CSV
   const exportToCSV = (data: any[], filename: string) => {
@@ -65,15 +72,23 @@ export default function ReportsPage() {
           </div>
           <h3 className="text-lg font-medium mb-1">No Facility Assigned</h3>
           <p className="text-muted-foreground mb-4">
-            You need to create a facility before you can view reports.
+            You need to create or be assigned to a facility before you can view reports. Create a facility to get started with managing rooms and bookings.
           </p>
-          <Link href="/facility-manager/facilities">
-            <Button className="gap-2">
-              <Building className="h-4 w-4" />
-              Create Facility
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/facility-manager/facilities">
+              <Button className="gap-2">
+                <Building className="h-4 w-4" />
+                Manage Facilities
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/facility-manager">
+              <Button variant="outline" className="gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
       )
     }
@@ -92,15 +107,51 @@ export default function ReportsPage() {
       <div className="text-center py-10">
         <AlertCircle className="mx-auto h-12 w-12 text-amber-500" />
         <h2 className="mt-4 text-xl font-semibold">No data available</h2>
-        <p className="mt-2 text-brand-navy-700 dark:text-brand-navy-300">
-          There is no report data available for your facility. This could be because there are no bookings yet.
+        <p className="mt-2 text-brand-navy-700 dark:text-brand-navy-300 mb-6">
+          There is no report data available for your facility. This could be because:
         </p>
+        <div className="text-left max-w-md mx-auto mb-6">
+          <ul className="text-sm text-brand-navy-700 dark:text-brand-navy-300 space-y-2">
+            <li className="flex items-start gap-2">
+              <span className="text-amber-500 mt-0.5">•</span>
+              No rooms have been created in your facility yet
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-amber-500 mt-0.5">•</span>
+              No bookings have been made for your rooms
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-amber-500 mt-0.5">•</span>
+              All bookings are still pending approval
+            </li>
+          </ul>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link href="/facility-manager/rooms">
+            <Button className="gap-2">
+              <Building className="h-4 w-4" />
+              Manage Rooms
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/facility-manager/bookings">
+            <Button variant="outline" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              View Bookings
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Debug Tools - Only visible to admins */}
+      <TroubleshootingGuide />
+      <BookingDebugPanel />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50">
@@ -112,6 +163,37 @@ export default function ReportsPage() {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshData}
+              disabled={isLoading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh Data
+              {isConnected && (
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Real-time updates active" />
+              )}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                console.log('🔍 [Manual Debug] Current report data:', reportData);
+                console.log('🔍 [Manual Debug] Current error:', error);
+                console.log('🔍 [Manual Debug] Is loading:', isLoading);
+                console.log('🔍 [Manual Debug] Current facility:', facility);
+              }}
+              className="gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              Log Data
+            </Button>
+          </div>
+
           <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeOption)}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Select date range" />
@@ -430,43 +512,7 @@ export default function ReportsPage() {
         
         {/* Resources Tab */}
         <TabsContent value="resources" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
-              <CardHeader>
-                <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Resource Demand</CardTitle>
-                <CardDescription className="text-brand-navy-700 dark:text-brand-navy-300">
-                  Most requested resources in bookings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {reportData.resourceDemand.length > 0 ? (
-                  <div className="space-y-4">
-                    {reportData.resourceDemand.map((resource: {resourceId: string; resourceName: string; count: number}, index: number) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-brand-navy-900 dark:text-brand-navy-50">{resource.resourceName}</span>
-                        <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
-                          {resource.count} bookings
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-[200px]">
-                    <p className="text-brand-navy-700 dark:text-brand-navy-300">No resource usage data available</p>
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => exportToCSV(reportData.resourceDemand, 'resource-demand')}
-                >
-                  <Download className="mr-2 h-4 w-4" /> Export Resource Data
-                </Button>
-              </CardFooter>
-            </Card>
-            
+          <div className="grid gap-6">
             <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
               <CardHeader>
                 <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Resource Status</CardTitle>

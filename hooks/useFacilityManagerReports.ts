@@ -150,26 +150,110 @@ export function useFacilityManagerReports(): UseReportsResult {
       setError(null);
       
       // Get the facility managed by the user
-      const facilities = await getFacilitiesByManager(user.id);
+      console.log(`🏢 [Reports] Loading facilities for user: ${user.id} (role: ${user.role})`);
+
+      let facilities;
+      if (user.role === 'admin') {
+        // Admins can access all facilities
+        console.log(`🏢 [Reports] User is admin, loading all facilities`);
+        const { getFacilities } = await import('@/lib/supabase-data');
+        facilities = await getFacilities();
+      } else {
+        // Facility managers only see their assigned facilities
+        facilities = await getFacilitiesByManager(user.id);
+      }
+
+      console.log(`🏢 [Reports] Found ${facilities.length} facilities:`, facilities);
+
       if (facilities.length === 0) {
+        console.log(`⚠️ [Reports] No facilities found for user ${user.id}`);
         setError("no_facility");
         setIsLoading(false);
         return;
       }
       
       const managedFacility = facilities[0]; // Assuming a manager manages one facility
+      console.log(`🏢 [Reports] Using facility:`, managedFacility);
       setFacility(managedFacility);
-      
+
       // Get all rooms for this facility
-      const roomsData = await getRoomsByFacilityManager(user.id);
+      console.log(`🏠 [Reports] Loading rooms for facility: ${managedFacility.id}`);
+      let roomsData;
+      if (user.role === 'admin') {
+        // For admins, get all rooms in the facility directly
+        console.log(`🏠 [Reports] Admin user - getting all rooms for facility ${managedFacility.id}`);
+        const { supabase } = await import('@/lib/supabase');
+        const { data: rooms, error: roomsError } = await supabase
+          .from('rooms')
+          .select(`
+            *,
+            facilities!facility_id(id, name, location)
+          `)
+          .eq('facility_id', managedFacility.id);
+
+        if (roomsError) {
+          console.error('Error fetching rooms for admin:', roomsError);
+          throw roomsError;
+        }
+
+        // Normalize the room data to match the expected format
+        roomsData = (rooms || []).map(room => ({
+          ...room,
+          facility: room.facilities ? {
+            id: room.facilities.id,
+            name: room.facilities.name,
+            location: room.facilities.location
+          } : null
+        }));
+      } else {
+        // Facility managers use the existing function
+        roomsData = await getRoomsByFacilityManager(user.id);
+      }
+      console.log(`🏠 [Reports] Found ${roomsData.length} rooms:`, roomsData);
       setRooms(roomsData);
-      
+
       // Get all resources for this facility
+      console.log(`🔧 [Reports] Loading resources for facility: ${managedFacility.id}`);
       const resourcesData = await getResourcesByFacility(managedFacility.id);
+      console.log(`🔧 [Reports] Found ${resourcesData.length} resources:`, resourcesData);
       setResources(resourcesData);
-      
+
       // Get all bookings for rooms in this facility
-      const bookingsData = await getAllBookingsByFacilityManager(user.id);
+      console.log(`📅 [Reports] Loading bookings for facility: ${managedFacility.id}`);
+      let bookingsData;
+      if (user.role === 'admin') {
+        // For admins, get all bookings for rooms in this facility
+        console.log(`📅 [Reports] Admin user - getting all bookings for facility ${managedFacility.id}`);
+        const roomIds = roomsData.map(room => room.id);
+        console.log(`📅 [Reports] Room IDs to query: ${roomIds.length} rooms`);
+
+        if (roomIds.length > 0) {
+          const { supabase } = await import('@/lib/supabase');
+          const { data: bookings, error: bookingsError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              rooms:room_id(id, name, location, capacity, facility_id),
+              users:user_id(id, name, email, department)
+            `)
+            .in('room_id', roomIds)
+            .order('start_time', { ascending: false });
+
+          if (bookingsError) {
+            console.error('Error fetching bookings for admin:', bookingsError);
+            throw bookingsError;
+          }
+
+          bookingsData = bookings || [];
+        } else {
+          console.log(`📅 [Reports] No rooms found, no bookings to fetch`);
+          bookingsData = [];
+        }
+      } else {
+        // Facility managers use the existing function
+        bookingsData = await getAllBookingsByFacilityManager(user.id);
+      }
+      console.log(`📅 [Reports] Found ${bookingsData.length} bookings:`, bookingsData);
       setBookings(bookingsData);
       
       setIsLoading(false);
@@ -187,23 +271,78 @@ export function useFacilityManagerReports(): UseReportsResult {
   
   // Filter bookings based on selected date range
   const filteredBookings = useMemo(() => {
-    if (!bookings.length) return [];
-    
+    if (!bookings.length) {
+      console.log(`📊 [Reports] No bookings to filter`);
+      return [];
+    }
+
     const { startDate, endDate } = getDateRangeFromOption(dateRange, customStartDate, customEndDate);
-    
-    return bookings.filter(booking => {
+    console.log(`📊 [Reports] Filtering ${bookings.length} bookings for date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+    // Log booking statuses for debugging
+    const statusCounts = bookings.reduce((acc, booking) => {
+      acc[booking.status] = (acc[booking.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log(`📊 [Reports] Booking status counts:`, statusCounts);
+
+    const filtered = bookings.filter(booking => {
       const bookingDate = new Date(booking.start_time);
-      return bookingDate >= startDate && bookingDate <= endDate;
+      const inRange = bookingDate >= startDate && bookingDate <= endDate;
+      if (!inRange) {
+        console.log(`📊 [Reports] Booking "${booking.title}" (${booking.status}) outside date range: ${bookingDate.toISOString()}`);
+      }
+      return inRange;
     });
+
+    console.log(`📊 [Reports] Filtered to ${filtered.length} bookings in date range`);
+
+    // Log filtered booking statuses
+    const filteredStatusCounts = filtered.reduce((acc, booking) => {
+      acc[booking.status] = (acc[booking.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log(`📊 [Reports] Filtered booking status counts:`, filteredStatusCounts);
+
+    return filtered;
   }, [bookings, dateRange, customStartDate, customEndDate]);
   
   // Calculate report data based on filtered bookings
   const reportData = useMemo((): ReportData | null => {
-    if (!filteredBookings.length || !rooms.length) return null;
+    console.log(`📊 [Reports] Calculating report data...`);
+    console.log(`📊 [Reports] Filtered bookings: ${filteredBookings.length}`);
+    console.log(`📊 [Reports] Rooms: ${rooms.length}`);
+
+    if (!filteredBookings.length || !rooms.length) {
+      console.log(`📊 [Reports] No data available - bookings: ${filteredBookings.length}, rooms: ${rooms.length}`);
+      return null;
+    }
     
     // Calculate KPIs
     const confirmedBookings = filteredBookings.filter(b => b.status === 'confirmed');
     const totalBookings = confirmedBookings.length;
+
+    console.log(`📊 [Reports] Processing ${filteredBookings.length} filtered bookings`);
+    console.log(`📊 [Reports] Found ${confirmedBookings.length} confirmed bookings`);
+
+    // Log some sample confirmed bookings for debugging
+    if (confirmedBookings.length > 0) {
+      console.log(`📊 [Reports] Sample confirmed bookings:`, confirmedBookings.slice(0, 3).map(b => ({
+        id: b.id,
+        title: b.title,
+        status: b.status,
+        start_time: b.start_time,
+        room: b.rooms?.name
+      })));
+    } else {
+      console.log(`📊 [Reports] No confirmed bookings found. All bookings:`, filteredBookings.map(b => ({
+        id: b.id,
+        title: b.title,
+        status: b.status,
+        start_time: b.start_time,
+        room: b.rooms?.name
+      })));
+    }
     
     // Calculate average booking duration
     const totalDuration = confirmedBookings.reduce((sum, booking) => {
@@ -341,29 +480,7 @@ export function useFacilityManagerReports(): UseReportsResult {
       }
     });
     
-    // Calculate resource demand
-    const resourceCounts: Record<string, { count: number, name: string }> = {};
-    confirmedBookings.forEach(booking => {
-      if (booking.resources && booking.resources.length) {
-        booking.resources.forEach(resourceId => {
-          const resource = resources.find(r => r.id === resourceId);
-          if (resource) {
-            if (!resourceCounts[resourceId]) {
-              resourceCounts[resourceId] = { count: 0, name: resource.name };
-            }
-            resourceCounts[resourceId].count++;
-          }
-        });
-      }
-    });
-    
-    const resourceDemand = Object.entries(resourceCounts)
-      .map(([resourceId, { count, name }]) => ({
-        resourceId,
-        resourceName: name,
-        count
-      }))
-      .sort((a, b) => b.count - a.count);
+    // Resource demand calculation removed as per requirements
     
     // Calculate resource status
     const resourceStatus = {
@@ -383,7 +500,6 @@ export function useFacilityManagerReports(): UseReportsResult {
       bookingsByDepartment,
       topUsers,
       bookingLeadTimes,
-      resourceDemand,
       resourceStatus,
       rawBookings: filteredBookings,
       rawRooms: rooms,

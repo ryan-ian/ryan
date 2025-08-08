@@ -36,15 +36,18 @@ const userFormSchema = z.object({
   role: z.enum(['user', 'facility_manager', 'admin'], {
     required_error: 'Please select a role.',
   }),
-  status: z.enum(['active', 'inactive'], {
+  status: z.enum(['active', 'inactive', 'suspended', 'locked'], {
     required_error: 'Please select a status.',
   }),
   department: z.string().optional(),
   position: z.string().optional(),
+  phone: z.string().optional(),
   password: z.string().min(8, {
     message: 'Password must be at least 8 characters.',
   }).optional(),
   confirmPassword: z.string().optional(),
+  suspensionReason: z.string().optional(),
+  suspendedUntil: z.string().optional(),
 }).refine((data) => {
   // If password is provided, confirmPassword must match
   if (data.password && data.confirmPassword) {
@@ -54,6 +57,15 @@ const userFormSchema = z.object({
 }, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => {
+  // If status is suspended, suspension details are required
+  if (data.status === 'suspended') {
+    return data.suspensionReason && data.suspendedUntil;
+  }
+  return true;
+}, {
+  message: "Suspension reason and end date are required for suspended users",
+  path: ["suspensionReason"],
 });
 
 type UserFormProps = {
@@ -77,8 +89,11 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
       status: user?.status || 'active',
       department: user?.department || '',
       position: user?.position || '',
+      phone: user?.phone || '',
       password: '',
       confirmPassword: '',
+      suspensionReason: user?.suspension_reason || '',
+      suspendedUntil: user?.suspended_until ? user.suspended_until.slice(0, 16) : '',
     },
   });
   
@@ -94,11 +109,18 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
         status: values.status,
         department: values.department || undefined,
         position: values.position || undefined,
+        phone: values.phone || undefined,
       };
-      
+
       // Add password only if provided (required for new users)
       if (values.password) {
         userData.password = values.password;
+      }
+
+      // Add suspension data if status is suspended
+      if (values.status === 'suspended') {
+        userData.suspension_reason = values.suspensionReason;
+        userData.suspended_until = values.suspendedUntil;
       }
       
       if (isEditMode && user) {
@@ -201,10 +223,12 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="locked">Locked</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  Inactive users cannot log in to the system.
+                  Controls user access to the system.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -238,7 +262,70 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="+1 (555) 123-4567" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
+
+        {/* Suspension fields - only show when status is suspended */}
+        {form.watch('status') === 'suspended' && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-medium mb-3 text-orange-700 dark:text-orange-400">
+              Suspension Details
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="suspendedUntil"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Suspended Until *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="datetime-local"
+                        {...field}
+                        min={new Date().toISOString().slice(0, 16)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Date and time when the suspension will be lifted.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="suspensionReason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Suspension Reason *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Reason for suspension..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Explain why the user is being suspended.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        )}
         
         {/* Password fields - required for new users, optional for edits */}
         <div className="border-t pt-4 mt-4">

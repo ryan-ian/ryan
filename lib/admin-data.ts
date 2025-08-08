@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, createAdminClient } from './supabase';
 
 // Types
 export interface SystemStats {
@@ -30,21 +30,50 @@ export interface User {
   email: string;
   name: string;
   role: 'user' | 'facility_manager' | 'admin';
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended' | 'locked';
   department?: string;
   position?: string;
+  phone?: string;
+  profile_image?: string;
   date_created: string;
   last_login?: string;
+  suspended_until?: string;
+  suspension_reason?: string;
+  failed_login_attempts?: number;
+  locked_until?: string;
+  created_by?: string;
+  updated_by?: string;
+  updated_at?: string;
 }
 
 export interface UserFormData {
   email: string;
   name: string;
   role: 'user' | 'facility_manager' | 'admin';
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended' | 'locked';
   department?: string;
   position?: string;
+  phone?: string;
   password?: string; // Only for new users
+  suspension_reason?: string;
+  suspended_until?: string;
+}
+
+export interface UserAuditLog {
+  id: string;
+  user_id: string;
+  action: 'created' | 'updated' | 'deleted' | 'activated' | 'deactivated' | 'suspended' | 'locked' | 'unlocked' | 'role_changed' | 'password_reset';
+  details: Record<string, any>;
+  performed_by: string;
+  performed_at: string;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+export interface BulkUserOperation {
+  action: 'activate' | 'deactivate' | 'suspend' | 'delete' | 'change_role';
+  user_ids: string[];
+  parameters?: Record<string, any>;
 }
 
 export interface Facility {
@@ -652,10 +681,525 @@ export async function deleteFacility(facilityId: string): Promise<void> {
       .from('facilities')
       .delete()
       .eq('id', facilityId);
-    
+
     if (error) throw error;
   } catch (error) {
     console.error(`Error deleting facility ${facilityId}:`, error);
     throw error;
   }
-} 
+}
+
+// ============================================================================
+// ENHANCED USER MANAGEMENT FUNCTIONS
+// ============================================================================
+
+/**
+ * Deletes a user account (soft delete by setting status to deleted)
+ * @param userId User ID to delete
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise<void>
+ */
+export async function deleteUser(userId: string, performedBy: string): Promise<void> {
+  try {
+    // First, check if user exists and get their current data for audit log
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Soft delete by updating status to 'inactive' and adding deletion metadata
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        status: 'inactive',
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+
+    // Disable the auth user
+    const { error: authError } = await supabase.auth.admin.updateUserById(
+      userId,
+      { ban_duration: 'none' } // Permanently ban
+    );
+
+    if (authError) throw authError;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'deleted',
+      details: {
+        previous_status: user.status,
+        user_email: user.email,
+        user_name: user.name,
+      },
+      performed_by: performedBy,
+    });
+
+  } catch (error) {
+    console.error(`Error deleting user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Suspends a user for a specified duration
+ * @param userId User ID to suspend
+ * @param suspendedUntil Date until which the user is suspended
+ * @param reason Reason for suspension
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with updated user
+ */
+export async function suspendUser(
+  userId: string,
+  suspendedUntil: string,
+  reason: string,
+  performedBy: string
+): Promise<User> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Use admin client to bypass RLS policies
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from('users')
+      .update({
+        status: 'suspended',
+        suspended_until: suspendedUntil,
+        suspension_reason: reason,
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'suspended',
+      details: {
+        previous_status: user.status,
+        suspended_until: suspendedUntil,
+        reason: reason,
+      },
+      performed_by: performedBy,
+    });
+
+    return data as User;
+  } catch (error) {
+    console.error(`Error suspending user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Unsuspends a user
+ * @param userId User ID to unsuspend
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with updated user
+ */
+export async function unsuspendUser(userId: string, performedBy: string): Promise<User> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Use admin client to bypass RLS policies
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from('users')
+      .update({
+        status: 'active',
+        suspended_until: null,
+        suspension_reason: null,
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'activated',
+      details: {
+        previous_status: user.status,
+        action_type: 'unsuspended',
+      },
+      performed_by: performedBy,
+    });
+
+    return data as User;
+  } catch (error) {
+    console.error(`Error unsuspending user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Locks a user account
+ * @param userId User ID to lock
+ * @param lockedUntil Date until which the user is locked (optional, permanent if not provided)
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with updated user
+ */
+export async function lockUser(userId: string, lockedUntil: string | null, performedBy: string): Promise<User> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        status: 'locked',
+        locked_until: lockedUntil,
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'locked',
+      details: {
+        previous_status: user.status,
+        locked_until: lockedUntil,
+      },
+      performed_by: performedBy,
+    });
+
+    return data as User;
+  } catch (error) {
+    console.error(`Error locking user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Unlocks a user account
+ * @param userId User ID to unlock
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with updated user
+ */
+export async function unlockUser(userId: string, performedBy: string): Promise<User> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        status: 'active',
+        locked_until: null,
+        failed_login_attempts: 0,
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'unlocked',
+      details: {
+        previous_status: user.status,
+      },
+      performed_by: performedBy,
+    });
+
+    return data as User;
+  } catch (error) {
+    console.error(`Error unlocking user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Changes a user's role
+ * @param userId User ID to update
+ * @param newRole New role to assign
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with updated user
+ */
+export async function changeUserRole(
+  userId: string,
+  newRole: 'user' | 'facility_manager' | 'admin',
+  performedBy: string
+): Promise<User> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        role: newRole,
+        updated_by: performedBy,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log the action
+    await logUserAction({
+      user_id: userId,
+      action: 'role_changed',
+      details: {
+        previous_role: user.role,
+        new_role: newRole,
+      },
+      performed_by: performedBy,
+    });
+
+    return data as User;
+  } catch (error) {
+    console.error(`Error changing role for user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Performs bulk operations on multiple users
+ * @param operation Bulk operation to perform
+ * @param performedBy ID of the admin performing the action
+ * @returns Promise with operation results
+ */
+export async function performBulkUserOperation(
+  operation: BulkUserOperation,
+  performedBy: string
+): Promise<{ success: string[], failed: { id: string, error: string }[] }> {
+  const results = {
+    success: [] as string[],
+    failed: [] as { id: string, error: string }[]
+  };
+
+  for (const userId of operation.user_ids) {
+    try {
+      switch (operation.action) {
+        case 'activate':
+          await setUserActiveStatus(userId, true);
+          await logUserAction({
+            user_id: userId,
+            action: 'activated',
+            details: { bulk_operation: true },
+            performed_by: performedBy,
+          });
+          break;
+
+        case 'deactivate':
+          await setUserActiveStatus(userId, false);
+          await logUserAction({
+            user_id: userId,
+            action: 'deactivated',
+            details: { bulk_operation: true },
+            performed_by: performedBy,
+          });
+          break;
+
+        case 'suspend':
+          if (operation.parameters?.suspended_until && operation.parameters?.reason) {
+            await suspendUser(
+              userId,
+              operation.parameters.suspended_until,
+              operation.parameters.reason,
+              performedBy
+            );
+          } else {
+            throw new Error('Suspension requires suspended_until and reason parameters');
+          }
+          break;
+
+        case 'delete':
+          await deleteUser(userId, performedBy);
+          break;
+
+        case 'change_role':
+          if (operation.parameters?.role) {
+            await changeUserRole(userId, operation.parameters.role, performedBy);
+          } else {
+            throw new Error('Role change requires role parameter');
+          }
+          break;
+
+        default:
+          throw new Error(`Unknown bulk operation: ${operation.action}`);
+      }
+
+      results.success.push(userId);
+    } catch (error) {
+      results.failed.push({
+        id: userId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Logs a user management action for audit purposes
+ * @param logData Audit log data
+ * @returns Promise<void>
+ */
+export async function logUserAction(logData: Omit<UserAuditLog, 'id' | 'performed_at'>): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_audit_logs')
+      .insert({
+        user_id: logData.user_id,
+        action: logData.action,
+        details: logData.details,
+        performed_by: logData.performed_by,
+        performed_at: new Date().toISOString(),
+        ip_address: logData.ip_address,
+        user_agent: logData.user_agent,
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error logging user action:', error);
+    // Don't throw here as audit logging failure shouldn't break the main operation
+  }
+}
+
+/**
+ * Fetches audit logs for a specific user
+ * @param userId User ID to fetch logs for
+ * @param limit Number of logs to fetch
+ * @returns Promise with audit logs
+ */
+export async function getUserAuditLogs(userId: string, limit = 50): Promise<UserAuditLog[]> {
+  try {
+    const { data, error } = await supabase
+      .from('user_audit_logs')
+      .select(`
+        *,
+        performed_by_user:performed_by(id, name, email)
+      `)
+      .eq('user_id', userId)
+      .order('performed_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    return data as UserAuditLog[];
+  } catch (error) {
+    console.error(`Error fetching audit logs for user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches all audit logs with pagination
+ * @param page Page number (1-indexed)
+ * @param pageSize Number of logs per page
+ * @param actionFilter Optional action filter
+ * @returns Promise with audit logs and total count
+ */
+export async function getAllAuditLogs(
+  page = 1,
+  pageSize = 50,
+  actionFilter?: string
+): Promise<{ logs: UserAuditLog[], totalCount: number }> {
+  try {
+    let query = supabase
+      .from('user_audit_logs')
+      .select(`
+        *,
+        user:user_id(id, name, email),
+        performed_by_user:performed_by(id, name, email)
+      `, { count: 'exact' });
+
+    if (actionFilter) {
+      query = query.eq('action', actionFilter);
+    }
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, count, error } = await query
+      .order('performed_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    return {
+      logs: data as UserAuditLog[],
+      totalCount: count || 0
+    };
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets user statistics for admin dashboard
+ * @returns Promise with user statistics
+ */
+export async function getUserStatistics(): Promise<{
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  suspendedUsers: number;
+  lockedUsers: number;
+  adminUsers: number;
+  facilityManagers: number;
+  regularUsers: number;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('status, role');
+
+    if (error) throw error;
+
+    const stats = {
+      totalUsers: data.length,
+      activeUsers: data.filter(u => u.status === 'active').length,
+      inactiveUsers: data.filter(u => u.status === 'inactive').length,
+      suspendedUsers: data.filter(u => u.status === 'suspended').length,
+      lockedUsers: data.filter(u => u.status === 'locked').length,
+      adminUsers: data.filter(u => u.role === 'admin').length,
+      facilityManagers: data.filter(u => u.role === 'facility_manager').length,
+      regularUsers: data.filter(u => u.role === 'user').length,
+    };
+
+    return stats;
+  } catch (error) {
+    console.error('Error fetching user statistics:', error);
+    throw error;
+  }
+}

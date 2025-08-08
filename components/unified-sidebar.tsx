@@ -44,8 +44,10 @@ export function UnifiedSidebar({ className, isCollapsed = false, onToggleCollaps
   // Function to render nav items
   const renderNavItems = (items: NavItem[]) => {
     return items.map((item) => {
-      const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-      
+      // Fix: don't treat the root dashboard as active for every nested route
+      const isRootDashboard = item.href === '/facility-manager'
+      const isActive = pathname === item.href || (!isRootDashboard && pathname?.startsWith(`${item.href}/`))
+
       return (
         <li key={item.href}>
           {isCollapsed ? (
@@ -56,8 +58,8 @@ export function UnifiedSidebar({ className, isCollapsed = false, onToggleCollaps
                     href={item.href}
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-md",
-                      isActive 
-                        ? "bg-primary text-primary-foreground" 
+                      isActive
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
@@ -74,8 +76,10 @@ export function UnifiedSidebar({ className, isCollapsed = false, onToggleCollaps
             <Link
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-muted",
-                isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground"
+                "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
+                isActive
+                  ? "bg-emerald-500/10 text-emerald-400 font-medium border-l-2 border-emerald-400"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <item.icon className="h-5 w-5" />

@@ -94,7 +94,7 @@ export function ImageUpload({
 
   return (
     <div className={cn("space-y-2", className)}>
-      {!className?.includes("flex") && <Label htmlFor="image-upload">Room Image</Label>}
+      {/* {!className?.includes("flex") && <Label htmlFor="image-upload">Room Image</Label>} */}
       
       <div className={cn(
         "border border-dashed border-gray-300 rounded-md",

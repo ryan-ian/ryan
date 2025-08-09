@@ -44,6 +44,9 @@ export function StatusBadge({
       case "occupied":
       case "in-use":
         return "bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-500/20"
+      case "meeting-in-progress":
+      case "reserved":
+        return "bg-purple-500/10 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border-purple-500/20"
       default:
         return "bg-gray-500/10 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300 border-gray-500/20"
     }
@@ -64,6 +67,10 @@ export function StatusBadge({
       case "occupied":
       case "in-use":
         return <Clock className={sizeClasses.icon} />
+      case "meeting-in-progress":
+        return <CheckCircle className={sizeClasses.icon} />
+      case "reserved":
+        return <AlertCircle className={sizeClasses.icon} />
       default:
         return <HelpCircle className={sizeClasses.icon} />
     }

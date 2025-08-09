@@ -24,7 +24,7 @@ import Link from "next/link"
 import type { Room, Booking, Resource } from "@/types"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { ProtectedRoute } from "@/components/protected-route"
-import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
+import { BookingCreationModalModern } from "@/components/bookings/booking-creation-modal-modern"
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { slugify } from "@/lib/utils"
@@ -392,7 +392,7 @@ export default function RoomDetailPage() {
           </div>
         </div>
       </div>
-      <BookingCreationModal
+      <BookingCreationModalModern
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
         room={room}

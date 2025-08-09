@@ -70,13 +70,13 @@ export function Footer() {
               <li className="text-sm">
                 <span className="block text-muted-foreground">Email:</span>
                 <a href="mailto:support@conferencehub.com" className="hover:text-primary transition-colors">
-                  support@conferencehub.com
+                  conferencehupproject@gmail.com
                 </a>
               </li>
               <li className="text-sm">
                 <span className="block text-muted-foreground">Phone:</span>
                 <a href="tel:+1234567890" className="hover:text-primary transition-colors">
-                  +1 (234) 567-890
+                  +233506852940
                 </a>
               </li>
             </ul>

@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { CheckCircle, Clock, AlertTriangle, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type RoomStatusType = 
-  | "available" 
-  | "occupied" 
-  | "maintenance" 
+export type RoomStatusType =
+  | "available"
+  | "occupied"
+  | "maintenance"
   | "reserved"
+  | "meeting-in-progress"
 
 interface RoomStatusIndicatorProps {
   status: RoomStatusType
@@ -45,6 +46,8 @@ export function RoomStatusIndicator({
         return "text-blue-500"
       case "reserved":
         return "text-yellow-500"
+      case "meeting-in-progress":
+        return "text-purple-500"
       case "maintenance":
         return "text-red-500"
       default:
@@ -60,6 +63,8 @@ export function RoomStatusIndicator({
         return <Clock className={cn(sizeClasses[size], "stroke-2")} />
       case "reserved":
         return <AlertTriangle className={cn(sizeClasses[size], "stroke-2")} />
+      case "meeting-in-progress":
+        return <CheckCircle className={cn(sizeClasses[size], "stroke-2")} />
       case "maintenance":
         return <XCircle className={cn(sizeClasses[size], "stroke-2")} />
       default:

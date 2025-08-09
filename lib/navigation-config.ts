@@ -40,6 +40,11 @@ export const navigationConfig: SidebarConfig = {
       icon: Building,
     },
     {
+      title: "Rooms",
+      href: "/admin/conference/rooms",
+      icon: Building2,
+    },
+    {
       title: "Reports & Analytics",
       href: "/admin/conference/reports",
       icon: BarChart4,

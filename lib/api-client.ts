@@ -788,32 +788,31 @@ class ApiClient {
       switch (reportType) {
         case 'room-utilization': {
           const { startDate, endDate, facilityId } = params;
-          
+
+          // First, get all bookings with room information
           let query = supabase
             .from('bookings')
             .select(`
               room_id,
-              rooms!inner(name, capacity, facility_id),
-              count(*),
-              sum(extract(epoch from (end_time - start_time)) / 3600)::float as total_hours
+              start_time,
+              end_time,
+              rooms!inner(name, capacity, facility_id)
             `);
-          
+
           if (startDate) {
             query = query.gte('start_time', startDate);
           }
-          
+
           if (endDate) {
             query = query.lte('end_time', endDate);
           }
-          
+
           if (facilityId) {
             query = query.eq('rooms.facility_id', facilityId);
           }
-          
-          const { data, error } = await query
-            .group('room_id, rooms.name, rooms.capacity, rooms.facility_id')
-            .order('total_hours', { ascending: false });
-          
+
+          const { data: bookings, error } = await query.order('start_time');
+
           if (error) {
             return {
               data: null,
@@ -821,9 +820,12 @@ class ApiClient {
               status: 400
             };
           }
-          
+
+          // Group and aggregate data on the client side
+          const roomUtilization = this.aggregateRoomUtilization(bookings || []);
+
           return {
-            data: data,
+            data: roomUtilization,
             error: null,
             status: 200
           };
@@ -862,18 +864,17 @@ class ApiClient {
         
         case 'department-usage': {
           const { startDate, endDate } = params;
-          
-          const { data, error } = await supabase
+
+          // Get bookings with user department information
+          const { data: bookings, error } = await supabase
             .from('bookings')
             .select(`
-              users!inner(department),
-              count(*) as booking_count
+              users!inner(department)
             `)
             .gte('start_time', startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
             .lte('end_time', endDate || new Date().toISOString())
-            .group('users.department')
-            .order('booking_count', { ascending: false });
-          
+            .order('start_time');
+
           if (error) {
             return {
               data: null,
@@ -881,9 +882,12 @@ class ApiClient {
               status: 400
             };
           }
-          
+
+          // Group by department on the client side
+          const departmentUsage = this.aggregateDepartmentUsage(bookings || []);
+
           return {
-            data: data,
+            data: departmentUsage,
             error: null,
             status: 200
           };
@@ -954,6 +958,56 @@ class ApiClient {
     
     // Convert to array and sort by date
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Helper method for aggregating room utilization data
+  private aggregateRoomUtilization(bookings: any[]): any[] {
+    const roomData: { [key: string]: { room_id: string, rooms: any, count: number, total_hours: number } } = {};
+
+    bookings.forEach(booking => {
+      const roomId = booking.room_id;
+
+      if (!roomData[roomId]) {
+        roomData[roomId] = {
+          room_id: roomId,
+          rooms: booking.rooms,
+          count: 0,
+          total_hours: 0
+        };
+      }
+
+      roomData[roomId].count++;
+
+      // Calculate duration in hours
+      const startTime = new Date(booking.start_time);
+      const endTime = new Date(booking.end_time);
+      const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+      roomData[roomId].total_hours += durationHours;
+    });
+
+    // Convert to array and sort by total hours (descending)
+    return Object.values(roomData).sort((a, b) => b.total_hours - a.total_hours);
+  }
+
+  // Helper method for aggregating department usage data
+  private aggregateDepartmentUsage(bookings: any[]): any[] {
+    const departmentData: { [key: string]: { users: { department: string }, booking_count: number } } = {};
+
+    bookings.forEach(booking => {
+      const department = booking.users?.department || 'Unknown';
+
+      if (!departmentData[department]) {
+        departmentData[department] = {
+          users: { department },
+          booking_count: 0
+        };
+      }
+
+      departmentData[department].booking_count++;
+    });
+
+    // Convert to array and sort by booking count (descending)
+    return Object.values(departmentData).sort((a, b) => b.booking_count - a.booking_count);
   }
 
   // Export report data as CSV

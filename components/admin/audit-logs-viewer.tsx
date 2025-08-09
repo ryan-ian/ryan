@@ -66,7 +66,7 @@ export function AuditLogsViewer({ userId, className }: AuditLogsViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
-  const [actionFilter, setActionFilter] = useState<string>('');
+  const [actionFilter, setActionFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLog, setSelectedLog] = useState<UserAuditLog | null>(null);
 
@@ -77,9 +77,10 @@ export function AuditLogsViewer({ userId, className }: AuditLogsViewerProps) {
   const fetchLogs = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const result = await getAllAuditLogs(page, pageSize, actionFilter || undefined);
+      const filterValue = actionFilter === 'all' ? undefined : actionFilter || undefined;
+      const result = await getAllAuditLogs(page, pageSize, filterValue);
       setLogs(result.logs);
       setTotalCount(result.totalCount);
     } catch (err) {
@@ -192,7 +193,7 @@ export function AuditLogsViewer({ userId, className }: AuditLogsViewerProps) {
               <SelectValue placeholder="Filter by action" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Actions</SelectItem>
+              <SelectItem value="all">All Actions</SelectItem>
               <SelectItem value="created">Created</SelectItem>
               <SelectItem value="updated">Updated</SelectItem>
               <SelectItem value="deleted">Deleted</SelectItem>

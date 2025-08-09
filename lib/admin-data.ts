@@ -31,7 +31,7 @@ export interface User {
   name: string;
   role: 'user' | 'facility_manager' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'locked';
-  department?: string;
+  department: string;
   position?: string;
   phone?: string;
   profile_image?: string;
@@ -80,9 +80,10 @@ export interface Facility {
   id: string;
   name: string;
   description?: string;
-  location?: string;
+  location: string;
   created_at: string;
-  facility_manager_id?: string;
+  updated_at: string;
+  manager_id?: string;
   facility_manager?: User;
 }
 
@@ -90,7 +91,7 @@ export interface FacilityFormData {
   name: string;
   description?: string;
   location?: string;
-  facility_manager_id?: string;
+  manager_id?: string;
 }
 
 /**
@@ -220,27 +221,55 @@ export async function getBookingTrends(
   limit = 12
 ): Promise<BookingTrend[]> {
   try {
-    // This would typically be a complex database query with aggregation
-    // For now, we'll return mock data
-    // In a real implementation, you would use SQL functions like date_trunc to group by month/day
+    // Get the date range for the query
+    const endDate = new Date();
+    const startDate = new Date();
 
-    // Example of how you might implement this with Supabase
-    // const { data, error } = await supabase.rpc('get_booking_trends', { 
-    //   p_period: period,
-    //   p_limit: limit
-    // });
+    if (period === 'month') {
+      startDate.setMonth(endDate.getMonth() - limit);
+    } else {
+      startDate.setDate(endDate.getDate() - limit);
+    }
 
-    // if (error) throw error;
-    // return data;
+    // Fetch bookings within the date range
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('created_at')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: true });
 
-    // Mock data for demonstration
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const mockData: BookingTrend[] = months.map(month => ({
-      name: month,
-      bookings: Math.floor(Math.random() * 100) + 20,
+    if (error) throw error;
+
+    // Group bookings by period
+    const groupedData: { [key: string]: number } = {};
+
+    bookings?.forEach(booking => {
+      const date = new Date(booking.created_at);
+      let key: string;
+
+      if (period === 'month') {
+        key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      } else {
+        key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      groupedData[key] = (groupedData[key] || 0) + 1;
+    });
+
+    // Convert to array format expected by the chart
+    const result: BookingTrend[] = Object.entries(groupedData).map(([name, bookings]) => ({
+      name,
+      bookings,
     }));
 
-    return mockData.slice(0, limit);
+    // If no data, return empty array with proper structure
+    if (result.length === 0) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      return [{ name: currentMonth, bookings: 0 }];
+    }
+
+    return result.slice(-limit); // Return the most recent data points
   } catch (error) {
     console.error('Error fetching booking trends:', error);
     throw error;
@@ -258,31 +287,66 @@ export async function getUserGrowth(
   limit = 12
 ): Promise<UserGrowth[]> {
   try {
-    // Similar to booking trends, this would be a complex database query
-    // For now, we'll return mock data
+    // Get the date range for the query
+    const endDate = new Date();
+    const startDate = new Date();
 
-    // Example implementation with Supabase
-    // const { data, error } = await supabase.rpc('get_user_growth', { 
-    //   p_period: period,
-    //   p_limit: limit
-    // });
+    if (period === 'month') {
+      startDate.setMonth(endDate.getMonth() - limit);
+    } else {
+      startDate.setDate(endDate.getDate() - limit);
+    }
 
-    // if (error) throw error;
-    // return data;
+    // Fetch users within the date range
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('date_created')
+      .gte('date_created', startDate.toISOString())
+      .lte('date_created', endDate.toISOString())
+      .order('date_created', { ascending: true });
 
-    // Mock data for demonstration
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    let userCount = 10;
-    const mockData: UserGrowth[] = months.map(month => {
-      const growth = Math.floor(Math.random() * 10) + 5;
-      userCount += growth;
+    if (error) throw error;
+
+    // Group users by period and calculate cumulative growth
+    const groupedData: { [key: string]: number } = {};
+
+    users?.forEach(user => {
+      const date = new Date(user.date_created);
+      let key: string;
+
+      if (period === 'month') {
+        key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      } else {
+        key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      groupedData[key] = (groupedData[key] || 0) + 1;
+    });
+
+    // Get total users count for cumulative calculation
+    const { count: totalUsers, error: countError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    // Convert to array format with cumulative growth
+    let cumulativeUsers = (totalUsers || 0) - (users?.length || 0);
+    const result: UserGrowth[] = Object.entries(groupedData).map(([name, newUsers]) => {
+      cumulativeUsers += newUsers;
       return {
-        name: month,
-        users: userCount,
+        name,
+        users: cumulativeUsers,
       };
     });
 
-    return mockData.slice(0, limit);
+    // If no data, return current user count
+    if (result.length === 0) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      return [{ name: currentMonth, users: totalUsers || 0 }];
+    }
+
+    return result.slice(-limit); // Return the most recent data points
   } catch (error) {
     console.error('Error fetching user growth:', error);
     throw error;
@@ -504,25 +568,28 @@ export async function setUserActiveStatus(userId: string, isActive: boolean): Pr
  */
 export async function getAvailableFacilityManagers(): Promise<User[]> {
   try {
+    // Use admin client to access all user data
+    const adminClient = createAdminClient();
+
     // Get facility managers
-    const { data: managers, error: managersError } = await supabase
+    const { data: managers, error: managersError } = await adminClient
       .from('users')
       .select('*')
       .eq('role', 'facility_manager')
       .eq('status', 'active');
-    
+
     if (managersError) throw managersError;
-    
+
     // Get facility managers who are already assigned to facilities
-    const { data: assignedManagers, error: assignedError } = await supabase
+    const { data: assignedManagers, error: assignedError } = await adminClient
       .from('facilities')
-      .select('facility_manager_id')
-      .not('facility_manager_id', 'is', null);
-    
+      .select('manager_id')
+      .not('manager_id', 'is', null);
+
     if (assignedError) throw assignedError;
-    
+
     // Filter out managers who are already assigned
-    const assignedManagerIds = assignedManagers.map(f => f.facility_manager_id);
+    const assignedManagerIds = assignedManagers.map(f => f.manager_id);
     const availableManagers = managers.filter(m => !assignedManagerIds.includes(m.id));
     
     return availableManagers as User[];
@@ -540,16 +607,18 @@ export async function getAvailableFacilityManagers(): Promise<User[]> {
  * @returns Promise with facilities and total count
  */
 export async function getFacilities(
-  page = 1, 
-  pageSize = 10, 
+  page = 1,
+  pageSize = 10,
   searchQuery?: string
 ): Promise<{ facilities: Facility[], totalCount: number }> {
   try {
-    let query = supabase
+    // Use admin client to ensure we can access all facility data
+    const adminClient = createAdminClient();
+    let query = adminClient
       .from('facilities')
       .select(`
         *,
-        facility_manager:facility_manager_id(id, name, email)
+        facility_manager:manager_id(id, name, email)
       `, { count: 'exact' });
     
     // Apply search filter if provided
@@ -584,23 +653,26 @@ export async function getFacilities(
  */
 export async function getFacilityById(facilityId: string): Promise<Facility | null> {
   try {
-    const { data, error } = await supabase
+    // Use admin client to ensure we can access all facility data
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('facilities')
       .select(`
         *,
-        facility_manager:facility_manager_id(id, name, email)
+        facility_manager:manager_id(id, name, email)
       `)
       .eq('id', facilityId)
       .single();
-    
+
     if (error) {
       if (error.code === 'PGRST116') {
         // PGRST116 is the error code for "no rows returned"
         return null;
       }
+      console.error(`Error fetching facility ${facilityId}:`, error);
       throw error;
     }
-    
+
     return data as Facility;
   } catch (error) {
     console.error(`Error fetching facility ${facilityId}:`, error);
@@ -615,17 +687,19 @@ export async function getFacilityById(facilityId: string): Promise<Facility | nu
  */
 export async function createFacility(facilityData: FacilityFormData): Promise<Facility> {
   try {
-    const { data, error } = await supabase
+    // Use admin client to ensure we can create facilities
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('facilities')
       .insert({
         name: facilityData.name,
         description: facilityData.description,
         location: facilityData.location,
-        facility_manager_id: facilityData.facility_manager_id,
+        manager_id: facilityData.manager_id,
       })
       .select(`
         *,
-        facility_manager:facility_manager_id(id, name, email)
+        facility_manager:manager_id(id, name, email)
       `)
       .single();
     
@@ -646,18 +720,20 @@ export async function createFacility(facilityData: FacilityFormData): Promise<Fa
  */
 export async function updateFacility(facilityId: string, facilityData: Partial<FacilityFormData>): Promise<Facility> {
   try {
-    const { data, error } = await supabase
+    // Use admin client to ensure we can update facilities
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('facilities')
       .update({
         name: facilityData.name,
         description: facilityData.description,
         location: facilityData.location,
-        facility_manager_id: facilityData.facility_manager_id,
+        manager_id: facilityData.manager_id,
       })
       .eq('id', facilityId)
       .select(`
         *,
-        facility_manager:facility_manager_id(id, name, email)
+        facility_manager:manager_id(id, name, email)
       `)
       .single();
     

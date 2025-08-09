@@ -22,17 +22,19 @@ interface UserStatusBadgeProps {
   suspensionReason?: string;
   className?: string;
   showRole?: boolean;
+  showStatus?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function UserStatusBadge({ 
-  status, 
+export function UserStatusBadge({
+  status,
   role,
-  suspendedUntil, 
-  lockedUntil, 
+  suspendedUntil,
+  lockedUntil,
   suspensionReason,
   className,
   showRole = false,
+  showStatus = true,
   size = 'md'
 }: UserStatusBadgeProps) {
   const getStatusConfig = () => {
@@ -148,24 +150,26 @@ export function UserStatusBadge({
   return (
     <TooltipProvider>
       <div className={cn('flex items-center gap-1', className)}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant={statusConfig.variant}
-              className={cn(
-                statusConfig.className,
-                sizeClasses[size],
-                'flex items-center gap-1 font-medium border'
-              )}
-            >
-              <StatusIcon className={iconSizes[size]} />
-              {statusConfig.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{statusConfig.tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
+        {showStatus && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant={statusConfig.variant}
+                className={cn(
+                  statusConfig.className,
+                  sizeClasses[size],
+                  'flex items-center gap-1 font-medium border'
+                )}
+              >
+                <StatusIcon className={iconSizes[size]} />
+                {statusConfig.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{statusConfig.tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {showRole && (
           <Tooltip>

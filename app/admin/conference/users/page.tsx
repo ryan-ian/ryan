@@ -1,6 +1,7 @@
+/** @jsxImportSource react */
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useUsers } from '@/hooks/use-users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -200,7 +201,7 @@ export default function UserManagementPage() {
         <div className="text-center p-6 max-w-md bg-red-50 rounded-lg">
           <h2 className="text-xl font-bold text-red-700 mb-2">Error</h2>
           <p className="text-red-600">{error}</p>
-          <Button 
+          <Button
             className="mt-4"
             onClick={() => fetchUsers()}
           >
@@ -211,9 +212,9 @@ export default function UserManagementPage() {
       </div>
     );
   }
-  
+
   return (
-    <UserManagementRoute>
+    <div>
       <div className="p-6 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -229,7 +230,7 @@ export default function UserManagementPage() {
               Add User
             </Button>
           )}
-          </div>
+        </div>
 
         <Card>
           <CardHeader className="pb-3">
@@ -320,7 +321,8 @@ export default function UserManagementPage() {
                         <TableHead>Role</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        {/* Temporarily hidden - Actions column */}
+                        {/* <TableHead className="text-right">Actions</TableHead> */}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -344,10 +346,12 @@ export default function UserManagementPage() {
                           </TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>
+                            {/* Modified to show only role without status badge */}
                             <UserStatusBadge
                               status={user.status}
                               role={user.role}
                               showRole={true}
+                              showStatus={false}
                               size="sm"
                             />
                           </TableCell>
@@ -359,6 +363,8 @@ export default function UserManagementPage() {
                               lockedUntil={user.locked_until}
                             />
                           </TableCell>
+                          {/* Temporarily hidden - Actions dropdown */}
+                          {/*
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -430,6 +436,7 @@ export default function UserManagementPage() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
+                          */}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -525,6 +532,6 @@ export default function UserManagementPage() {
           onSuccess={handleLockSuccess}
         />
       </div>
-    </UserManagementRoute>
+    </div>
   );
 }

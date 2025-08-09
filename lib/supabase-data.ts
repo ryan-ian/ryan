@@ -302,6 +302,50 @@ export async function getRoomsByFacilityManager(userId: string): Promise<types.R
   }
 }
 
+export async function getRoomsByFacilityId(facilityId: string): Promise<types.Room[]> {
+  try {
+    // Get all rooms that belong to the specified facility with explicit join
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select(`*, facilities!facility_id(id, name, location)`)
+      .eq('facility_id', facilityId);
+
+    if (roomsError) {
+      console.error(`Error fetching rooms for facility ${facilityId}:`, roomsError);
+      throw roomsError;
+    }
+
+    // Normalize facility property
+    const normalizedRooms = rooms ? rooms.map(room => {
+      let normalizedFacility = null;
+      if (room.facilities) {
+        normalizedFacility = {
+          id: room.facilities.id,
+          name: room.facilities.name,
+          location: room.facilities.location
+        };
+      } else if (room.facility_id) {
+        normalizedFacility = {
+          id: room.facility_id,
+          name: "Unknown Facility",
+          location: "Unknown Location"
+        };
+      }
+
+      return {
+        ...room,
+        facility: normalizedFacility,
+        facilities: undefined
+      };
+    }) : [];
+
+    return normalizedRooms;
+  } catch (error) {
+    console.error('Exception in getRoomsByFacilityId:', error);
+    throw error;
+  }
+}
+
 
 export async function getRooms(): Promise<types.Room[]> {
   try {

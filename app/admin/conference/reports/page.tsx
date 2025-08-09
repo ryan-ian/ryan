@@ -5,7 +5,7 @@ import { useReports } from '@/hooks/use-reports';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Download, BarChart, PieChart, Building } from 'lucide-react';
+import { Calendar, Download, BarChart, Building } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   BarChart as RechartsBarChart,
@@ -16,9 +16,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import {
   Table,
@@ -37,8 +34,7 @@ import {
 } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 
-// Define chart colors
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658'];
+
 
 // Helper function to download CSV
 function downloadCsv(csvContent: string, fileName: string) {
@@ -79,13 +75,7 @@ export default function ReportsPage() {
     },
   });
   
-  const departmentUsage = useReports({
-    reportType: 'department-usage',
-    initialParams: {
-      startDate: startDate?.toISOString(),
-      endDate: endDate?.toISOString(),
-    },
-  });
+
   
   // Update report parameters when date range changes
   useEffect(() => {
@@ -105,11 +95,6 @@ export default function ReportsPage() {
         ...dateParams,
         interval,
       });
-      
-      departmentUsage.setParams({
-        ...departmentUsage.params,
-        ...dateParams,
-      });
     }
   }, [startDate, endDate, interval]);
   
@@ -119,10 +104,8 @@ export default function ReportsPage() {
       roomUtilization.fetchReport();
     } else if (activeTab === 'booking-trends') {
       bookingTrends.fetchReport();
-    } else if (activeTab === 'department-usage') {
-      departmentUsage.fetchReport();
     }
-  }, [activeTab, roomUtilization.params, bookingTrends.params, departmentUsage.params]);
+  }, [activeTab, roomUtilization.params, bookingTrends.params]);
   
   // Handle export for the active report
   const handleExport = async () => {
@@ -135,9 +118,6 @@ export default function ReportsPage() {
     } else if (activeTab === 'booking-trends') {
       csvData = await bookingTrends.exportAsCsv();
       fileName = `booking-trends-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    } else if (activeTab === 'department-usage') {
-      csvData = await departmentUsage.exportAsCsv();
-      fileName = `department-usage-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     }
     
     if (csvData) {
@@ -145,13 +125,7 @@ export default function ReportsPage() {
     }
   };
   
-  // Format data for pie chart (department usage)
-  const formatDepartmentData = () => {
-    return departmentUsage.data.map((item: any) => ({
-      name: item.users?.department || 'Unknown',
-      value: parseInt(item.booking_count),
-    }));
-  };
+
 
   return (
     <div className="space-y-6">
@@ -159,8 +133,7 @@ export default function ReportsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
         <Button onClick={handleExport} disabled={
           (activeTab === 'room-utilization' && roomUtilization.isLoading) ||
-          (activeTab === 'booking-trends' && bookingTrends.isLoading) ||
-          (activeTab === 'department-usage' && departmentUsage.isLoading)
+          (activeTab === 'booking-trends' && bookingTrends.isLoading)
         }>
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
@@ -175,8 +148,7 @@ export default function ReportsPage() {
               setDate={setStartDate}
               disabled={
                 (activeTab === 'room-utilization' && roomUtilization.isLoading) ||
-                (activeTab === 'booking-trends' && bookingTrends.isLoading) ||
-                (activeTab === 'department-usage' && departmentUsage.isLoading)
+                (activeTab === 'booking-trends' && bookingTrends.isLoading)
               }
             />
           </div>
@@ -187,8 +159,7 @@ export default function ReportsPage() {
               setDate={setEndDate}
               disabled={
                 (activeTab === 'room-utilization' && roomUtilization.isLoading) ||
-                (activeTab === 'booking-trends' && bookingTrends.isLoading) ||
-                (activeTab === 'department-usage' && departmentUsage.isLoading)
+                (activeTab === 'booking-trends' && bookingTrends.isLoading)
               }
             />
           </div>
@@ -216,7 +187,7 @@ export default function ReportsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="room-utilization">
             <Building className="mr-2 h-4 w-4" />
             Room Utilization
@@ -224,10 +195,6 @@ export default function ReportsPage() {
           <TabsTrigger value="booking-trends">
             <BarChart className="mr-2 h-4 w-4" />
             Booking Trends
-          </TabsTrigger>
-          <TabsTrigger value="department-usage">
-            <PieChart className="mr-2 h-4 w-4" />
-            Department Usage
           </TabsTrigger>
         </TabsList>
         
@@ -332,22 +299,82 @@ export default function ReportsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="h-[400px]">
+                  <div className="h-[500px] p-4 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-brand-navy-900 dark:to-brand-navy-800 rounded-xl border border-brand-navy-200 dark:border-brand-navy-700">
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsBarChart
                         data={bookingTrends.data}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 30, right: 40, left: 20, bottom: 20 }}
+                        barCategoryGap="20%"
                       >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="confirmed" name="Confirmed" fill="#00C49F" stackId="a" />
-                        <Bar dataKey="pending" name="Pending" fill="#FFBB28" stackId="a" />
-                        <Bar dataKey="cancelled" name="Cancelled" fill="#FF8042" stackId="a" />
+                        <defs>
+                          <linearGradient id="confirmedGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor="#10b981" stopOpacity={0.3}/>
+                          </linearGradient>
+                          <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                          </linearGradient>
+                          <linearGradient id="cancelledGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="#e2e8f0"
+                          strokeOpacity={0.5}
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="#64748b"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          }}
+                        />
+                        <Legend
+                          wrapperStyle={{
+                            paddingTop: '20px',
+                          }}
+                        />
+                        <Bar
+                          dataKey="confirmed"
+                          name="Confirmed"
+                          fill="url(#confirmedGradient)"
+                          stackId="a"
+                          radius={[0, 0, 4, 4]}
+                        />
+                        <Bar
+                          dataKey="pending"
+                          name="Pending"
+                          fill="url(#pendingGradient)"
+                          stackId="a"
+                          radius={[0, 0, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="cancelled"
+                          name="Cancelled"
+                          fill="url(#cancelledGradient)"
+                          stackId="a"
+                          radius={[4, 4, 0, 0]}
+                        />
                       </RechartsBarChart>
-              </ResponsiveContainer>
+                    </ResponsiveContainer>
                   </div>
                   
                   <div className="border rounded-md">
@@ -380,76 +407,7 @@ export default function ReportsPage() {
         </Card>
         </TabsContent>
 
-        {/* Department Usage Tab */}
-        <TabsContent value="department-usage">
-        <Card>
-          <CardHeader>
-              <CardTitle>Department Usage Report</CardTitle>
-              <CardDescription>
-                View which departments are booking rooms most frequently.
-              </CardDescription>
-          </CardHeader>
-          <CardContent>
-              {departmentUsage.isLoading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                </div>
-              ) : departmentUsage.error ? (
-                <div className="bg-destructive/15 text-destructive p-4 rounded-md">
-                  {departmentUsage.error}
-                </div>
-              ) : departmentUsage.data.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No department usage data available for the selected period.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="h-[400px] flex justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                  <Pie
-                          data={formatDepartmentData()}
-                    cx="50%"
-                    cy="50%"
-                          labelLine={true}
-                          label={({ name, percent }) => `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`}
-                          outerRadius={150}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                          {formatDepartmentData().map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                        <Tooltip formatter={(value, name) => [`${value} bookings`, name]} />
-                        <Legend />
-                      </RechartsPieChart>
-              </ResponsiveContainer>
-            </div>
-                  
-                  <div className="border rounded-md">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Department</TableHead>
-                          <TableHead>Number of Bookings</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {departmentUsage.data.map((item: any, index: number) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{item.users?.department || 'Unknown'}</TableCell>
-                            <TableCell>{item.booking_count}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-            </div>
-            </div>
-              )}
-          </CardContent>
-        </Card>
-        </TabsContent>
+
       </Tabs>
     </div>
   );

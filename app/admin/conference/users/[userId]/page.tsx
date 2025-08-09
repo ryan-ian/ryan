@@ -112,6 +112,8 @@ export default function UserProfilePage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Temporarily hidden - Lock User and Suspend Account buttons */}
+          {/*
           <Button variant="outline" onClick={() => setIsSuspensionDialogOpen(true)}>
             <AlertTriangle className="h-4 w-4 mr-2" />
             {user.status === 'suspended' ? 'Manage Suspension' : 'Suspend User'}
@@ -120,6 +122,7 @@ export default function UserProfilePage() {
             <Lock className="h-4 w-4 mr-2" />
             {user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
           </Button>
+          */}
           <Button>
             <Edit className="h-4 w-4 mr-2" />
             Edit Profile
@@ -175,9 +178,12 @@ export default function UserProfilePage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          {/* Temporarily hidden - Other tabs */}
+          {/*
           <TabsTrigger value="activity">Activity History</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          */}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">

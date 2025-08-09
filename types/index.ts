@@ -25,8 +25,14 @@ export interface Facility {
   location: string
   description?: string
   manager_id?: string
+  facility_manager?: { // Relationship data from admin queries
+    id: string
+    name: string
+    email: string
+  }
   created_at: string
   updated_at: string
+  status?: "active" | "inactive"
   roomCount?: number
   utilization?: number
 }

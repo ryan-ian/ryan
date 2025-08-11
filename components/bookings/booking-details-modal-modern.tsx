@@ -28,7 +28,7 @@ import {
   User
 } from "lucide-react"
 import type { Booking, Room } from "@/types"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
@@ -169,6 +169,22 @@ export function BookingDetailsModalModern({
             </Alert>
           )}
 
+          {/* Rejection Reason - Prominently displayed for cancelled bookings */}
+          {currentBooking.status === "cancelled" && currentBooking.rejection_reason && (
+            <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
+              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <AlertTitle className="text-red-800 dark:text-red-200 font-semibold">
+                Booking Rejected
+              </AlertTitle>
+              <AlertDescription className="text-red-700 dark:text-red-300 mt-2">
+                <div className="font-medium">Reason for rejection:</div>
+                <div className="mt-1 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-200 dark:border-red-800">
+                  "{currentBooking.rejection_reason}"
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Room Information */}
           <Card className="border-brand-navy-200 dark:border-brand-navy-700 bg-brand-navy-50/50 dark:bg-brand-navy-900/50">
             <CardContent className="p-4">
@@ -272,14 +288,6 @@ export function BookingDetailsModalModern({
         </div>
 
         <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            className="border-brand-navy-200 dark:border-brand-navy-700"
-          >
-            Close
-          </Button>
-          
           {currentBooking.status === "pending" && (
             <Button variant="outline" asChild>
               <Link href={`/conference-room-booking/bookings/${currentBooking.id}/edit`}>
@@ -288,10 +296,10 @@ export function BookingDetailsModalModern({
               </Link>
             </Button>
           )}
-          
+
           {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => onCancel(currentBooking.id, currentBooking.status as "pending" | "confirmed")}
               disabled={!canCancel}
               title={!canCancel ? reason : `Delete this ${currentBooking.status} booking`}

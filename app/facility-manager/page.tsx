@@ -8,6 +8,7 @@ import { useNotifications } from "@/contexts/notifications-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,6 +110,7 @@ export default function FacilityManagerDashboard() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
   const [selectedBookingTitle, setSelectedBookingTitle] = useState<string>("")
   const [processingStatus, setProcessingStatus] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -156,6 +158,7 @@ export default function FacilityManagerDashboard() {
   const openRejectDialog = (bookingId: string, bookingTitle: string) => {
     setSelectedBookingId(bookingId)
     setSelectedBookingTitle(bookingTitle)
+    setRejectionReason("") // Reset rejection reason
     setRejectDialogOpen(true)
   }
 
@@ -168,8 +171,8 @@ export default function FacilityManagerDashboard() {
       console.log(`🎯 [Dashboard] Updating booking ${selectedBookingId} to status: ${status}`)
       
       const updateData: any = { status }
-      if (status === "cancelled") {
-        updateData.rejection_reason = "Rejected by facility manager"
+      if (status === "cancelled" && rejectionReason.trim()) {
+        updateData.rejection_reason = rejectionReason.trim()
       }
       
       // Use API route instead of direct function call
@@ -434,17 +437,33 @@ export default function FacilityManagerDashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+      <AlertDialog open={rejectDialogOpen} onOpenChange={(open) => {
+        setRejectDialogOpen(open)
+        if (!open) setRejectionReason("") // Reset when closing
+      }}>
         <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg">
           <div className="h-1 bg-destructive w-full absolute top-0 left-0 right-0 rounded-t-lg"></div>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50">Reject Booking</AlertDialogTitle>
             <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300">
-              Are you sure you want to reject the booking "{selectedBookingTitle}"? The room will remain available for other bookings and the organizer will be notified.
+              Are you sure you want to reject the booking "{selectedBookingTitle}"? Please provide a reason for rejection to help the organizer understand.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <label htmlFor="rejection-reason" className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50 mb-2 block">
+              Reason for rejection (optional)
+            </label>
+            <Textarea
+              id="rejection-reason"
+              placeholder="Enter the reason for rejecting this booking..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[80px] border-brand-navy-200 dark:border-brand-navy-600 bg-white dark:bg-brand-navy-700 text-brand-navy-900 dark:text-brand-navy-100"
+              disabled={processingStatus}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               disabled={processingStatus}
               className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50"
             >

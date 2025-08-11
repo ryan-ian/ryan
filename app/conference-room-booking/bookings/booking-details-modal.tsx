@@ -86,7 +86,7 @@ export function BookingDetailsModal({
 
   const renderBookingRestrictions = () => {
     if (!booking) return null;
-    
+
     // Check if the booking is pending and show approval info
     if (booking.status === "pending") {
       return (
@@ -99,7 +99,23 @@ export function BookingDetailsModal({
         </Alert>
       );
     }
-    
+
+    // Check if the booking is cancelled and show rejection reason
+    if (booking.status === "cancelled" && booking.rejection_reason) {
+      return (
+        <Alert className="mt-3 sm:mt-4 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
+          <X className="h-4 w-4 text-red-600 dark:text-red-400" />
+          <AlertTitle className="text-sm font-semibold text-red-600 dark:text-red-400">Booking Rejected</AlertTitle>
+          <AlertDescription className="text-sm text-red-700 dark:text-red-300 mt-2">
+            <div className="font-medium">Reason for rejection:</div>
+            <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-200 dark:border-red-800">
+              "{booking.rejection_reason}"
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
     return null;
   };
 
@@ -240,48 +256,41 @@ export function BookingDetailsModal({
           {renderBookingInfo()}
         </div>
 
-        <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:justify-between pt-3 sm:pt-4 border-t mt-3 sm:mt-4">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
-            className="order-2 sm:order-1 text-xs sm:text-sm h-8 sm:h-9"
-          >
-            Close
-          </Button>
-          {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
-            (() => {
+        {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
+          <DialogFooter className="flex-shrink-0 flex justify-end pt-3 sm:pt-4 border-t mt-3 sm:mt-4">
+            {(() => {
               const now = new Date()
               const startTime = new Date(currentBooking.start_time)
               const hoursUntilMeeting = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60)
-              
+
               let canCancel = false
               let disabledReason = ""
-              
+
               if (currentBooking.status === "pending") {
                 // Pending bookings can always be cancelled
                 canCancel = true
               } else if (currentBooking.status === "confirmed") {
                 // Confirmed bookings can be cancelled up to 24 hours before
                 canCancel = hoursUntilMeeting >= 24
-                disabledReason = hoursUntilMeeting < 0 
+                disabledReason = hoursUntilMeeting < 0
                   ? "Cannot delete booking after it has started"
                   : "Cannot delete confirmed booking less than 24 hours before start time"
               }
-              
+
               return (
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={() => onCancel(currentBooking.id, currentBooking.status as "pending" | "confirmed")}
-                  className="order-1 sm:order-2 text-xs sm:text-sm h-8 sm:h-9"
+                  className="text-xs sm:text-sm h-8 sm:h-9"
                   disabled={!canCancel}
                   title={!canCancel ? disabledReason : `Delete this ${currentBooking.status} booking`}
                 >
                   {canCancel ? "Delete Booking" : "Cannot Delete"}
                 </Button>
               )
-            })()
-          )}
-        </DialogFooter>
+            })()}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

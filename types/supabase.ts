@@ -91,6 +91,7 @@ export interface Database {
           attendees: string[] | null
           status: "pending" | "confirmed" | "cancelled"
           resources: string[] | null
+          rejection_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -105,6 +106,7 @@ export interface Database {
           attendees?: string[] | null
           status?: "pending" | "confirmed" | "cancelled"
           resources?: string[] | null
+          rejection_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -119,6 +121,7 @@ export interface Database {
           attendees?: string[] | null
           status?: "pending" | "confirmed" | "cancelled"
           resources?: string[] | null
+          rejection_reason?: string | null
           created_at?: string
           updated_at?: string
         }

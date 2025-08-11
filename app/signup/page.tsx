@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Users, User, Mail, Lock, Briefcase, Building2, ArrowLeft } from "lucide-react"
+import { Users, User, Mail, Lock, Briefcase, Building2, ArrowLeft, Clock, UserPlus, CheckCircle, Star } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -78,29 +79,141 @@ export default function SignupPage() {
     setLoading(false)
   }
 
-  const inputClasses = "pl-10 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 transition-all"
+  const inputClasses = "pl-12 pr-4 py-3 bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 transition-all duration-300 rounded-xl text-base font-medium hover:bg-slate-50 focus:bg-white dark:bg-slate-700/80 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700 dark:focus:border-teal-400"
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5"></div>
-      
-      <div className="z-10 w-full max-w-md">
-        <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-2xl">
-          <CardHeader className="text-center pb-6">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="p-3 rounded-full bg-primary/10 text-primary shadow-lg">
-                <Users className="h-8 w-8" />
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Left Side - Hero Section with Image and Branding */}
+      <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
+        {/* Background Image with Blur Effect */}
+        <div className="absolute inset-0">
+          <Image
+            src="/3d-rendering-business-meeting-room-office-building.jpg"
+            alt="Modern 3D conference room"
+            fill
+            className="object-cover filter blur-[1px]"
+            priority
+          />
+          {/* Enhanced Gradient Overlay - Responsive to theme */}
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/85 via-slate-800/75 to-teal-900/80 dark:from-slate-950/90 dark:via-slate-900/85 dark:to-teal-950/85"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent dark:from-slate-950/95 dark:via-transparent dark:to-transparent"></div>
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center px-16 py-20 text-white">
+          <div className="max-w-lg space-y-8 animate-fadeIn">
+            {/* Logo/Brand */}
+            <div className="flex items-center gap-4 mb-12">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-400/20 to-teal-600/20 backdrop-blur-md border border-white/10 shadow-2xl dark:from-teal-400/25 dark:to-teal-600/25 dark:border-white/15">
+                <Users className="h-10 w-10 text-teal-300 dark:text-teal-200" />
               </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-white">Conference Hub</h1>
+                <p className="text-teal-200 text-base font-medium dark:text-teal-100">Smart Room Booking Platform</p>
+              </div>
+            </div>
+
+            {/* Enhanced Value Proposition */}
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-5xl font-bold leading-tight tracking-tight mb-6">
+                  Join Thousands of Teams Already Using Conference Hub
+                </h2>
+                <p className="text-xl text-white/90 leading-relaxed font-light">
+                  Transform how your organization manages meeting spaces with our comprehensive booking platform.
+                </p>
+              </div>
+
+              {/* Enhanced Benefits */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 group">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-teal-400/20 to-teal-600/20 backdrop-blur-sm border border-white/10 group-hover:border-teal-400/30 transition-all duration-300 dark:from-teal-400/25 dark:to-teal-600/25 dark:border-white/15 dark:group-hover:border-teal-400/40">
+                    <CheckCircle className="h-6 w-6 text-teal-300 dark:text-teal-200" />
+                  </div>
+                  <span className="text-white/90 text-lg font-medium dark:text-white/95">Eliminate double bookings forever</span>
+                </div>
+                <div className="flex items-center gap-4 group">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-teal-400/20 to-teal-600/20 backdrop-blur-sm border border-white/10 group-hover:border-teal-400/30 transition-all duration-300 dark:from-teal-400/25 dark:to-teal-600/25 dark:border-white/15 dark:group-hover:border-teal-400/40">
+                    <Star className="h-6 w-6 text-teal-300 dark:text-teal-200" />
+                  </div>
+                  <span className="text-white/90 text-lg font-medium dark:text-white/95">Increase space utilization by 40%</span>
+                </div>
+                <div className="flex items-center gap-4 group">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-teal-400/20 to-teal-600/20 backdrop-blur-sm border border-white/10 group-hover:border-teal-400/30 transition-all duration-300 dark:from-teal-400/25 dark:to-teal-600/25 dark:border-white/15 dark:group-hover:border-teal-400/40">
+                    <Clock className="h-6 w-6 text-teal-300 dark:text-teal-200" />
+                  </div>
+                  <span className="text-white/90 text-lg font-medium dark:text-white/95">Save 2+ hours per week on scheduling</span>
+                </div>
+              </div>
+
+              {/* Enhanced Social Proof */}
+              <div className="pt-10 border-t border-white/20 dark:border-white/25">
+                <p className="text-base text-white/70 mb-6 font-medium dark:text-white/80">Trusted by teams at</p>
+                <div className="flex items-center gap-8 text-white/60 dark:text-white/70">
+                  <span className="text-base font-semibold">Fortune 500 Companies</span>
+                  <span className="text-white/40 dark:text-white/50">•</span>
+                  <span className="text-base font-semibold">Startups</span>
+                  <span className="text-white/40 dark:text-white/50">•</span>
+                  <span className="text-base font-semibold">Universities</span>
+                </div>
+              </div>
+            </div>
           </div>
-            <CardTitle className="text-2xl font-bold text-foreground tracking-tight">Join Conference Hub</CardTitle>
-            <CardDescription className="text-muted-foreground">Create your account to book conference rooms</CardDescription>
-        </CardHeader>
-          <CardContent className="pb-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-                <Label htmlFor="name" className="text-foreground">Full Name</Label>
+        </div>
+      </div>
+
+      {/* Right Side - Enhanced Signup Form */}
+      <div className="w-full lg:w-2/5 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 min-h-screen lg:min-h-0">
+        <div className="w-full max-w-lg">
+          {/* Mobile Header - Only visible on small screens */}
+          <div className="lg:hidden text-center mb-10">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg dark:shadow-teal-500/25">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Conference Hub</h1>
+                <p className="text-teal-600 text-base font-medium dark:text-teal-400">Smart Room Booking</p>
+              </div>
+            </div>
+            {/* Enhanced Mobile benefits */}
+            <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-slate-50 border border-teal-200/50 dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/50">
+              <p className="text-base text-slate-700 font-medium mb-4 dark:text-slate-300">
+                Join thousands of teams already using Conference Hub to:
+              </p>
+              <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+                  <span>Eliminate double bookings</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Star className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+                  <span>Increase space utilization</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+                  <span>Save time on scheduling</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Card className="border-0 bg-white/90 backdrop-blur-xl shadow-2xl shadow-slate-200/50 rounded-3xl animate-slide-up dark:bg-slate-800/90 dark:shadow-slate-900/50">
+            <CardHeader className="text-center pb-8 pt-10">
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 dark:shadow-teal-500/25 dark:hover:shadow-teal-500/40">
+                  <UserPlus className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              <CardTitle className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">Join Conference Hub</CardTitle>
+              <CardDescription className="text-slate-600 text-lg font-medium dark:text-slate-300">Create your account to start booking conference rooms</CardDescription>
+            </CardHeader>
+          <CardContent className="pb-10 px-10">
+            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-3">
+                <Label htmlFor="name" className="text-slate-700 font-semibold text-base dark:text-slate-200">Full Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 id="name"
                 name="name"
@@ -112,11 +225,11 @@ export default function SignupPage() {
               />
             </div>
               </div>
-              
-            <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground">Email</Label>
+
+            <div className="space-y-3">
+                <Label htmlFor="email" className="text-slate-700 font-semibold text-base dark:text-slate-200">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 id="email"
                 name="email"
@@ -129,16 +242,16 @@ export default function SignupPage() {
               />
             </div>
               </div>
-              
-            <div className="space-y-2">
-                <Label htmlFor="department" className="text-foreground">Department</Label>
+
+            <div className="space-y-3">
+                <Label htmlFor="department" className="text-slate-700 font-semibold text-base dark:text-slate-200">Department</Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 z-10 dark:text-slate-500" />
               <Select value={formData.department} onValueChange={handleDepartmentChange} required>
-                    <SelectTrigger className={`pl-10 ${inputClasses}`}>
+                    <SelectTrigger className={`pl-12 ${inputClasses}`}>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
-                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                    <SelectContent className="bg-white border-slate-200 text-slate-900 rounded-xl shadow-xl dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100">
                   <SelectItem value="marketing">Marketing</SelectItem>
                   <SelectItem value="sales">Sales</SelectItem>
                   <SelectItem value="engineering">Engineering</SelectItem>
@@ -149,11 +262,11 @@ export default function SignupPage() {
               </Select>
             </div>
               </div>
-              
-            <div className="space-y-2">
-                <Label htmlFor="position" className="text-foreground">Position</Label>
+
+            <div className="space-y-3">
+                <Label htmlFor="position" className="text-slate-700 font-semibold text-base dark:text-slate-200">Position</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 id="position"
                 name="position"
@@ -166,14 +279,15 @@ export default function SignupPage() {
             </div>
               </div>
               
-            <div className="space-y-2">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
+            <div className="space-y-3">
+                <Label htmlFor="password" className="text-slate-700 font-semibold text-base dark:text-slate-200">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 id="password"
                 name="password"
                 type="password"
+                placeholder="Create a secure password"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -181,15 +295,16 @@ export default function SignupPage() {
               />
             </div>
               </div>
-              
-            <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
+
+            <div className="space-y-3">
+                <Label htmlFor="confirmPassword" className="text-slate-700 font-semibold text-base dark:text-slate-200">Confirm Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
+                placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
@@ -197,44 +312,45 @@ export default function SignupPage() {
               />
             </div>
               </div>
-              
+
             {error && (
                 <div>
-                  <Alert variant="destructive" className="bg-destructive/10 text-destructive-foreground border-destructive/50">
-                <AlertDescription>{error}</AlertDescription>
+                  <Alert variant="destructive" className="bg-red-50 text-red-700 border-red-200 rounded-xl dark:bg-red-950/50 dark:text-red-300 dark:border-red-800/50">
+                <AlertDescription className="font-medium">{error}</AlertDescription>
               </Alert>
                 </div>
             )}
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 shadow-lg shadow-primary/20 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]" 
+
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 text-lg shadow-xl shadow-teal-500/25 transition-all duration-300 hover:shadow-teal-500/40 hover:scale-[1.02] active:scale-[0.98] rounded-xl dark:shadow-teal-500/20 dark:hover:shadow-teal-500/30"
                 disabled={loading}
               >
               {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
             
-            <div className="mt-6 pt-6 border-t border-border/50 text-center space-y-4">
+            <div className="mt-8 pt-8 border-t border-slate-200 text-center space-y-6 dark:border-slate-600">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Already have an account?</p>
-                <Link 
-                  href="/user-login" 
-                  className="inline-block text-primary hover:text-primary/80 font-medium transition-colors"
+                <p className="text-base text-slate-600 mb-3 font-medium dark:text-slate-400">Already have an account?</p>
+                <Link
+                  href="/user-login"
+                  className="inline-block text-teal-600 hover:text-teal-700 font-semibold text-lg transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
                 >
-              Sign In
-            </Link>
-          </div>
-              <Link 
-                href="/" 
-                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors gap-1 text-sm font-medium"
+                  Sign In
+                </Link>
+              </div>
+              <Link
+                href="/"
+                className="inline-flex items-center text-slate-500 hover:text-slate-700 transition-colors gap-2 text-base font-medium dark:text-slate-400 dark:hover:text-slate-200"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-5 w-5" />
                 <span>Back to Home</span>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+        </div>
       </div>
     </div>
   )

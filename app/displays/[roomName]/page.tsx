@@ -30,8 +30,6 @@ import { ScheduleRail } from "@/components/displays/schedule-rail"
 import { RoomBanner } from "@/components/displays/room-banner"
 import { ActionBar } from "@/components/displays/action-bar"
 import { MeetingInProgressCard } from "@/components/displays/meeting-in-progress-card"
-import { RoomStatusCircle } from "@/components/displays/room-status-circle"
-import { NextMeetingCard } from "@/components/displays/next-meeting-card"
 
 // Constants
 const CHECK_IN_GRACE_PERIOD_MINUTES = 15
@@ -280,22 +278,22 @@ export default function RoomDisplayPage() {
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
-      {/* Dark Modern Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {/* Subtle geometric shapes with modern colors */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-purple-900/10 rounded-full blur-2xl animate-float"></div>
-        <div className="absolute top-1/3 right-20 w-48 h-48 bg-blue-900/10 rounded-full blur-2xl animate-float delay-200"></div>
-        <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-emerald-900/10 rounded-full blur-2xl animate-float delay-300"></div>
-        <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-gray-700/20 rounded-full blur-2xl animate-float delay-500"></div>
-        <div className="absolute top-1/2 left-1/2 w-36 h-36 bg-indigo-900/10 rounded-full blur-2xl animate-float delay-100"></div>
+      {/* Modern Brand-Navy Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-navy-50 via-brand-navy-100 to-brand-navy-200 dark:from-brand-navy-950 dark:via-brand-navy-900 dark:to-brand-navy-800">
+        {/* Subtle geometric shapes with brand colors */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-brand-teal-200/20 dark:bg-brand-teal-500/10 rounded-full blur-2xl animate-float"></div>
+        <div className="absolute top-1/3 right-20 w-48 h-48 bg-brand-navy-300/20 dark:bg-brand-navy-600/10 rounded-full blur-2xl animate-float delay-200"></div>
+        <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-brand-teal-300/15 dark:bg-brand-teal-400/8 rounded-full blur-2xl animate-float delay-300"></div>
+        <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-brand-navy-400/20 dark:bg-brand-navy-500/10 rounded-full blur-2xl animate-float delay-500"></div>
+        <div className="absolute top-1/2 left-1/2 w-36 h-36 bg-brand-teal-100/25 dark:bg-brand-teal-600/8 rounded-full blur-2xl animate-float delay-100"></div>
 
         {/* Subtle grid pattern overlay */}
-        <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23374151' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        <div className="absolute inset-0 opacity-40 dark:opacity-20" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334155' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
         }}></div>
 
-        {/* Dark gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/95 via-gray-900/90 to-gray-900/95"></div>
+        {/* Enhanced gradient overlay for optimal readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/85 to-white/90 dark:from-brand-navy-900/90 dark:via-brand-navy-900/85 dark:to-brand-navy-900/90"></div>
       </div>
 
       {/* Real-time status sync */}
@@ -309,17 +307,18 @@ export default function RoomDisplayPage() {
         />
       )}
 
-      {/* Modern Header */}
-      <header className="relative z-10">
-        <RoomBanner
-          name={room.name}
-          location={room.location}
-          status={roomStatus}
-          capacity={room.capacity}
-          occupancyCount={occupancyCount}
-          syncError={syncError}
-          currentTime={currentTime}
-        />
+      {/* Modern Header with Enhanced Glassmorphism */}
+      <header className="relative z-10 p-6">
+        <div className="backdrop-blur-md bg-white/80 dark:bg-brand-navy-800/80 rounded-2xl border border-white/20 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/5 dark:shadow-brand-navy-950/20">
+          <RoomBanner
+            name={room.name}
+            location={room.location}
+            status={roomStatus}
+            capacity={room.capacity}
+            occupancyCount={occupancyCount}
+            syncError={syncError}
+          />
+        </div>
       </header>
 
       {/* Enhanced Main Content */}
@@ -388,39 +387,88 @@ export default function RoomDisplayPage() {
             </div>
           </div>
         ) : (
-          /* New 2-Column Layout matching target design */
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 h-full min-h-[600px]">
-            {/* Left: Status Circle and Next Meeting */}
-            <div className="flex flex-col justify-between">
-              {/* Status Circle centered */}
-              <div className="flex-1 flex items-center justify-center">
-                <RoomStatusCircle status={roomStatus} size={300} />
-              </div>
-
-              {/* Next Meeting Card at bottom */}
-              <div className="w-full max-w-sm mx-auto">
-                <NextMeetingCard nextBooking={nextBooking} />
-              </div>
+          /* Enhanced Standard 3-zone Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_360px] gap-8 items-start">
+            {/* Left: Modern Schedule Rail */}
+            <div className="order-2 lg:order-1">
+              <Card className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-brand-teal-500 rounded-full"></div>
+                    Today's Schedule
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScheduleRail bookings={bookings} now={currentTime} currentId={currentBooking?.id} />
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Right: Schedule */}
-            <div className="flex flex-col h-full">
-              <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 h-full shadow-lg shadow-gray-900/20">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                  <h2 className="text-white text-xl font-semibold">Today's Schedule</h2>
-                </div>
-
-                <div className="overflow-auto flex-1">
-                  <ScheduleRail bookings={bookings} now={currentTime} currentId={currentBooking?.id} />
-                </div>
+            {/* Center: Enhanced Status Ring + Clock */}
+            <div className="order-1 lg:order-2 flex flex-col items-center gap-8">
+              <div className="relative">
+                <StatusRing
+                  status={roomStatus}
+                  now={currentTime}
+                  startTime={currentBooking?.start_time}
+                  endTime={currentBooking?.end_time}
+                  nextStartTime={nextBooking?.start_time}
+                />
+                {/* Subtle glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-500/10 to-brand-navy-500/10 rounded-full blur-3xl -z-10"></div>
               </div>
+              <HeroClock now={currentTime} />
+            </div>
+
+            {/* Right: Enhanced Actions + Info */}
+            <div className="order-3 lg:order-3 space-y-8">
+              <ActionBar
+                room={room}
+                currentBooking={currentBooking}
+                onCheckInSuccess={handleCheckInSuccess}
+                onAutoRelease={handleAutoRelease}
+              />
+              <Card className="overflow-hidden backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-brand-teal-500 rounded-full"></div>
+                    Room Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="h-[280px]">
+                    <RoomInfoCarousel room={room} resources={resources} className="h-full" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
       </main>
 
+      {/* Modern Footer with Enhanced Glassmorphism */}
+      <footer className="relative z-10 p-6">
+        <div className="backdrop-blur-md bg-white/80 dark:bg-brand-navy-800/80 rounded-2xl border border-white/20 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/5 dark:shadow-brand-navy-950/20">
+          <div className="flex justify-between items-center p-4">
+            <div className="flex items-center gap-4 bg-white/60 dark:bg-brand-navy-700/60 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30 dark:border-brand-navy-600/30">
+              <RoomStatusIndicator status={roomStatus} size="sm" />
+              <p className="font-bold text-brand-navy-900 dark:text-brand-navy-50">{room.name}</p>
+              <div className="h-4 w-px bg-brand-navy-300 dark:bg-brand-navy-600"></div>
+              <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 font-medium">
+                Capacity: <span className="text-brand-teal-600 dark:text-brand-teal-400 font-bold">{room.capacity}</span> people
+              </p>
+            </div>
 
+            <div className="bg-white/60 dark:bg-brand-navy-700/60 backdrop-blur-sm rounded-xl border border-white/30 dark:border-brand-navy-600/30">
+              <IssueReportForm
+                room={room}
+                booking={currentBooking || undefined}
+                onIssueReported={() => console.log("Issue reported successfully")}
+              />
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

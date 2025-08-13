@@ -56,20 +56,44 @@ export function StatusRing({
     return 0
   }, [startTime, endTime, nextStartTime, now, status])
 
-  const { trackColor, glowColor } = useMemo(() => {
+  const { trackColor, glowColor, fillColor } = useMemo(() => {
     switch (status) {
       case "available":
-        return { trackColor: "stroke-emerald-500", glowColor: "drop-shadow-[0_0_16px_rgba(16,185,129,0.7)]" }
+        return { 
+          trackColor: "stroke-emerald-500", 
+          glowColor: "drop-shadow-[0_0_20px_rgba(16,185,129,0.8)] drop-shadow-[0_0_40px_rgba(16,185,129,0.4)]",
+          fillColor: "fill-emerald-500"
+        }
       case "occupied":
-        return { trackColor: "stroke-brand-teal-500", glowColor: "drop-shadow-[0_0_16px_rgba(0,196,154,0.7)]" }
+        return { 
+          trackColor: "stroke-brand-teal-500", 
+          glowColor: "drop-shadow-[0_0_16px_rgba(0,196,154,0.7)]",
+          fillColor: "fill-brand-teal-500"
+        }
       case "meeting-in-progress":
-        return { trackColor: "stroke-brand-navy-600", glowColor: "drop-shadow-[0_0_16px_rgba(71,85,105,0.7)]" }
+        return { 
+          trackColor: "stroke-brand-navy-600", 
+          glowColor: "drop-shadow-[0_0_16px_rgba(71,85,105,0.7)]",
+          fillColor: "fill-brand-navy-600"
+        }
       case "reserved":
-        return { trackColor: "stroke-amber-500", glowColor: "drop-shadow-[0_0_16px_rgba(245,158,11,0.7)]" }
+        return { 
+          trackColor: "stroke-amber-500", 
+          glowColor: "drop-shadow-[0_0_16px_rgba(245,158,11,0.7)]",
+          fillColor: "fill-amber-500"
+        }
       case "maintenance":
-        return { trackColor: "stroke-red-500", glowColor: "drop-shadow-[0_0_16px_rgba(239,68,68,0.7)]" }
+        return { 
+          trackColor: "stroke-red-500", 
+          glowColor: "drop-shadow-[0_0_16px_rgba(239,68,68,0.7)]",
+          fillColor: "fill-red-500"
+        }
       default:
-        return { trackColor: "stroke-emerald-500", glowColor: "" }
+        return { 
+          trackColor: "stroke-emerald-500", 
+          glowColor: "",
+          fillColor: "fill-emerald-500"
+        }
     }
   }, [status])
 
@@ -79,10 +103,10 @@ export function StatusRing({
   return (
     <div
       className={cn(
-        "relative select-none",
+        "relative select-none flex items-center justify-center p-4",
         className
       )}
-      style={{ width: size, height: size }}
+      style={{ width: size + 32, height: size + 32 }}
       aria-label={`Status ring: ${status}, progress ${(progress * 100).toFixed(0)}%`}
     >
       <svg width={size} height={size} className="block">
@@ -92,44 +116,66 @@ export function StatusRing({
             <stop offset="100%" stopColor="white" stopOpacity="0.2" />
           </linearGradient>
         </defs>
-        {/* Background track */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          className="stroke-brand-navy-200/50 dark:stroke-brand-navy-700/50"
-          strokeWidth={thickness}
-          fill="none"
-        />
-        {/* Progress arc */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          className={cn(trackColor, "[filter:_url(#none)]", glowColor, "transition-[stroke-dashoffset] duration-700 ease-out")}
-          strokeWidth={thickness}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={dash}
-          strokeDashoffset={offset}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-        {/* Inner subtle glass ring */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius - thickness / 2}
-          stroke="url(#ring-grad)"
-          strokeWidth={1}
-          fill="none"
-        />
+        {status === "available" ? (
+          <>
+            {/* Filled circle for available status */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              className={cn(fillColor, glowColor, "transition-all duration-700 ease-out")}
+              fill="currentColor"
+            />
+            {/* Inner subtle highlight */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius - thickness / 2}
+              className="fill-white/10"
+            />
+          </>
+        ) : (
+          <>
+            {/* Background track for other statuses */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              className="stroke-brand-navy-200/50 dark:stroke-brand-navy-700/50"
+              strokeWidth={thickness}
+              fill="none"
+            />
+            {/* Progress arc */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              className={cn(trackColor, "[filter:_url(#none)]", glowColor, "transition-[stroke-dashoffset] duration-700 ease-out")}
+              strokeWidth={thickness}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={dash}
+              strokeDashoffset={offset}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+            {/* Inner subtle glass ring */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius - thickness / 2}
+              stroke="url(#ring-grad)"
+              strokeWidth={1}
+              fill="none"
+            />
+          </>
+        )}
       </svg>
       {/* Enhanced Labels with Timer */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
         {status === 'available' ? (
           <>
-            <div className="text-6xl font-bold text-emerald-500 mb-2">✓</div>
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">Available</div>
+            <div className="text-6xl font-bold text-white mb-2">✓</div>
+            <div className="text-2xl font-bold text-white">Available</div>
           </>
         ) : status === 'meeting-in-progress' && startTime && endTime ? (
           <>

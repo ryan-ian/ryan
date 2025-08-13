@@ -8,7 +8,7 @@ import {
   isValidPassword 
 } from '@/lib/auth-middleware';
 import { 
-  getAllUsers, 
+  getUsers, 
   createUser, 
   updateUser, 
   deleteUser,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const users = await getAllUsers();
+    const { users } = await getUsers(1, 1000); // Get up to 1000 users for admin
 
     // Log the access
     await logSecurityEvent(

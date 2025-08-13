@@ -362,19 +362,15 @@ export default function RoomDisplayPage() {
             <MeetingInProgressCard booking={currentBooking} />
 
             {/* Main Status Area */}
-            <div className="flex flex-col items-center gap-8">
-                             <div className="relative">
-                 <StatusRing
-                   status={roomStatus}
-                   now={currentTime}
-                   startTime={currentBooking?.start_time}
-                   endTime={currentBooking?.end_time}
-                   nextStartTime={nextBooking?.start_time}
-                   size={400}
-                 />
-                 {/* Subtle glow effect */}
-                 <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-500/10 to-brand-navy-500/10 rounded-full blur-3xl -z-10"></div>
-               </div>
+                         <div className="flex flex-col items-center gap-8">
+               <StatusRing
+                 status={roomStatus}
+                 now={currentTime}
+                 startTime={currentBooking?.start_time}
+                 endTime={currentBooking?.end_time}
+                 nextStartTime={nextBooking?.start_time}
+                 size={400}
+               />
               
               {/* Action Bar */}
               <div className="w-full max-w-md">
@@ -401,18 +397,14 @@ export default function RoomDisplayPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
              {/* Left: Main Status Area - Vertically Centered */}
              <div className="order-1 flex flex-col items-center justify-center gap-8">
-               <div className="relative">
-                 <StatusRing
-                   status={roomStatus}
-                   now={currentTime}
-                   startTime={currentBooking?.start_time}
-                   endTime={currentBooking?.end_time}
-                   nextStartTime={nextBooking?.start_time}
-                   size={480}
-                 />
-                 {/* Subtle glow effect */}
-                 <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-500/10 to-brand-navy-500/10 rounded-full blur-3xl -z-10"></div>
-               </div>
+               <StatusRing
+                 status={roomStatus}
+                 now={currentTime}
+                 startTime={currentBooking?.start_time}
+                 endTime={currentBooking?.end_time}
+                 nextStartTime={nextBooking?.start_time}
+                 size={480}
+               />
                
                {/* Meeting Information Display */}
                {currentBooking && (

@@ -1,15 +1,15 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, RefreshCw, CheckCircle, AlertCircle, Users } from "lucide-react"
+import { Mail, RefreshCw, CheckCircle, AlertCircle, Users, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
@@ -219,5 +219,22 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <Card className="w-full max-w-md border-0 shadow-2xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-md">
+          <CardContent className="p-10 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+            <p className="text-lg font-medium text-slate-700 dark:text-slate-300">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }

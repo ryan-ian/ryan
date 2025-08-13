@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RoleButton } from '@/components/ui/role-button'
 import { RoleBadge } from '@/components/ui/role-badge'
-import { useTheme } from '@/contexts/theme-context'
+import { useRoleTheme } from '@/contexts/theme-context'
 
 export function ColorShowcase() {
-  const { role } = useTheme()
+  const { role } = useRoleTheme()
 
   return (
     <div className="space-y-6 p-6">

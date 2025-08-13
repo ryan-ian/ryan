@@ -38,6 +38,7 @@ interface BookingDetailsModalModernProps {
   isOpen: boolean
   onClose: () => void
   onCancel: (bookingId: string, status: "pending" | "confirmed") => void
+  onEdit?: (booking: Booking) => void
 }
 
 export function BookingDetailsModalModern({
@@ -46,6 +47,7 @@ export function BookingDetailsModalModern({
   isOpen,
   onClose,
   onCancel,
+  onEdit,
 }: BookingDetailsModalModernProps) {
   const [currentBooking, setCurrentBooking] = useState<Booking | null>(null)
   
@@ -126,30 +128,19 @@ export function BookingDetailsModalModern({
         "bg-white/95 dark:bg-brand-navy-800/95"
       )}>
         <DialogHeader className="space-y-3">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2 flex-1">
-              <div className="flex items-center gap-3">
-                <DialogTitle className="text-xl font-semibold text-brand-navy-900 dark:text-brand-navy-50">
-                  {currentBooking.title || "Meeting"}
-                </DialogTitle>
-                <Badge className={cn("flex items-center gap-1.5", statusConfig.className)}>
-                  <StatusIcon className="h-3 w-3" />
-                  {statusConfig.text}
-                </Badge>
-              </div>
-              <DialogDescription className="text-brand-navy-600 dark:text-brand-navy-400">
-                Booking details and information
-              </DialogDescription>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-semibold text-brand-navy-900 dark:text-brand-navy-50">
+                {currentBooking.title || "Meeting"}
+              </DialogTitle>
+              <Badge className={cn("flex items-center gap-1.5", statusConfig.className)}>
+                <StatusIcon className="h-3 w-3" />
+                {statusConfig.text}
+              </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0 text-brand-navy-500 hover:text-brand-navy-700 dark:text-brand-navy-400 dark:hover:text-brand-navy-200"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
+            <DialogDescription className="text-brand-navy-600 dark:text-brand-navy-400">
+              Booking details and information
+            </DialogDescription>
           </div>
         </DialogHeader>
 
@@ -289,11 +280,9 @@ export function BookingDetailsModalModern({
 
         <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
           {currentBooking.status === "pending" && (
-            <Button variant="outline" asChild>
-              <Link href={`/conference-room-booking/bookings/${currentBooking.id}/edit`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Booking
-              </Link>
+            <Button variant="outline" onClick={() => onEdit?.(currentBooking)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Booking
             </Button>
           )}
 

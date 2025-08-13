@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateBooking } from "@/lib/supabase-data"
+import { updateBooking, getUserById, getRoomById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
+import { sendBookingModificationConfirmationToUser, sendBookingModificationNotificationToManager, ensureEmailReady } from "@/lib/email-service"
 
 // Inline implementation of deleteBooking function
 async function deleteBooking(id: string): Promise<boolean> {
@@ -67,15 +68,50 @@ export async function PUT(
   try {
     const { id } = await params
     const bookingData = await request.json()
-    
+
     console.log(`🚀 [API] PUT /api/bookings/${id} - Starting booking update`)
     console.log(`📝 [API] Update data:`, bookingData)
-    
+
+    // Get the original booking to compare changes
+    const { data: originalBooking, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !originalBooking) {
+      console.error(`❌ [API] Error fetching original booking ${id}:`, fetchError)
+      return NextResponse.json(
+        { error: "Booking not found" },
+        { status: 404 }
+      )
+    }
+
+    // Update the booking
     const updatedBooking = await updateBooking(id, bookingData)
-    
+
     console.log(`✅ [API] Successfully updated booking ${id}`)
     console.log(`📋 [API] Updated booking result:`, updatedBooking)
-    
+
+    // Fetch the complete updated booking with related data for email notifications
+    const { data: completeUpdatedBooking, error: fetchCompleteError } = await supabase
+      .from('bookings')
+      .select('*, users:user_id(id, name, email), rooms:room_id(id, name, facility_id)')
+      .eq('id', id)
+      .single()
+
+    if (fetchCompleteError) {
+      console.error(`⚠️ [API] Error fetching complete booking data for email notifications:`, fetchCompleteError)
+    } else {
+      // Send email notifications after successful update
+      try {
+        await sendBookingUpdateEmailNotifications(originalBooking, completeUpdatedBooking, bookingData)
+      } catch (emailError) {
+        console.error(`⚠️ [API] Failed to send email notifications for booking ${id}:`, emailError)
+        // Don't fail the update if email fails
+      }
+    }
+
     return NextResponse.json(updatedBooking)
   } catch (error: any) {
     const { id } = await params
@@ -84,6 +120,161 @@ export async function PUT(
       { error: error.message || "Failed to update booking" },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to send email notifications for booking updates
+async function sendBookingUpdateEmailNotifications(
+  originalBooking: any,
+  updatedBooking: any,
+  updateData: any
+) {
+  try {
+    // Ensure email service is ready
+    console.log(`🔍 [EMAIL DEBUG] Ensuring email service is ready...`)
+    const emailReady = await ensureEmailReady()
+    if (!emailReady) {
+      console.error('❌ [EMAIL DEBUG] Email service not ready, cannot send modification emails')
+      return
+    }
+    console.log(`✅ [EMAIL DEBUG] Email service is ready`)
+    console.log(`🔍 [EMAIL DEBUG] Updated booking structure:`, updatedBooking)
+
+    // Extract user information from the joined data
+    let user = updatedBooking.users
+    if (Array.isArray(user)) {
+      user = user[0] // Take first element if it's an array
+    }
+
+    console.log(`🔍 [EMAIL DEBUG] Extracted user:`, user)
+
+    if (!user || !user.id) {
+      console.warn(`⚠️ User not found in booking data for booking ${updatedBooking.id}`)
+      return
+    }
+
+    // Extract room information from the joined data
+    let room = updatedBooking.rooms
+    if (Array.isArray(room)) {
+      room = room[0] // Take first element if it's an array
+    }
+
+    console.log(`🔍 [EMAIL DEBUG] Extracted room:`, room)
+
+    if (!room || !room.id) {
+      console.warn(`⚠️ Room not found in booking data for booking ${updatedBooking.id}`)
+      return
+    }
+
+    // Get facility with manager information
+    console.log(`🔍 [EMAIL DEBUG] Fetching facility for room ${room.id}, facility_id: ${room.facility_id}`)
+    const { data: facility, error: facilityError } = await supabase
+      .from('facilities')
+      .select('*, manager:manager_id(id, name, email)')
+      .eq('id', room.facility_id)
+      .single()
+
+    console.log(`🔍 [EMAIL DEBUG] Facility query result:`, { facility, facilityError })
+
+    if (facilityError || !facility) {
+      console.warn(`⚠️ Facility not found for room ${room.id}`, facilityError)
+      return
+    }
+
+    console.log(`🔍 [EMAIL DEBUG] Facility manager data:`, facility.manager)
+
+    // Handle potential array structure for manager data
+    let manager = facility.manager
+    if (Array.isArray(manager)) {
+      manager = manager[0] // Take first element if it's an array
+    }
+
+    console.log(`🔍 [EMAIL DEBUG] Extracted manager:`, manager)
+
+    // Determine what changes were made
+    const changes: string[] = []
+
+    if (updateData.title && updateData.title !== originalBooking.title) {
+      changes.push(`Title changed from "${originalBooking.title}" to "${updateData.title}"`)
+    }
+
+    if (updateData.description !== undefined && updateData.description !== originalBooking.description) {
+      const oldDesc = originalBooking.description || 'No description'
+      const newDesc = updateData.description || 'No description'
+      changes.push(`Description changed from "${oldDesc}" to "${newDesc}"`)
+    }
+
+    if (updateData.start_time && updateData.start_time !== originalBooking.start_time) {
+      const oldTime = new Date(originalBooking.start_time).toLocaleString()
+      const newTime = new Date(updateData.start_time).toLocaleString()
+      changes.push(`Start time changed from ${oldTime} to ${newTime}`)
+    }
+
+    if (updateData.end_time && updateData.end_time !== originalBooking.end_time) {
+      const oldTime = new Date(originalBooking.end_time).toLocaleString()
+      const newTime = new Date(updateData.end_time).toLocaleString()
+      changes.push(`End time changed from ${oldTime} to ${newTime}`)
+    }
+
+    // Send confirmation email to user
+    console.log(`🔍 [EMAIL DEBUG] User email check: ${user.email}`)
+    if (user.email) {
+      try {
+        console.log(`📧 [EMAIL DEBUG] Attempting to send user confirmation email to ${user.email}`)
+        const userEmailResult = await sendBookingModificationConfirmationToUser(
+          user.email,
+          user.name,
+          updatedBooking.title,
+          room.name,
+          facility.name,
+          updatedBooking.start_time,
+          updatedBooking.end_time,
+          changes
+        )
+        console.log(`📧 [EMAIL DEBUG] User email result: ${userEmailResult}`)
+        console.log(`📧 Modification confirmation email sent to user ${user.name} (${user.email})`)
+      } catch (emailError) {
+        console.error("❌ [EMAIL DEBUG] Failed to send user confirmation email:", emailError)
+      }
+    } else {
+      console.warn(`⚠️ [EMAIL DEBUG] No email address found for user ${user.name}`)
+    }
+
+    // Send notification email to facility manager
+    console.log(`🔍 [EMAIL DEBUG] Facility manager check:`, {
+      hasManager: !!manager,
+      managerEmail: manager?.email,
+      managerName: manager?.name
+    })
+
+    if (manager && manager.email) {
+      try {
+        console.log(`📧 [EMAIL DEBUG] Attempting to send facility manager notification email to ${manager.email}`)
+        const managerEmailResult = await sendBookingModificationNotificationToManager(
+          manager.email,
+          manager.name,
+          user.name,
+          user.email,
+          updatedBooking.title,
+          room.name,
+          facility.name,
+          updatedBooking.start_time,
+          updatedBooking.end_time,
+          changes
+        )
+        console.log(`📧 [EMAIL DEBUG] Manager email result: ${managerEmailResult}`)
+        console.log(`📧 Modification notification email sent to facility manager ${manager.name} (${manager.email})`)
+      } catch (emailError) {
+        console.error("❌ [EMAIL DEBUG] Failed to send facility manager notification email:", emailError)
+      }
+    } else {
+      console.warn(`⚠️ [EMAIL DEBUG] No facility manager email found for facility ${facility.name}`)
+      console.warn(`⚠️ [EMAIL DEBUG] Facility manager object:`, manager)
+    }
+
+  } catch (error) {
+    console.error("Error in sendBookingUpdateEmailNotifications:", error)
+    throw error
   }
 }
 

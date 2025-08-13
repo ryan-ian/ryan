@@ -56,8 +56,8 @@ export default function SignupPage() {
     }
 
     try {
-      const success = await signup(
-        formData.email, 
+      const result = await signup(
+        formData.email,
         formData.password,
         {
           name: formData.name,
@@ -66,8 +66,14 @@ export default function SignupPage() {
         }
       )
 
-      if (success) {
-        router.push("/conference-room-booking")
+      if (result.success) {
+        if (result.needsVerification) {
+          // Redirect to email verification page
+          router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)
+        } else {
+          // User is automatically logged in (email confirmation disabled)
+          router.push("/conference-room-booking")
+        }
       } else {
         setError("Failed to create account. Please try again.")
       }

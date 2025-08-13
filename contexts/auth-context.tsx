@@ -10,7 +10,7 @@ import { Session, User } from "@supabase/supabase-js"
 interface AuthContextType {
   user: AuthUser | null
   login: (email: string, password: string, isAdmin?: boolean) => Promise<boolean>
-  signup: (email: string, password: string, userData: Omit<AuthUser, 'id' | 'email' | 'role'>) => Promise<boolean>
+  signup: (email: string, password: string, userData: Omit<AuthUser, 'id' | 'email' | 'role'>) => Promise<{ success: boolean; needsVerification?: boolean }>
   logout: () => Promise<void>
   loading: boolean
 }
@@ -177,10 +177,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
   
   const signup = async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     userData: Omit<AuthUser, 'id' | 'email' | 'role'>
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; needsVerification?: boolean }> => {
     try {
       // Create auth user with metadata that will be used by the database trigger
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -192,21 +192,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             department: userData.department,
             position: userData.position,
             role: 'user' // Add role to metadata as well
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth/verify-success`
         }
       })
-      
+
       if (authError || !authData.user) {
         console.error("Signup error:", authError)
-        return false
+        return { success: false }
       }
-      
+
+      // Check if email confirmation is required
+      if (!authData.session && authData.user && !authData.user.email_confirmed_at) {
+        // Email verification is required
+        return { success: true, needsVerification: true }
+      }
+
       // The database trigger will create the user profile automatically
       // User will be set by the auth state change listener
-      return true
+      return { success: true, needsVerification: false }
     } catch (error) {
       console.error("Signup error:", error)
-      return false
+      return { success: false }
     }
   }
 

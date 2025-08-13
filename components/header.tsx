@@ -71,7 +71,10 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {user && <NotificationBell />}
-          
+
+          {/* Standalone Theme Switcher */}
+          <ThemeSwitcher />
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -130,16 +133,6 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <div className="flex items-center justify-between w-full">
-                    <span className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Theme</span>
-                    </span>
-                    <ThemeSwitcher />
-                  </div>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />

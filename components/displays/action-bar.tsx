@@ -2,7 +2,6 @@
 
 import React from "react"
 import { CheckInManager } from "@/components/ui/check-in-manager"
-import { IssueReportForm } from "@/components/ui/issue-report-form"
 import type { BookingWithDetails, Room } from "@/types"
 
 interface ActionBarProps {
@@ -16,13 +15,10 @@ export function ActionBar({ room, currentBooking, onCheckInSuccess, onAutoReleas
   return (
     <div className="space-y-3">
       {currentBooking && (
-        <div className="rounded-2xl p-4 backdrop-blur-md bg-white/10 dark:bg-slate-900/30 ring-1 ring-white/15 dark:ring-slate-700/40">
+        <div className="rounded-2xl p-4 backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30">
           <CheckInManager booking={currentBooking} onCheckInSuccess={onCheckInSuccess} onAutoRelease={onAutoRelease} />
         </div>
       )}
-      <div className="rounded-2xl p-3 backdrop-blur-md bg-white/10 dark:bg-slate-900/30 ring-1 ring-white/15 dark:ring-slate-700/40">
-        <IssueReportForm room={room} booking={currentBooking || undefined} />
-      </div>
     </div>
   )
 }

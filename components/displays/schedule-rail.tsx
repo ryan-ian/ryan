@@ -10,12 +10,14 @@ interface ScheduleRailProps {
   now: Date
   currentId?: string
   className?: string
+  showDescription?: boolean
 }
 
-export function ScheduleRail({ bookings, now, currentId, className }: ScheduleRailProps) {
+export function ScheduleRail({ bookings, now, currentId, className, showDescription = false }: ScheduleRailProps) {
   const items = useMemo(() => bookings.map(b => ({
     id: b.id,
     title: b.title,
+    description: b.description,
     start: new Date(b.start_time),
     end: new Date(b.end_time),
     organizer: b.users?.name || "",
@@ -61,6 +63,15 @@ export function ScheduleRail({ bookings, now, currentId, className }: ScheduleRa
                   )}>
                     {it.organizer}
                   </div>
+                  {showDescription && it.description && (
+                    <div className={cn(
+                      "text-xs mt-2 leading-relaxed",
+                      isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
+                      "text-brand-navy-600 dark:text-brand-navy-400"
+                    )}>
+                      {it.description}
+                    </div>
+                  )}
                 </div>
                 <div className={cn(
                   "text-xs font-semibold whitespace-nowrap",

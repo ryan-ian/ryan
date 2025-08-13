@@ -60,16 +60,20 @@ export async function initEmailService(): Promise<boolean> {
     return true
   } catch (error) {
     console.error('❌ Failed to initialize email service:', error)
-    
+
     // Provide specific troubleshooting based on error
-    if (error.code === 'ECONNREFUSED') {
-      console.error('🔧 TROUBLESHOOTING: Connection refused - Check your SMTP_HOST and SMTP_PORT')
-    } else if (error.code === 'ENOTFOUND') {
-      console.error('🔧 TROUBLESHOOTING: Host not found - Check your SMTP_HOST')
-    } else if (error.responseCode === 421) {
-      console.error('🔧 TROUBLESHOOTING: Service not available - Try different port or check with email provider')
-    } else if (error.code === 'EAUTH') {
-      console.error('🔧 TROUBLESHOOTING: Authentication failed - Check your SMTP_USER and SMTP_PASSWORD')
+    if (error && typeof error === 'object' && 'code' in error) {
+      const errorWithCode = error as { code?: string; responseCode?: number }
+
+      if (errorWithCode.code === 'ECONNREFUSED') {
+        console.error('🔧 TROUBLESHOOTING: Connection refused - Check your SMTP_HOST and SMTP_PORT')
+      } else if (errorWithCode.code === 'ENOTFOUND') {
+        console.error('🔧 TROUBLESHOOTING: Host not found - Check your SMTP_HOST')
+      } else if (errorWithCode.responseCode === 421) {
+        console.error('🔧 TROUBLESHOOTING: Service not available - Try different port or check with email provider')
+      } else if (errorWithCode.code === 'EAUTH') {
+        console.error('🔧 TROUBLESHOOTING: Authentication failed - Check your SMTP_USER and SMTP_PASSWORD')
+      }
     }
     
     transporter = null
@@ -440,6 +444,336 @@ export async function sendUserBookingCancellationEmail(
   return result;
 }
 
+// Send booking creation notification to facility manager
+export async function sendBookingCreationNotificationToManager(
+  managerEmail: string,
+  managerName: string,
+  userName: string,
+  userEmail: string,
+  bookingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string
+): Promise<boolean> {
+  console.log('📧 ===== BOOKING CREATION NOTIFICATION TO MANAGER START =====');
+  console.log(`📧 Manager Email: ${managerEmail}`);
+  console.log(`📧 Manager Name: ${managerName}`);
+  console.log(`📧 User Name: ${userName}`);
+  console.log(`📧 User Email: ${userEmail}`);
+  console.log(`📧 Booking Title: ${bookingTitle}`);
+  console.log(`📧 Room Name: ${roomName}`);
+  console.log(`📧 Facility Name: ${facilityName}`);
+  console.log(`📧 Start Time: ${startTime}`);
+  console.log(`📧 End Time: ${endTime}`);
+
+  if (!managerEmail || !managerEmail.includes('@')) {
+    console.error('❌ Invalid manager email address:', managerEmail);
+    return false;
+  }
+
+  const formattedDate = format(new Date(startTime), 'EEEE, MMMM d, yyyy');
+  const formattedStartTime = format(new Date(startTime), 'h:mm a');
+  const formattedEndTime = format(new Date(endTime), 'h:mm a');
+
+  const subject = `New Booking Request: ${bookingTitle} - ${roomName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0; font-size: 24px;">📅 New Booking Request</h2>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub - ${facilityName}</p>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
+        <p>Hello ${managerName},</p>
+        <p>A new booking request has been submitted for your facility and requires your review.</p>
+
+        <div style="background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
+          <h3 style="margin-top: 0; color: #0284c7;">📋 Booking Details</h3>
+          <p><strong>Title:</strong> ${bookingTitle}</p>
+          <p><strong>Room:</strong> ${roomName}</p>
+          <p><strong>Facility:</strong> ${facilityName}</p>
+          <p><strong>Date:</strong> ${formattedDate}</p>
+          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+          <p><strong>Status:</strong> <span style="color: #f59e0b; font-weight: bold;">⏳ Pending Approval</span></p>
+        </div>
+
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h4 style="margin-top: 0; color: #92400e;">👤 Requested By</h4>
+          <p><strong>Name:</strong> ${userName}</p>
+          <p><strong>Email:</strong> ${userEmail}</p>
+        </div>
+
+        <div style="background-color: #dcfce7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
+          <h4 style="margin-top: 0; color: #16a34a;">🎯 Next Steps</h4>
+          <p>Please log into the Conference Hub facility manager dashboard to review and approve or reject this booking request.</p>
+          <p>The user will be notified automatically once you make a decision.</p>
+        </div>
+
+        <p>Thank you for managing your facility efficiently!</p>
+        <p>Best regards,<br>Conference Hub Team</p>
+      </div>
+    </div>
+  `;
+
+  const text = `
+    New Booking Request - Conference Hub
+
+    Hello ${managerName},
+    A new booking request has been submitted for your facility and requires your review.
+
+    Booking Details:
+    Title: ${bookingTitle}
+    Room: ${roomName}
+    Facility: ${facilityName}
+    Date: ${formattedDate}
+    Time: ${formattedStartTime} - ${formattedEndTime}
+    Status: ⏳ Pending Approval
+
+    Requested By:
+    Name: ${userName}
+    Email: ${userEmail}
+
+    Next Steps:
+    Please log into the Conference Hub facility manager dashboard to review and approve or reject this booking request.
+    The user will be notified automatically once you make a decision.
+
+    Thank you for managing your facility efficiently!
+
+    Best regards,
+    Conference Hub Team
+  `;
+
+  const result = await sendEmail(managerEmail, subject, html, text);
+  console.log(`📧 sendEmail result: ${result}`);
+  console.log('📧 ===== BOOKING CREATION NOTIFICATION TO MANAGER END =====');
+
+  return result;
+}
+
+// Send booking modification confirmation to user
+export async function sendBookingModificationConfirmationToUser(
+  userEmail: string,
+  userName: string,
+  bookingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string,
+  changes: string[]
+): Promise<boolean> {
+  console.log('📧 ===== BOOKING MODIFICATION CONFIRMATION TO USER START =====');
+  console.log(`📧 User Email: ${userEmail}`);
+  console.log(`📧 User Name: ${userName}`);
+  console.log(`📧 Booking Title: ${bookingTitle}`);
+  console.log(`📧 Changes: ${changes.join(', ')}`);
+
+  if (!userEmail || !userEmail.includes('@')) {
+    console.error('❌ Invalid user email address:', userEmail);
+    return false;
+  }
+
+  const formattedDate = format(new Date(startTime), 'EEEE, MMMM d, yyyy');
+  const formattedStartTime = format(new Date(startTime), 'h:mm a');
+  const formattedEndTime = format(new Date(endTime), 'h:mm a');
+
+  const subject = `Booking Updated: ${bookingTitle}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0; font-size: 24px;">✅ Booking Updated Successfully</h2>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub</p>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
+        <p>Hello ${userName},</p>
+        <p>Your booking has been successfully updated. Here are the current details:</p>
+
+        <div style="background-color: #dcfce7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
+          <h3 style="margin-top: 0; color: #16a34a;">📋 Updated Booking Details</h3>
+          <p><strong>Title:</strong> ${bookingTitle}</p>
+          <p><strong>Room:</strong> ${roomName}</p>
+          <p><strong>Facility:</strong> ${facilityName}</p>
+          <p><strong>Date:</strong> ${formattedDate}</p>
+          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+        </div>
+
+        ${changes.length > 0 ? `
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h4 style="margin-top: 0; color: #92400e;">📝 Changes Made</h4>
+          <ul style="margin-bottom: 0;">
+            ${changes.map(change => `<li>${change}</li>`).join('')}
+          </ul>
+        </div>
+        ` : ''}
+
+        <div style="background-color: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
+          <h4 style="margin-top: 0; color: #0284c7;">ℹ️ Important Notes</h4>
+          <ul style="margin-bottom: 0;">
+            <li>Your booking is confirmed and the room is reserved</li>
+            <li>Please arrive on time for your meeting</li>
+            <li>If you need to make further changes, please contact your facility manager</li>
+          </ul>
+        </div>
+
+        <p>Thank you for using Conference Hub!</p>
+        <p>Best regards,<br>Conference Hub Team</p>
+      </div>
+    </div>
+  `;
+
+  const text = `
+    Booking Updated Successfully - Conference Hub
+
+    Hello ${userName},
+    Your booking has been successfully updated. Here are the current details:
+
+    Updated Booking Details:
+    Title: ${bookingTitle}
+    Room: ${roomName}
+    Facility: ${facilityName}
+    Date: ${formattedDate}
+    Time: ${formattedStartTime} - ${formattedEndTime}
+
+    ${changes.length > 0 ? `
+    Changes Made:
+    ${changes.map(change => `- ${change}`).join('\n')}
+    ` : ''}
+
+    Important Notes:
+    - Your booking is confirmed and the room is reserved
+    - Please arrive on time for your meeting
+    - If you need to make further changes, please contact your facility manager
+
+    Thank you for using Conference Hub!
+
+    Best regards,
+    Conference Hub Team
+  `;
+
+  console.log('📧 [EMAIL DEBUG] About to call sendEmail for user confirmation');
+  const result = await sendEmail(userEmail, subject, html, text);
+  console.log(`📧 [EMAIL DEBUG] sendEmail result for user: ${result}`);
+  console.log('📧 ===== BOOKING MODIFICATION CONFIRMATION TO USER END =====');
+
+  return result;
+}
+
+// Send booking modification notification to facility manager
+export async function sendBookingModificationNotificationToManager(
+  managerEmail: string,
+  managerName: string,
+  userName: string,
+  userEmail: string,
+  bookingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string,
+  changes: string[]
+): Promise<boolean> {
+  console.log('📧 ===== BOOKING MODIFICATION NOTIFICATION TO MANAGER START =====');
+  console.log(`📧 Manager Email: ${managerEmail}`);
+  console.log(`📧 Manager Name: ${managerName}`);
+  console.log(`📧 User Name: ${userName}`);
+  console.log(`📧 Booking Title: ${bookingTitle}`);
+  console.log(`📧 Changes: ${changes.join(', ')}`);
+
+  if (!managerEmail || !managerEmail.includes('@')) {
+    console.error('❌ Invalid manager email address:', managerEmail);
+    return false;
+  }
+
+  const formattedDate = format(new Date(startTime), 'EEEE, MMMM d, yyyy');
+  const formattedStartTime = format(new Date(startTime), 'h:mm a');
+  const formattedEndTime = format(new Date(endTime), 'h:mm a');
+
+  const subject = `Booking Modified: ${bookingTitle} - ${roomName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0; font-size: 24px;">📝 Booking Modified</h2>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub - ${facilityName}</p>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
+        <p>Hello ${managerName},</p>
+        <p>A booking in your facility has been modified by the user. Here are the updated details:</p>
+
+        <div style="background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
+          <h3 style="margin-top: 0; color: #0284c7;">📋 Current Booking Details</h3>
+          <p><strong>Title:</strong> ${bookingTitle}</p>
+          <p><strong>Room:</strong> ${roomName}</p>
+          <p><strong>Facility:</strong> ${facilityName}</p>
+          <p><strong>Date:</strong> ${formattedDate}</p>
+          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+          <p><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">✅ Confirmed</span></p>
+        </div>
+
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h4 style="margin-top: 0; color: #92400e;">📝 Changes Made</h4>
+          <ul style="margin-bottom: 0;">
+            ${changes.map(change => `<li>${change}</li>`).join('')}
+          </ul>
+        </div>
+
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h4 style="margin-top: 0; color: #92400e;">👤 Modified By</h4>
+          <p><strong>Name:</strong> ${userName}</p>
+          <p><strong>Email:</strong> ${userEmail}</p>
+        </div>
+
+        <div style="background-color: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
+          <h4 style="margin-top: 0; color: #0284c7;">ℹ️ Information</h4>
+          <p>This is a notification for your records. The booking has been automatically updated and no action is required from you unless there are any conflicts or concerns.</p>
+          <p>You can view all bookings in your facility manager dashboard.</p>
+        </div>
+
+        <p>Thank you for managing your facility!</p>
+        <p>Best regards,<br>Conference Hub Team</p>
+      </div>
+    </div>
+  `;
+
+  const text = `
+    Booking Modified - Conference Hub
+
+    Hello ${managerName},
+    A booking in your facility has been modified by the user. Here are the updated details:
+
+    Current Booking Details:
+    Title: ${bookingTitle}
+    Room: ${roomName}
+    Facility: ${facilityName}
+    Date: ${formattedDate}
+    Time: ${formattedStartTime} - ${formattedEndTime}
+    Status: ✅ Confirmed
+
+    Changes Made:
+    ${changes.map(change => `- ${change}`).join('\n')}
+
+    Modified By:
+    Name: ${userName}
+    Email: ${userEmail}
+
+    Information:
+    This is a notification for your records. The booking has been automatically updated and no action is required from you unless there are any conflicts or concerns.
+    You can view all bookings in your facility manager dashboard.
+
+    Thank you for managing your facility!
+
+    Best regards,
+    Conference Hub Team
+  `;
+
+  console.log('📧 [EMAIL DEBUG] About to call sendEmail for facility manager notification');
+  const result = await sendEmail(managerEmail, subject, html, text);
+  console.log(`📧 [EMAIL DEBUG] sendEmail result for manager: ${result}`);
+  console.log('📧 ===== BOOKING MODIFICATION NOTIFICATION TO MANAGER END =====');
+
+  return result;
+}
+
 // Check if email service is ready
 export function isEmailReady(): boolean {
   return transporter !== null
@@ -450,7 +784,7 @@ export async function ensureEmailReady(): Promise<boolean> {
   if (isEmailReady()) {
     return true
   }
-  
+
   console.log('📧 Email service not ready, initializing...')
   return await initEmailService()
 }

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button, ButtonProps } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useTheme, getRoleColors } from '@/contexts/theme-context'
+import { useRoleTheme, getRoleColors } from '@/contexts/theme-context'
 
 interface RoleButtonProps extends ButtonProps {
   useRoleColors?: boolean
@@ -13,7 +13,7 @@ export function RoleButton({
   variant = 'default',
   ...props 
 }: RoleButtonProps) {
-  const { role } = useTheme()
+  const { role } = useRoleTheme()
   
   if (!useRoleColors) {
     return <Button variant={variant} className={className} {...props} />

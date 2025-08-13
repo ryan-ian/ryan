@@ -439,6 +439,137 @@ body {
   .loading-skeleton {
     @apply bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse-slow;
   }
+
+  /* Theme switching protection */
+  .theme-switching {
+    pointer-events: none !important;
+  }
+
+  .theme-switching * {
+    pointer-events: none !important;
+  }
+
+  /* Ensure interactive elements remain clickable */
+  button, a, input, select, textarea, [role="button"], [tabindex] {
+    pointer-events: auto !important;
+  }
+
+  /* Prevent theme transition issues */
+  .theme-transition-safe {
+    transition: none !important;
+  }
+
+  /* Fix for dropdown menus during theme changes */
+  [data-radix-popper-content-wrapper] {
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+  }
+
+  /* Ensure overlays work correctly */
+  [data-state="open"] {
+    pointer-events: auto !important;
+  }
+
+  /* Specific fixes for dropdown menu behavior */
+  [data-radix-dropdown-menu-content] {
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+  }
+
+  [data-radix-dropdown-menu-trigger] {
+    pointer-events: auto !important;
+  }
+
+  /* Ensure theme switcher dropdown works */
+  .theme-switcher-dropdown {
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+  }
+
+  /* Custom scrollbar for booking modal */
+  .booking-modal-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #0d9488 #e2e8f0;
+  }
+
+  .booking-modal-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .booking-modal-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  .booking-modal-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #0d9488, #14b8a6);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .booking-modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
+  }
+
+  /* Dark theme scrollbar */
+  .dark .booking-modal-scroll {
+    scrollbar-color: #14b8a6 #334155;
+  }
+
+  .dark .booking-modal-scroll::-webkit-scrollbar-track {
+    background: #334155;
+  }
+
+  .dark .booking-modal-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #14b8a6, #20d9d2);
+  }
+
+  .dark .booking-modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #0d9488, #14b8a6);
+    box-shadow: 0 2px 4px rgba(20, 184, 166, 0.4);
+  }
+
+  /* Popover positioning fixes for modal */
+  .booking-modal-content [data-radix-popover-content] {
+    z-index: 60 !important;
+    position: fixed !important;
+  }
+
+  .booking-modal-content [data-radix-popover-trigger] {
+    pointer-events: auto !important;
+  }
+
+  /* Collapsible animations for filter toolbar */
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+    }
+  }
+
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  .animate-collapsible-down {
+    animation: collapsible-down 0.2s ease-out;
+  }
+
+  .animate-collapsible-up {
+    animation: collapsible-up 0.2s ease-out;
+  }
 }
 
 /* Custom animations for the room display page */

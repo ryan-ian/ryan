@@ -44,12 +44,9 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button asChild size="lg" className="bg-gradient-to-r from-brand-navy-600 to-brand-teal-500 hover:from-brand-navy-700 hover:to-brand-teal-600 text-white font-semibold py-6 px-8 rounded-xl shadow-lg shadow-brand-navy-400/20 hover:shadow-brand-teal-400/30 transition-all duration-300">
                   <Link href="/signup">
-                    Get Started Free
+                    Get Started
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="border-2 border-brand-navy-400 dark:border-brand-teal-600 hover:border-brand-teal-500 text-brand-navy-900 dark:text-brand-navy-100 transition-all duration-300">
-                  <Link href="/user-login">Sign In</Link>
                 </Button>
               </div>
               <div className="flex items-center gap-4 pt-4">
@@ -71,8 +68,8 @@ export default function HomePage() {
               <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-navy-200 via-brand-teal-200 to-brand-navy-100 dark:from-brand-navy-800 dark:via-brand-teal-900 dark:to-brand-navy-900 rounded-2xl blur-xl opacity-70"></div>
               <div className="relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-brand-navy-100 dark:border-brand-navy-800">
                 <Image 
-                  src="/placeholder.jpg" 
-                  alt="Conference Hub Dashboard" 
+                  src="/room-business-meeting.jpg" 
+                  alt="Modern Conference Room" 
                   width={600} 
                   height={400}
                   className="w-full object-cover"

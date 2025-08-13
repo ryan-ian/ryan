@@ -13,7 +13,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function RoleThemeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const [role, setRole] = useState<UserRole>('user')
 
@@ -43,13 +43,52 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Apply theme class to document body
+    // Apply theme class to document body with proper cleanup
     const themeClass = getThemeClass()
-    document.body.classList.remove('theme-user', 'theme-admin', 'theme-manager')
-    document.body.classList.add(themeClass)
-    
+    const allThemeClasses = ['theme-user', 'theme-admin', 'theme-manager']
+
+    // Use multiple strategies to ensure DOM manipulation doesn't interfere with event handling
+    const applyTheme = () => {
+      try {
+        // Batch DOM operations to minimize reflows
+        const body = document.body
+        const currentClasses = body.className.split(' ')
+
+        // Remove old theme classes
+        const newClasses = currentClasses.filter(cls => !allThemeClasses.includes(cls))
+
+        // Add new theme class
+        if (!newClasses.includes(themeClass)) {
+          newClasses.push(themeClass)
+        }
+
+        // Apply all changes at once
+        body.className = newClasses.join(' ')
+      } catch (error) {
+        console.error('Theme application error:', error)
+        // Fallback to individual operations
+        allThemeClasses.forEach(cls => document.body.classList.remove(cls))
+        document.body.classList.add(themeClass)
+      }
+    }
+
+    // Use both setTimeout and requestAnimationFrame for maximum compatibility
+    const timeoutId = setTimeout(() => {
+      const frameId = requestAnimationFrame(applyTheme)
+
+      return () => {
+        cancelAnimationFrame(frameId)
+      }
+    }, 0)
+
     return () => {
-      document.body.classList.remove('theme-user', 'theme-admin', 'theme-manager')
+      clearTimeout(timeoutId)
+      // Clean up theme classes on unmount
+      try {
+        allThemeClasses.forEach(cls => document.body.classList.remove(cls))
+      } catch (error) {
+        console.error('Theme cleanup error:', error)
+      }
     }
   }, [role])
 
@@ -60,10 +99,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function useTheme() {
+export function useRoleTheme() {
   const context = useContext(ThemeContext)
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    throw new Error('useRoleTheme must be used within a RoleThemeProvider')
   }
   return context
 }

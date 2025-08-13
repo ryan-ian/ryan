@@ -42,6 +42,16 @@ export async function getUserById(id: string): Promise<types.User | null> {
   }
 }
 
+/**
+ * Get facility manager's email for a given room ID
+ * Follows the chain: bookings.room_id → rooms.facility_id → facilities.manager_id → users.email
+ */
+export async function getFacilityManagerByRoomId(roomId: string): Promise<{ email: string; name: string; facilityName: string } | null> {
+  // Temporary placeholder - return null for now to prevent booking failures
+  console.log(`⚠️ [FACILITY MANAGER LOOKUP] Temporary placeholder - returning null for room ${roomId}`)
+  return null
+}
+
 export async function getUserByEmail(email: string): Promise<types.User | null> {
   try {
     const { data, error } = await supabase

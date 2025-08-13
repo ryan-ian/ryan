@@ -124,14 +124,72 @@ export function StatusRing({
           fill="none"
         />
       </svg>
-      {/* Enhanced Labels */}
-      <div className="absolute inset-0 grid grid-rows-3 text-center pointer-events-none">
-        <div className="row-start-1 text-sm font-semibold text-brand-navy-600 dark:text-brand-navy-400">Now</div>
-        <div className="row-start-3 text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">
-          {startTime && endTime && (status === 'occupied' || status === 'meeting-in-progress') ? 'Until ' + new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : status === 'reserved' && nextStartTime ? 'Starts ' + new Date(nextStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : ''}
-        </div>
+      {/* Enhanced Labels with Timer */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+        {status === 'available' ? (
+          <>
+            <div className="text-6xl font-bold text-emerald-500 mb-2">✓</div>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">Available</div>
+          </>
+        ) : status === 'meeting-in-progress' && startTime && endTime ? (
+          <>
+            <div className="text-lg font-bold text-brand-navy-900 dark:text-brand-navy-50 mb-2">
+              {(() => {
+                const end = new Date(endTime).getTime()
+                const n = now.getTime()
+                const remaining = Math.max(0, end - n)
+                const hours = Math.floor(remaining / (1000 * 60 * 60))
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+                
+                if (remaining <= 0) return "Ended"
+                if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`
+              })()}
+            </div>
+            <div className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-400">
+              until {new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </>
+        ) : status === 'occupied' && startTime && endTime ? (
+          <>
+            <div className="text-lg font-bold text-brand-teal-700 dark:text-brand-teal-300 mb-2">
+              {(() => {
+                const end = new Date(endTime).getTime()
+                const n = now.getTime()
+                const remaining = Math.max(0, end - n)
+                const hours = Math.floor(remaining / (1000 * 60 * 60))
+                const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+                const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+                
+                if (remaining <= 0) return "Ended"
+                if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`
+              })()}
+            </div>
+            <div className="text-sm font-medium text-brand-teal-600 dark:text-brand-teal-400">
+              until {new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </>
+        ) : status === 'reserved' && nextStartTime ? (
+          <>
+            <div className="text-4xl font-bold text-amber-500 mb-2">⏳</div>
+            <div className="text-lg font-bold text-amber-700 dark:text-amber-300">Reserved</div>
+            <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              Starts {new Date(nextStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </>
+        ) : status === 'maintenance' ? (
+          <>
+            <div className="text-4xl font-bold text-red-500 mb-2">🔧</div>
+            <div className="text-lg font-bold text-red-700 dark:text-red-300">Maintenance</div>
+          </>
+        ) : (
+          <>
+            <div className="text-sm font-semibold text-brand-navy-600 dark:text-brand-navy-400">Status</div>
+            <div className="text-lg font-bold text-brand-navy-700 dark:text-brand-navy-300 capitalize">{status}</div>
+          </>
+        )}
       </div>
     </div>
   )

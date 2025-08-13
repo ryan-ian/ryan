@@ -1,13 +1,14 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { ThemeProvider } from '@/components/theme-provider'
+import { EnhancedThemeProvider } from '@/components/enhanced-theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/contexts/auth-context'
 import { NotificationsProvider } from '@/contexts/notifications-context'
-import { ThemeProvider as RoleThemeProvider } from '@/contexts/theme-context'
+import { RoleThemeProvider } from '@/contexts/theme-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
+import { EventSystemProtector } from '@/components/ui/event-system-protector'
 import ReactQueryProvider from '@/lib/react-query-provider'
 // Email service will initialize automatically when needed
 
@@ -32,11 +33,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <EnhancedThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ReactQueryProvider>
             <AuthProvider>
               <RoleThemeProvider>
                 <NotificationsProvider>
+                  <EventSystemProtector />
                   <DisplaysStyleHandler />
                   <MainWrapper>
                     {children}
@@ -46,7 +48,7 @@ export default function RootLayout({
               </RoleThemeProvider>
             </AuthProvider>
           </ReactQueryProvider>
-        </ThemeProvider>
+        </EnhancedThemeProvider>
       </body>
     </html>
   )

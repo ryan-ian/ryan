@@ -7,6 +7,7 @@ import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import type { Booking, Room } from "@/types"
 import { BookingDetailsModalModern } from "@/components/bookings/booking-details-modal-modern"
+import { BookingEditModalModern } from "@/components/bookings/booking-edit-modal-modern"
 import { DeleteBookingDialog } from "./delete-booking-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { eventBus, EVENTS } from "@/lib/events"
@@ -24,11 +25,16 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
+  const [roomFilter, setRoomFilter] = useState("all")
+  const [activeStatFilter, setActiveStatFilter] = useState<string>("")
+  const [showFilters, setShowFilters] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0) // Add a refresh key to force re-render
   
   // Modal state
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [bookingToEdit, setBookingToEdit] = useState<Booking | null>(null)
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
   const [bookingStatusToCancel, setBookingStatusToCancel] = useState<"pending" | "confirmed">("pending")
@@ -68,7 +74,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     filterBookings()
-  }, [bookings, searchTerm, statusFilter, dateFilter])
+  }, [bookings, searchTerm, statusFilter, dateFilter, roomFilter, activeStatFilter])
 
   // Force a refresh by incrementing the refresh key
   const forceRefresh = () => {
@@ -156,21 +162,43 @@ export default function BookingsPage() {
     
     let filtered = [...bookings];
 
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (booking) =>
-          booking.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          getRoomName(booking.room_id).toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+    // 1. Apply stat card filter first (exclusive)
+    if (activeStatFilter) {
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+
+      switch (activeStatFilter) {
+        case 'all':
+          // Show all bookings - no filtering needed
+          break
+        case 'today':
+          filtered = filtered.filter((booking) => {
+            const bookingDate = new Date(booking.start_time)
+            return bookingDate >= today && bookingDate < todayEnd && booking.status === "confirmed"
+          })
+          break
+        case 'upcoming':
+          filtered = filtered.filter((booking) => new Date(booking.start_time) > now && booking.status === "confirmed")
+          break
+        case 'pending':
+          filtered = filtered.filter((booking) => booking.status === "pending")
+          break
+      }
     }
 
+    // 2. Apply dropdown filters (AND logic)
     // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((booking) => booking.status === statusFilter)
     }
 
-    // Date filter
+    // Room filter
+    if (roomFilter !== "all") {
+      filtered = filtered.filter((booking) => booking.room_id === roomFilter)
+    }
+
+    // 3. Apply enhanced date filter
     if (dateFilter !== "all") {
       const now = new Date()
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -182,13 +210,54 @@ export default function BookingsPage() {
             return bookingDate >= today && bookingDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
           })
           break
-        case "upcoming":
-          filtered = filtered.filter((booking) => new Date(booking.start_time) > now)
+        case "this-week":
+          const startOfWeek = new Date(today)
+          startOfWeek.setDate(today.getDate() - today.getDay()) // Sunday
+          const endOfWeek = new Date(startOfWeek)
+          endOfWeek.setDate(startOfWeek.getDate() + 7)
+          filtered = filtered.filter((booking) => {
+            const bookingDate = new Date(booking.start_time)
+            return bookingDate >= startOfWeek && bookingDate < endOfWeek
+          })
+          break
+        case "this-month":
+          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+          const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+          filtered = filtered.filter((booking) => {
+            const bookingDate = new Date(booking.start_time)
+            return bookingDate >= startOfMonth && bookingDate < endOfMonth
+          })
+          break
+        case "next-7-days":
+          const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+          filtered = filtered.filter((booking) => {
+            const bookingDate = new Date(booking.start_time)
+            return bookingDate >= today && bookingDate < next7Days
+          })
+          break
+        case "next-30-days":
+          const next30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+          filtered = filtered.filter((booking) => {
+            const bookingDate = new Date(booking.start_time)
+            return bookingDate >= today && bookingDate < next30Days
+          })
           break
         case "past":
           filtered = filtered.filter((booking) => new Date(booking.start_time) < now)
           break
+        case "upcoming":
+          filtered = filtered.filter((booking) => new Date(booking.start_time) > now)
+          break
       }
+    }
+
+    // 4. Apply search filter last
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (booking) =>
+          booking.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getRoom(booking.room_id)?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     }
 
     // Sort by date (newest first)
@@ -212,7 +281,7 @@ export default function BookingsPage() {
         pending: 0,
       };
     }
-    
+
     const now = new Date()
     const upcoming = bookings.filter((b) => new Date(b.start_time) > now && b.status === "confirmed")
     const today = bookings.filter((b) => {
@@ -234,6 +303,62 @@ export default function BookingsPage() {
   const handleViewBooking = (booking: Booking) => {
     setSelectedBooking(booking)
     setIsDetailsModalOpen(true)
+  }
+
+  // Handle opening the booking edit modal
+  const handleEditBooking = (booking: Booking) => {
+    setBookingToEdit(booking)
+    setIsEditModalOpen(true)
+  }
+
+  // Handle submitting booking edits
+  const handleEditSubmit = async (data: { title: string; description?: string; start_time: string; end_time: string }) => {
+    if (!bookingToEdit) return
+
+    try {
+      const response = await fetch(`/api/bookings/${bookingToEdit.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description || "",
+          start_time: data.start_time,
+          end_time: data.end_time,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update booking")
+      }
+
+      const updatedBooking = await response.json()
+
+      // Update the booking in the local state
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.id === bookingToEdit.id ? updatedBooking : booking
+        )
+      )
+
+      // Update selected booking if it's the one being edited
+      if (selectedBooking && selectedBooking.id === bookingToEdit.id) {
+        setSelectedBooking(updatedBooking)
+      }
+
+      // Trigger global event for booking update
+      eventBus.publish(EVENTS.BOOKING_UPDATED)
+
+      // Close the edit modal
+      setIsEditModalOpen(false)
+      setBookingToEdit(null)
+
+    } catch (error) {
+      console.error("Error updating booking:", error)
+      throw error // Re-throw to be handled by the modal
+    }
   }
 
   // Handle initiating booking deletion
@@ -340,22 +465,56 @@ export default function BookingsPage() {
       filters.push({ key: 'status', label: `Status: ${statusFilter}` })
     }
     if (dateFilter !== 'all') {
-      filters.push({ key: 'date', label: `Date: ${dateFilter}` })
+      const dateLabels = {
+        today: 'Today',
+        'this-week': 'This Week',
+        'this-month': 'This Month',
+        'next-7-days': 'Next 7 Days',
+        'next-30-days': 'Next 30 Days',
+        upcoming: 'Upcoming',
+        past: 'Past Bookings'
+      }
+      filters.push({ key: 'date', label: `Date: ${dateLabels[dateFilter as keyof typeof dateLabels] || dateFilter}` })
+    }
+    if (roomFilter !== 'all') {
+      const room = getRoom(roomFilter)
+      filters.push({ key: 'room', label: `Room: ${room?.name || 'Unknown'}` })
+    }
+    // Add single stat filter
+    if (activeStatFilter) {
+      const filterLabels = {
+        all: 'All Bookings',
+        today: 'Today',
+        upcoming: 'Upcoming',
+        pending: 'Pending'
+      }
+      filters.push({
+        key: `stat-${activeStatFilter}`,
+        label: `Filter: ${filterLabels[activeStatFilter as keyof typeof filterLabels] || activeStatFilter}`
+      })
     }
     return filters
   }
 
   const handleClearFilter = (key: string) => {
-    switch (key) {
-      case 'search':
-        setSearchTerm('')
-        break
-      case 'status':
-        setStatusFilter('all')
-        break
-      case 'date':
-        setDateFilter('all')
-        break
+    if (key.startsWith('stat-')) {
+      // Handle stat filter removal
+      setActiveStatFilter('')
+    } else {
+      switch (key) {
+        case 'search':
+          setSearchTerm('')
+          break
+        case 'status':
+          setStatusFilter('all')
+          break
+        case 'date':
+          setDateFilter('all')
+          break
+        case 'room':
+          setRoomFilter('all')
+          break
+      }
     }
   }
 
@@ -363,6 +522,36 @@ export default function BookingsPage() {
     setSearchTerm('')
     setStatusFilter('all')
     setDateFilter('all')
+    setRoomFilter('all')
+    setActiveStatFilter('')
+  }
+
+  // Handle stat filter clicks (exclusive selection)
+  const handleStatFilterClick = (filterKey: string) => {
+    if (activeStatFilter === filterKey) {
+      // Deactivate if clicking the same active filter
+      setActiveStatFilter('')
+    } else {
+      // Activate the clicked filter (deactivates any other)
+      setActiveStatFilter(filterKey)
+    }
+  }
+
+  // Get available rooms with booking counts
+  const getAvailableRooms = () => {
+    const roomCounts: { [key: string]: number } = {}
+
+    bookings.forEach(booking => {
+      roomCounts[booking.room_id] = (roomCounts[booking.room_id] || 0) + 1
+    })
+
+    return Object.entries(roomCounts)
+      .map(([roomId, count]) => ({
+        id: roomId,
+        name: getRoom(roomId)?.name || 'Unknown Room',
+        count
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   }
 
   return (
@@ -412,6 +601,8 @@ export default function BookingsPage() {
         upcoming={stats.upcoming}
         pending={stats.pending}
         loading={loading}
+        onFilterClick={handleStatFilterClick}
+        activeFilters={activeStatFilter ? [activeStatFilter] : []}
       />
 
       {/* Filters Toolbar */}
@@ -422,9 +613,14 @@ export default function BookingsPage() {
         onStatusChange={setStatusFilter}
         dateFilter={dateFilter}
         onDateChange={setDateFilter}
+        roomFilter={roomFilter}
+        onRoomChange={setRoomFilter}
+        availableRooms={getAvailableRooms()}
         activeFilters={getActiveFilters()}
         onClearFilter={handleClearFilter}
         onClearAll={handleClearAllFilters}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters(!showFilters)}
       />
 
       {/* Results Summary */}
@@ -442,6 +638,7 @@ export default function BookingsPage() {
             booking={booking}
             room={getRoom(booking.room_id)}
             onView={handleViewBooking}
+            onEdit={handleEditBooking}
             onCancel={handleCancelClick}
           />
         ))}
@@ -477,6 +674,22 @@ export default function BookingsPage() {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         onCancel={handleCancelClick}
+        onEdit={(booking) => {
+          setIsDetailsModalOpen(false)
+          handleEditBooking(booking)
+        }}
+      />
+
+      {/* Booking Edit Modal */}
+      <BookingEditModalModern
+        booking={bookingToEdit}
+        room={bookingToEdit ? getRoom(bookingToEdit.room_id) : null}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setBookingToEdit(null)
+        }}
+        onSubmit={handleEditSubmit}
       />
 
       {/* Delete Booking Confirmation Dialog */}

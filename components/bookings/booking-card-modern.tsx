@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import Link from "next/link"
+
 import { cn } from "@/lib/utils"
 import type { Booking, Room } from "@/types"
 
@@ -31,10 +31,11 @@ interface BookingCardModernProps {
   booking: Booking
   room: Room | null
   onView: (booking: Booking) => void
+  onEdit?: (booking: Booking) => void
   onCancel: (bookingId: string, status: "pending" | "confirmed") => void
 }
 
-export function BookingCardModern({ booking, room, onView, onCancel }: BookingCardModernProps) {
+export function BookingCardModern({ booking, room, onView, onEdit, onCancel }: BookingCardModernProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "confirmed":
@@ -183,12 +184,14 @@ export function BookingCardModern({ booking, room, onView, onCancel }: BookingCa
 
           {/* Desktop: Show all actions */}
           <div className="hidden md:flex items-center gap-2">
-            {booking.status === "pending" && (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/conference-room-booking/bookings/${booking.id}/edit`}>
-                  <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Edit
-                </Link>
+            {booking.status === "pending" && onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(booking)}
+              >
+                <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
+                Edit
               </Button>
             )}
             
@@ -216,12 +219,10 @@ export function BookingCardModern({ booking, room, onView, onCancel }: BookingCa
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {booking.status === "pending" && (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/conference-room-booking/bookings/${booking.id}/edit`}>
-                      <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Edit Booking
-                    </Link>
+                {booking.status === "pending" && onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(booking)}>
+                    <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Edit Booking
                   </DropdownMenuItem>
                 )}
                 

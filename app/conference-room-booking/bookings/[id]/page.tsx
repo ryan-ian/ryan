@@ -293,7 +293,7 @@ export default function BookingDetailPage() {
                 <CardContent>
                   <div className="flex items-center gap-4">
                   <Avatar>
-                      <AvatarImage src={bookedBy.avatar_url || "/placeholder-user.jpg"} alt={bookedBy.name} />
+                      <AvatarImage src={bookedBy.profile_image || "/placeholder-user.jpg"} alt={bookedBy.name} />
                       <AvatarFallback>{bookedBy.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
 import { createPendingApprovalNotificationsForAdmins, createNotification, createFacilityManagerBookingNotification } from "@/lib/notifications"
-import { sendBookingRequestSubmittedEmail } from "@/lib/email-service"
+import { sendBookingRequestSubmittedEmail, sendBookingCreationNotificationToManager } from "@/lib/email-service"
 import { format } from "date-fns"
 
 export async function GET(request: NextRequest) {
@@ -177,26 +177,92 @@ async function createSingleBooking(bookingData: any, room: any) {
       resources: bookingData.resources || null
     })
     
-    // Send email notification to user about booking request submission
-    try {
-      const user = await getUserById(bookingData.user_id)
-      if (user && user.email && user.name) {
-        console.log(`📧 Sending booking request submitted email to ${user.email}`)
-        await sendBookingRequestSubmittedEmail(
-          user.email,
-          user.name,
-          bookingData.title,
-          room.name,
-          start_time,
-          end_time
-        )
-        console.log(`✅ Booking request submitted email sent successfully to ${user.email}`)
-      } else {
-        console.warn(`⚠️ Could not send email - user not found or missing email/name: ${bookingData.user_id}`)
+    // Get user details for email notifications
+    const user = await getUserById(bookingData.user_id)
+
+    // Get facility manager details using the new lookup function
+    console.log(`🔍 [SINGLE BOOKING] Fetching facility manager for room ${room.id}`)
+    const facilityManager = await getFacilityManagerByRoomId(room.id)
+
+    // Send dual email notifications simultaneously
+    console.log(`📧 [DUAL EMAIL] Starting dual email notification process for booking ${newBooking.id}`)
+
+    // Prepare email promises for simultaneous sending
+    const emailPromises = []
+
+    // 1. User email notification
+    if (user && user.email && user.name) {
+      console.log(`📧 [DUAL EMAIL] Preparing user email to ${user.email}`)
+      const userEmailPromise = sendBookingRequestSubmittedEmail(
+        user.email,
+        user.name,
+        bookingData.title,
+        room.name,
+        start_time,
+        end_time
+      ).then(() => {
+        console.log(`✅ [DUAL EMAIL] User email sent successfully to ${user.email}`)
+        return { type: 'user', success: true, email: user.email }
+      }).catch((error) => {
+        console.error(`❌ [DUAL EMAIL] Failed to send user email to ${user.email}:`, error)
+        return { type: 'user', success: false, email: user.email, error }
+      })
+      emailPromises.push(userEmailPromise)
+    } else {
+      console.warn(`⚠️ [DUAL EMAIL] Cannot send user email - user not found or missing email/name: ${bookingData.user_id}`)
+    }
+
+    // 2. Facility manager email notification
+    if (facilityManager && facilityManager.email && facilityManager.name) {
+      console.log(`📧 [DUAL EMAIL] Preparing facility manager email to ${facilityManager.email}`)
+      const managerEmailPromise = sendBookingCreationNotificationToManager(
+        facilityManager.email,
+        facilityManager.name,
+        user?.name || 'Unknown User',
+        user?.email || 'unknown@email.com',
+        bookingData.title,
+        room.name,
+        facilityManager.facilityName,
+        start_time,
+        end_time
+      ).then(() => {
+        console.log(`✅ [DUAL EMAIL] Facility manager email sent successfully to ${facilityManager.email}`)
+        return { type: 'manager', success: true, email: facilityManager.email }
+      }).catch((error) => {
+        console.error(`❌ [DUAL EMAIL] Failed to send facility manager email to ${facilityManager.email}:`, error)
+        return { type: 'manager', success: false, email: facilityManager.email, error }
+      })
+      emailPromises.push(managerEmailPromise)
+    } else {
+      console.warn(`⚠️ [DUAL EMAIL] Cannot send facility manager email - manager not found or missing email/name for room ${room.id}`)
+    }
+
+    // Send all emails simultaneously and wait for results
+    if (emailPromises.length > 0) {
+      try {
+        console.log(`📧 [DUAL EMAIL] Sending ${emailPromises.length} emails simultaneously...`)
+        const emailResults = await Promise.allSettled(emailPromises)
+
+        // Log results
+        emailResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const emailResult = result.value
+            if (emailResult.success) {
+              console.log(`✅ [DUAL EMAIL] ${emailResult.type} email completed successfully`)
+            } else {
+              console.error(`❌ [DUAL EMAIL] ${emailResult.type} email failed:`, emailResult.error)
+            }
+          } else {
+            console.error(`❌ [DUAL EMAIL] Email promise ${index} rejected:`, result.reason)
+          }
+        })
+
+        console.log(`📧 [DUAL EMAIL] Dual email notification process completed`)
+      } catch (error) {
+        console.error(`❌ [DUAL EMAIL] Unexpected error in dual email process:`, error)
       }
-    } catch (emailError) {
-      console.error("❌ Failed to send booking request submitted email:", emailError)
-      // Don't fail the booking creation if email fails
+    } else {
+      console.warn(`⚠️ [DUAL EMAIL] No emails to send - both user and facility manager emails unavailable`)
     }
     
     return NextResponse.json(newBooking, { status: 201 })
@@ -222,15 +288,49 @@ async function createMultipleBookings(bookingData: any, room: any) {
     const failedBookings = []
     const user = await getUserById(bookingData.user_id)
     
-    // Get facility details to find the manager
-    const { data: facility, error: facilityError } = await supabase
-      .from('facilities')
-      .select('*, manager:manager_id(id, name, email)')
-      .eq('id', room.facility_id)
-      .single();
-      
-    if (facilityError || !facility || !facility.manager || !facility.manager.id) {
-      console.error('Error fetching facility or manager:', facilityError || 'No facility manager found')
+    // Get facility manager details using inline lookup
+    console.log(`🔍 [MULTIPLE BOOKINGS] Fetching facility manager for room ${room.id}`)
+    let facilityManager = null
+    try {
+      // Simple inline facility manager lookup
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .select('facility_id')
+        .eq('id', room.id)
+        .single()
+
+      if (roomError || !roomData?.facility_id) {
+        console.log(`⚠️ [MULTIPLE BOOKINGS] Room ${room.id} has no facility assigned`)
+      } else {
+        const { data: facilityData, error: facilityError } = await supabase
+          .from('facilities')
+          .select('id, name, manager_id')
+          .eq('id', roomData.facility_id)
+          .single()
+
+        if (facilityError || !facilityData?.manager_id) {
+          console.log(`⚠️ [MULTIPLE BOOKINGS] Facility has no manager assigned`)
+        } else {
+          const { data: managerData, error: managerError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('id', facilityData.manager_id)
+            .single()
+
+          if (!managerError && managerData?.email && managerData?.name) {
+            facilityManager = {
+              email: managerData.email,
+              name: managerData.name,
+              facilityName: facilityData.name
+            }
+            console.log(`✅ [MULTIPLE BOOKINGS] Found facility manager: ${facilityManager.name} (${facilityManager.email})`)
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [MULTIPLE BOOKINGS] Error fetching facility manager for room ${room.id}:`, error)
+      // Continue with booking creation even if facility manager lookup fails
+      facilityManager = null
     }
 
     // Process each booking
@@ -300,43 +400,83 @@ async function createMultipleBookings(bookingData: any, room: any) {
         
         createdBookings.push(newBooking)
         
-        // Send email notification to user about booking request submission
+        // Send dual email notifications simultaneously for this booking
+        console.log(`📧 [DUAL EMAIL] Starting dual email notification for booking ${newBooking.id} on ${bookingDate}`)
+
+        // Prepare email promises for simultaneous sending
+        const emailPromises = []
+
+        // 1. User email notification
         if (user && user.email && user.name) {
+          console.log(`📧 [DUAL EMAIL] Preparing user email to ${user.email} for ${bookingDate}`)
+          const userEmailPromise = sendBookingRequestSubmittedEmail(
+            user.email,
+            user.name,
+            bookingData.title,
+            room.name,
+            start_time,
+            end_time
+          ).then(() => {
+            console.log(`✅ [DUAL EMAIL] User email sent successfully to ${user.email} for ${bookingDate}`)
+            return { type: 'user', success: true, email: user.email, date: bookingDate }
+          }).catch((error) => {
+            console.error(`❌ [DUAL EMAIL] Failed to send user email to ${user.email} for ${bookingDate}:`, error)
+            return { type: 'user', success: false, email: user.email, date: bookingDate, error }
+          })
+          emailPromises.push(userEmailPromise)
+        } else {
+          console.warn(`⚠️ [DUAL EMAIL] Cannot send user email for ${bookingDate} - user not found or missing email/name: ${bookingData.user_id}`)
+        }
+
+        // 2. Facility manager email notification
+        if (facilityManager && facilityManager.email && facilityManager.name) {
+          console.log(`📧 [DUAL EMAIL] Preparing facility manager email to ${facilityManager.email} for ${bookingDate}`)
+          const managerEmailPromise = sendBookingCreationNotificationToManager(
+            facilityManager.email,
+            facilityManager.name,
+            user?.name || 'Unknown User',
+            user?.email || 'unknown@email.com',
+            bookingData.title,
+            room.name,
+            facilityManager.facilityName,
+            start_time,
+            end_time
+          ).then(() => {
+            console.log(`✅ [DUAL EMAIL] Facility manager email sent successfully to ${facilityManager.email} for ${bookingDate}`)
+            return { type: 'manager', success: true, email: facilityManager.email, date: bookingDate }
+          }).catch((error) => {
+            console.error(`❌ [DUAL EMAIL] Failed to send facility manager email to ${facilityManager.email} for ${bookingDate}:`, error)
+            return { type: 'manager', success: false, email: facilityManager.email, date: bookingDate, error }
+          })
+          emailPromises.push(managerEmailPromise)
+        } else {
+          console.warn(`⚠️ [DUAL EMAIL] Cannot send facility manager email for ${bookingDate} - manager not found or missing email/name for room ${room.id}`)
+        }
+
+        // Send all emails simultaneously and wait for results
+        if (emailPromises.length > 0) {
           try {
-            console.log(`📧 Sending booking request submitted email to ${user.email} for booking on ${bookingDate}`)
-            await sendBookingRequestSubmittedEmail(
-              user.email,
-              user.name,
-              bookingData.title,
-              room.name,
-              start_time,
-              end_time
-            )
-            console.log(`✅ Booking request submitted email sent successfully to ${user.email} for booking on ${bookingDate}`)
-          } catch (emailError) {
-            console.error(`❌ Failed to send booking request submitted email for booking on ${bookingDate}:`, emailError)
-            // Don't fail the booking creation if email fails
+            console.log(`📧 [DUAL EMAIL] Sending ${emailPromises.length} emails simultaneously for ${bookingDate}...`)
+            const emailResults = await Promise.allSettled(emailPromises)
+
+            // Log results
+            emailResults.forEach((result, index) => {
+              if (result.status === 'fulfilled') {
+                const emailResult = result.value
+                if (emailResult.success) {
+                  console.log(`✅ [DUAL EMAIL] ${emailResult.type} email completed successfully for ${emailResult.date}`)
+                } else {
+                  console.error(`❌ [DUAL EMAIL] ${emailResult.type} email failed for ${emailResult.date}:`, emailResult.error)
+                }
+              } else {
+                console.error(`❌ [DUAL EMAIL] Email promise ${index} rejected for ${bookingDate}:`, result.reason)
+              }
+            })
+          } catch (error) {
+            console.error(`❌ [DUAL EMAIL] Unexpected error in dual email process for ${bookingDate}:`, error)
           }
         } else {
-          console.warn(`⚠️ Could not send email for booking on ${bookingDate} - user not found or missing email/name: ${bookingData.user_id}`)
-        }
-        
-        // Send notification to facility manager
-        if (user && room && facility && facility.manager && facility.manager.id) {
-          try {
-            await createFacilityManagerBookingNotification(
-              facility.manager.id,
-              newBooking.id,
-              user.name,
-              bookingData.title,
-              room.name,
-              start_time,
-              end_time
-            )
-            console.log(`Notification sent to facility manager ${facility.manager.name} for booking on ${bookingDate}`)
-          } catch (notificationError) {
-            console.error("Failed to send facility manager notification:", notificationError)
-          }
+          console.warn(`⚠️ [DUAL EMAIL] No emails to send for ${bookingDate} - both user and facility manager emails unavailable`)
         }
       } catch (error) {
         console.error("Error creating booking:", error)

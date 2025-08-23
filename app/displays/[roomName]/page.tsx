@@ -29,6 +29,7 @@ import { HeroClock } from "@/components/displays/hero-clock"
 import { ScheduleRail } from "@/components/displays/schedule-rail"
 import { RoomBanner } from "@/components/displays/room-banner"
 import { ActionBar } from "@/components/displays/action-bar"
+import { MeetingCarousel } from "@/components/displays/meeting-carousel"
 
 
 // Constants
@@ -214,10 +215,31 @@ export default function RoomDisplayPage() {
   }, [bookings, room])
 
   // Handle check-in success
-  const handleCheckInSuccess = (checkedInAt: string) => {
+  const handleCheckInSuccess = async (checkedInAt: string) => {
     console.log(`✅ Room checked in at ${checkedInAt}`)
-    // Refresh bookings to get updated data
-    // This could trigger a re-fetch of booking data if needed
+    
+    // Immediately update the current booking with check-in data
+    if (currentBooking) {
+      const updatedBooking = {
+        ...currentBooking,
+        checked_in_at: checkedInAt
+      }
+      
+      // Update the bookings array with the checked-in booking
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.id === currentBooking.id ? updatedBooking : booking
+        )
+      )
+      
+      // Update current booking state
+      setCurrentBooking(updatedBooking)
+      
+      // Immediately set room status to "meeting-in-progress"
+      setRoomStatus("meeting-in-progress")
+      
+      console.log(`🔄 [Display] Room status immediately updated to "meeting-in-progress"`)
+    }
   }
 
   // Handle auto-release
@@ -451,83 +473,92 @@ export default function RoomDisplayPage() {
               </div>
             )}
           </div>
+        ) : roomStatus === "available" ? (
+          /* Available State - Full Width Animated Carousel */
+          <div className="h-full">
+            <MeetingCarousel
+              bookings={bookings}
+              currentTime={currentTime}
+              className="h-full"
+            />
+          </div>
         ) : (
-                                           /* Enhanced Standard 2-zone Layout with Full Height Schedule and Centered Status */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
-             {/* Left: Main Status Area - Vertically Centered */}
-             <div className="order-1 flex flex-col items-center justify-center gap-8">
-               <StatusRing
-                 status={roomStatus}
-                 now={currentTime}
-                 startTime={currentBooking?.start_time}
-                 endTime={currentBooking?.end_time}
-                 nextStartTime={nextBooking?.start_time}
-                 size={480}
-               />
-               
-               {/* Meeting Information Display */}
-               {currentBooking && (
-                 <div className="w-full max-w-md">
-                   <Card className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300">
-                     <CardContent className="p-6 text-center">
-                       <h2 className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50 mb-2">
-                         {currentBooking.title}
-                       </h2>
-                       {currentBooking.description && (
-                         <p className="text-brand-navy-700 dark:text-brand-navy-300 mb-4 leading-relaxed">
-                           {currentBooking.description}
-                         </p>
-                       )}
-                       <div className="space-y-3">
-                         <div className="flex items-center justify-center gap-2">
-                           <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                           <span className="font-semibold text-brand-navy-900 dark:text-brand-navy-100">
-                             {currentBooking.users?.name || "Unknown Organizer"}
-                           </span>
-                         </div>
-                         <div className="flex items-center justify-center gap-2">
-                           <Clock className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                           <span className="text-brand-navy-700 dark:text-brand-navy-300">
-                             {formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}
-                           </span>
-                         </div>
-                       </div>
-                     </CardContent>
-                   </Card>
-                 </div>
-               )}
-               
-               {/* Action Bar */}
-               <div className="w-full max-w-md">
-                 <ActionBar
-                   room={room}
-                   currentBooking={currentBooking}
-                   onCheckInSuccess={handleCheckInSuccess}
-                   onAutoRelease={handleAutoRelease}
-                 />
-               </div>
-             </div>
+          /* Enhanced Standard 2-zone Layout with Full Height Schedule and Centered Status */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
+            {/* Left: Main Status Area - Vertically Centered */}
+            <div className="order-1 flex flex-col items-center justify-center gap-8">
+              <StatusRing
+                status={roomStatus}
+                now={currentTime}
+                startTime={currentBooking?.start_time}
+                endTime={currentBooking?.end_time}
+                nextStartTime={nextBooking?.start_time}
+                size={480}
+              />
+              
+              {/* Meeting Information Display */}
+              {currentBooking && (
+                <div className="w-full max-w-md">
+                  <Card className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300">
+                    <CardContent className="p-6 text-center">
+                      <h2 className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50 mb-2">
+                        {currentBooking.title}
+                      </h2>
+                      {currentBooking.description && (
+                        <p className="text-brand-navy-700 dark:text-brand-navy-300 mb-4 leading-relaxed">
+                          {currentBooking.description}
+                        </p>
+                      )}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                          <span className="font-semibold text-brand-navy-900 dark:text-brand-navy-100">
+                            {currentBooking.users?.name || "Unknown Organizer"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center gap-2">
+                          <Clock className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                          <span className="text-brand-navy-700 dark:text-brand-navy-300">
+                            {formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+              
+              {/* Action Bar */}
+              <div className="w-full max-w-md">
+                <ActionBar
+                  room={room}
+                  currentBooking={currentBooking}
+                  onCheckInSuccess={handleCheckInSuccess}
+                  onAutoRelease={handleAutoRelease}
+                />
+              </div>
+            </div>
 
-             {/* Right: Schedule Rail (Full Height) */}
-             <div className="order-2 h-full">
-               <Card className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col">
-                 <CardHeader className="pb-4">
-                   <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
-                     <div className="w-2 h-2 bg-brand-teal-500 rounded-full animate-pulse"></div>
-                     Today's Schedule
-                   </CardTitle>
-                 </CardHeader>
-                 <CardContent className="flex-1 overflow-auto">
-                   <ScheduleRail 
-                     bookings={bookings} 
-                     now={currentTime} 
-                     currentId={currentBooking?.id}
-                     showDescription={true}
-                   />
-                 </CardContent>
-               </Card>
-             </div>
-           </div>
+            {/* Right: Schedule Rail (Full Height) */}
+            <div className="order-2 h-full">
+              <Card className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-brand-teal-500 rounded-full animate-pulse"></div>
+                    Today's Schedule
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto">
+                  <ScheduleRail 
+                    bookings={bookings} 
+                    now={currentTime} 
+                    currentId={currentBooking?.id}
+                    showDescription={true}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
         </div>
       </main>

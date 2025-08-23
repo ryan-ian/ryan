@@ -15,6 +15,7 @@ interface StatusRingProps {
   size?: number
   thickness?: number
   className?: string
+  showTimer?: boolean
 }
 
 /**
@@ -31,6 +32,7 @@ export function StatusRing({
   size = 280,
   thickness = 14,
   className,
+  showTimer = false,
 }: StatusRingProps) {
   const radius = (size - thickness) / 2
   const circumference = 2 * Math.PI * radius
@@ -179,7 +181,7 @@ export function StatusRing({
           </>
         ) : status === 'meeting-in-progress' && startTime && endTime ? (
           <>
-            <div className="text-lg font-bold text-brand-navy-900 dark:text-brand-navy-50 mb-2">
+            <div className={`font-bold text-white mb-2 ${showTimer ? 'text-6xl' : 'text-lg'}`}>
               {(() => {
                 const end = new Date(endTime).getTime()
                 const n = now.getTime()
@@ -193,7 +195,7 @@ export function StatusRing({
                 return `${minutes}:${seconds.toString().padStart(2, '0')}`
               })()}
             </div>
-            <div className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-400">
+            <div className={`font-medium text-white/80 ${showTimer ? 'text-xl' : 'text-sm'}`}>
               until {new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </>

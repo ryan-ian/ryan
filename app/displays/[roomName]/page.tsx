@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { format, isAfter, isBefore, isWithinInterval, parseISO, addMinutes, differenceInMinutes } from "date-fns"
-import { AlertCircle, CheckCircle, Clock, Loader2, WifiOff, User } from "lucide-react"
+import { AlertCircle, CheckCircle, Clock, Loader2, WifiOff, User, Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -29,8 +29,7 @@ import { HeroClock } from "@/components/displays/hero-clock"
 import { ScheduleRail } from "@/components/displays/schedule-rail"
 import { RoomBanner } from "@/components/displays/room-banner"
 import { ActionBar } from "@/components/displays/action-bar"
-import { MeetingInProgressCard } from "@/components/displays/meeting-in-progress-card"
-import { CollapsibleSchedule } from "@/components/displays/collapsible-schedule"
+
 
 // Constants
 const CHECK_IN_GRACE_PERIOD_MINUTES = 15
@@ -353,25 +352,50 @@ export default function RoomDisplayPage() {
       </header>
 
                            {/* Enhanced Main Content with Modern Styling */}
-        <main className="relative z-10 flex-1 p-6 overflow-auto">
+        <main className="relative z-10 flex-1 p-6 overflow-hidden">
           <div className="w-full h-full">
         {roomStatus === "meeting-in-progress" && currentBooking ? (
-          /* Meeting in Progress Layout with Centered Status and Collapsible Schedule */
-          <div className="space-y-8">
-            {/* Prominent Meeting Information */}
-            <MeetingInProgressCard booking={currentBooking} />
+          /* Meeting in Progress Layout - Circle Left, Schedule Right with Collapse */
+          <div className={`grid gap-8 h-full transition-all duration-700 ease-in-out ${
+            scheduleCollapsed ? 'grid-cols-1' : 'grid-cols-2'
+          }`}>
+            {/* Left Side: Meeting Status Circle with Info */}
+            <div className={`flex flex-col items-center justify-center gap-8 transition-all duration-700 ease-in-out ${
+              scheduleCollapsed ? 'col-span-1' : 'col-span-1'
+            }`}>
+              {/* Meeting Title Above Circle */}
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
+                  {currentBooking.title}
+                </h1>
+                <div className="flex items-center justify-center gap-2 text-white/90">
+                  <User className="h-5 w-5" />
+                  <span className="text-xl font-medium">
+                    {currentBooking.users?.name || "Unknown Organizer"}
+                  </span>
+                </div>
+              </div>
 
-            {/* Main Status Area */}
-                         <div className="flex flex-col items-center gap-8">
-               <StatusRing
-                 status={roomStatus}
-                 now={currentTime}
-                 startTime={currentBooking?.start_time}
-                 endTime={currentBooking?.end_time}
-                 nextStartTime={nextBooking?.start_time}
-                 size={400}
-               />
-              
+              {/* Status Ring with Timer */}
+              <StatusRing
+                status={roomStatus}
+                now={currentTime}
+                startTime={currentBooking?.start_time}
+                endTime={currentBooking?.end_time}
+                nextStartTime={nextBooking?.start_time}
+                size={scheduleCollapsed ? 480 : 400}
+                showTimer={true}
+              />
+
+              {/* Meeting Description Below Circle */}
+              {currentBooking.description && (
+                <div className="text-center max-w-md">
+                  <p className="text-xl text-white/90 leading-relaxed drop-shadow-md">
+                    {currentBooking.description}
+                  </p>
+                </div>
+              )}
+
               {/* Action Bar */}
               <div className="w-full max-w-md">
                 <ActionBar
@@ -383,14 +407,49 @@ export default function RoomDisplayPage() {
               </div>
             </div>
 
-            {/* Collapsible Schedule */}
-            <CollapsibleSchedule
-              bookings={bookings}
-              now={currentTime}
-              currentId={currentBooking?.id}
-              isCollapsed={scheduleCollapsed}
-              onToggle={() => setScheduleCollapsed(!scheduleCollapsed)}
-            />
+            {/* Right Side: Collapsible Schedule */}
+            {!scheduleCollapsed && (
+              <div className="h-full">
+                <Card className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col">
+                  <CardHeader className="pb-4 flex flex-row items-center justify-between">
+                    <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
+                      <div className="w-2 h-2 bg-brand-teal-500 rounded-full animate-pulse"></div>
+                      Today's Schedule
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setScheduleCollapsed(true)}
+                      className="text-brand-navy-600 hover:text-brand-navy-800 dark:text-brand-navy-400 dark:hover:text-brand-navy-200"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <ScheduleRail 
+                      bookings={bookings} 
+                      now={currentTime} 
+                      currentId={currentBooking?.id}
+                      showDescription={true}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Collapsed Schedule Button */}
+            {scheduleCollapsed && (
+              <div className="fixed bottom-6 right-6">
+                <Button
+                  onClick={() => setScheduleCollapsed(false)}
+                  className="bg-brand-navy-800/90 hover:bg-brand-navy-700/90 text-white border border-white/20 backdrop-blur-md shadow-xl rounded-2xl px-6 py-4"
+                >
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Show Schedule ({bookings.length})
+                  <ChevronLeft className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
                                            /* Enhanced Standard 2-zone Layout with Full Height Schedule and Centered Status */

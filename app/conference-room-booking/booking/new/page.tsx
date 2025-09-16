@@ -36,12 +36,7 @@ import { retrieveRoomData, doesStoredRoomMatch, clearRoomData, getStorageInfo } 
 import { Calendar } from "@/components/booking/calendar"
 import { TimeSlotSelector } from "@/components/booking/time-slot-selector"
 
-// Global Paystack type declaration
-declare global {
-  interface Window {
-    PaystackPop: any
-  }
-}
+// PaystackPop type is already declared in lib/paystack-config.ts
 
 // Step indicator component
 const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
@@ -101,10 +96,10 @@ const RoomDisplay = ({ room, loadingSource }: { room: Room; loadingSource: 'sess
       {/* Loading source indicator */}
       {loadingSource === 'session' && (
         <div className="flex items-center justify-center animate-in slide-in-from-top duration-300 delay-150">
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
+          <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
             <Check className="h-3 w-3 mr-1" />
             Instantly loaded from your selection
-          </Badge>
+          </div>
         </div>
       )}
       
@@ -223,7 +218,7 @@ const BookingForm = ({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => onChange({ title: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ title: e.target.value })}
               placeholder="e.g., Weekly Team Meeting"
               className="mt-1"
             />
@@ -234,7 +229,7 @@ const BookingForm = ({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => onChange({ description: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange({ description: e.target.value })}
               placeholder="Meeting agenda and details..."
               className="mt-1 resize-none h-24"
             />
@@ -351,7 +346,7 @@ const ReviewAndPayment = ({
 
       // Open Paystack modal directly
       const handler = window.PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
         email: user.email,
         amount: totalCost * 100, // Convert to kobo/pesewas
         currency: room.currency || 'GHS',
@@ -710,7 +705,7 @@ function BookingPageContent() {
   }
 
   const updateFormData = (updates: Partial<BookingFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }))
+    setFormData((prev: BookingFormData) => ({ ...prev, ...updates }))
   }
 
   const validateStep = () => {
@@ -729,7 +724,7 @@ function BookingPageContent() {
 
   const nextStep = () => {
     if (validateStep()) {
-      setCurrentStep(prev => prev + 1)
+      setCurrentStep((prev: number) => prev + 1)
     } else {
       toast({
         title: "Please complete all required fields",
@@ -740,7 +735,7 @@ function BookingPageContent() {
   }
 
   const prevStep = () => {
-    setCurrentStep(prev => prev - 1)
+    setCurrentStep((prev: number) => prev - 1)
   }
 
   const handlePayment = () => {

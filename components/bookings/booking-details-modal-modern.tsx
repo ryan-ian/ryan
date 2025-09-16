@@ -12,22 +12,24 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Users, 
-  Building, 
-  AlertCircle, 
-  Info, 
-  X, 
-  Edit, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Users,
+  Building,
+  AlertCircle,
+  Info,
+  X,
   Trash2,
   CheckCircle,
   XCircle,
-  User
+  User,
+  Mail,
+  UserPlus
 } from "lucide-react"
-import type { Booking, Room } from "@/types"
+import type { Booking, Room, MeetingInvitation } from "@/types"
+import { MeetingInvitationModal } from "./meeting-invitation-modal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -38,7 +40,6 @@ interface BookingDetailsModalModernProps {
   isOpen: boolean
   onClose: () => void
   onCancel: (bookingId: string, status: "pending" | "confirmed") => void
-  onEdit?: (booking: Booking) => void
 }
 
 export function BookingDetailsModalModern({
@@ -47,16 +48,59 @@ export function BookingDetailsModalModern({
   isOpen,
   onClose,
   onCancel,
-  onEdit,
 }: BookingDetailsModalModernProps) {
   const [currentBooking, setCurrentBooking] = useState<Booking | null>(null)
+  const [meetingInvitations, setMeetingInvitations] = useState<MeetingInvitation[]>([])
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false)
+  const [loadingInvitations, setLoadingInvitations] = useState(false)
   
   // Update the current booking whenever the booking prop changes
   useEffect(() => {
     if (booking) {
       setCurrentBooking(booking)
+      // Load meeting invitations if booking is confirmed
+      if (booking.status === 'confirmed') {
+        loadMeetingInvitations(booking.id)
+      }
     }
   }, [booking])
+
+  const loadMeetingInvitations = async (bookingId: string) => {
+    setLoadingInvitations(true)
+    try {
+      const token = localStorage.getItem("auth-token")
+      const response = await fetch(`/api/meeting-invitations?bookingId=${bookingId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const invitations = await response.json()
+        setMeetingInvitations(invitations)
+      } else {
+        console.error("Failed to load meeting invitations:", response.status)
+      }
+    } catch (error) {
+      console.error("Error loading meeting invitations:", error)
+    } finally {
+      setLoadingInvitations(false)
+    }
+  }
+
+  const handleInvitationsSent = (newInvitations: MeetingInvitation[]) => {
+    // Refresh the entire invitation list to ensure we have the latest data
+    if (currentBooking) {
+      loadMeetingInvitations(currentBooking.id)
+    }
+  }
+
+  // Helper function to get invitation statistics
+  const getInvitationStats = () => {
+    const pending = meetingInvitations.filter(inv => inv.status === 'pending').length
+    const accepted = meetingInvitations.filter(inv => inv.status === 'accepted').length
+    const declined = meetingInvitations.filter(inv => inv.status === 'declined').length
+    return { pending, accepted, declined, total: meetingInvitations.length }
+  }
   
   if (!currentBooking) return null
 
@@ -67,14 +111,14 @@ export function BookingDetailsModalModern({
           icon: CheckCircle,
           className: "bg-success/10 text-success ring-1 ring-success/20",
           text: "Confirmed",
-          description: "This booking has been approved by an administrator."
+          description: "This booking has been approved by the facility manager."
         }
       case "pending":
         return {
           icon: AlertCircle,
           className: "bg-warning/10 text-warning ring-1 ring-warning/20",
           text: "Pending",
-          description: "This booking is awaiting administrator approval."
+          description: "This booking is awaiting facility manager approval."
         }
       case "cancelled":
         return {
@@ -270,6 +314,117 @@ export function BookingDetailsModalModern({
             </Card>
           )}
 
+          {/* Meeting Invitations - Only show for confirmed bookings */}
+          {currentBooking.status === 'confirmed' && new Date(currentBooking.end_time) > new Date() && (
+            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">
+                      Meeting Invitations
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsInvitationModalOpen(true)}
+                    className="text-brand-teal-600 border-brand-teal-200 hover:bg-brand-teal-50"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Invite Members
+                  </Button>
+                </div>
+
+                {loadingInvitations ? (
+                  <div className="flex items-center gap-2 text-sm text-brand-navy-500 dark:text-brand-navy-400">
+                    <div className="w-4 h-4 border-2 border-brand-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                    Loading invitations...
+                  </div>
+                ) : meetingInvitations.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-300">
+                        Meeting Attendees ({meetingInvitations.length})
+                      </p>
+                    </div>
+                    
+                    {/* Attendees List */}
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {meetingInvitations.map((invitation) => (
+                        <div key={invitation.id} className="flex items-center justify-between p-2 bg-brand-navy-50 dark:bg-brand-navy-800 rounded-lg">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="flex-shrink-0">
+                              <div className="w-8 h-8 bg-brand-teal-100 dark:bg-brand-teal-800 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4 text-brand-teal-600 dark:text-brand-teal-300" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                {invitation.invitee_name ? (
+                                  <>
+                                    <p className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-100 truncate">
+                                      {invitation.invitee_name}
+                                    </p>
+                                    <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400 truncate">
+                                      {invitation.invitee_email}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 truncate">
+                                    {invitation.invitee_email}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <Badge 
+                              variant={invitation.status === 'accepted' ? 'default' : invitation.status === 'declined' ? 'destructive' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {invitation.status === 'pending' ? 'Invited' : 
+                               invitation.status === 'accepted' ? 'Accepted' : 
+                               invitation.status === 'declined' ? 'Declined' : invitation.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Summary */}
+                    <div className="pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div className="text-center">
+                          <div className="font-medium text-blue-600 dark:text-blue-400">{getInvitationStats().pending}</div>
+                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Pending</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-medium text-green-600 dark:text-green-400">{getInvitationStats().accepted}</div>
+                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Accepted</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-medium text-red-600 dark:text-red-400">{getInvitationStats().declined}</div>
+                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Declined</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <UserPlus className="w-8 h-8 text-brand-navy-300 dark:text-brand-navy-600 mx-auto mb-2" />
+                    <p className="text-sm text-brand-navy-500 dark:text-brand-navy-400">
+                      No invitations sent yet
+                    </p>
+                    <p className="text-xs text-brand-navy-400 dark:text-brand-navy-500 mt-1">
+                      Click "Invite Members" to add attendees
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Booking ID */}
           <div className="text-center">
             <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
@@ -279,13 +434,6 @@ export function BookingDetailsModalModern({
         </div>
 
         <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
-          {currentBooking.status === "pending" && (
-            <Button variant="outline" onClick={() => onEdit?.(currentBooking)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Booking
-            </Button>
-          )}
-
           {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
             <Button
               variant="destructive"
@@ -299,6 +447,15 @@ export function BookingDetailsModalModern({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Meeting Invitation Modal */}
+      <MeetingInvitationModal
+        booking={currentBooking}
+        room={room}
+        isOpen={isInvitationModalOpen}
+        onClose={() => setIsInvitationModalOpen(false)}
+        onInvitationsSent={handleInvitationsSent}
+      />
     </Dialog>
   )
 }

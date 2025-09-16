@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { getRoomsByFacilityManager } from "@/lib/supabase-data"
 import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
+import { FacilityManagerBookingDetailsModal } from "@/components/bookings/facility-manager-booking-details-modal"
 
 type SortField = "title" | "room" | "organizer" | "date" | "status"
 type SortDirection = "asc" | "desc"
@@ -711,6 +712,7 @@ export default function BookingsManagementPage() {
                         <TableHead className="cursor-pointer" onClick={() => toggleSort("status")}>
                           <div className="flex items-center">Status{getSortIcon("status")}</div>
                         </TableHead>
+                        <TableHead>Payment</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -743,6 +745,17 @@ export default function BookingsManagementPage() {
                               {getStatusIcon(booking.status)}
                               <span className="capitalize">{booking.status}</span>
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(booking as any).total_cost ? (
+                              <div className="text-sm">
+                                <span className="font-medium text-green-700 dark:text-green-400">
+                                  GH₵ {((booking as any).total_cost as number).toFixed(2)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1 flex-wrap">
@@ -860,48 +873,64 @@ export default function BookingsManagementPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Booking Details</DialogTitle>
-            <DialogDescription>
-              Details for this meeting booking.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedBooking && (
-            <div className="space-y-4">
-              <div>
-                <span className="font-semibold">Title:</span> {selectedBooking.title}
-              </div>
-              <div>
-                <span className="font-semibold">Room:</span> {selectedBooking.rooms?.name} ({selectedBooking.rooms?.location})
-              </div>
-              <div>
-                <span className="font-semibold">Organizer:</span> {selectedBooking.users?.name} ({selectedBooking.users?.email})
-              </div>
-              <div>
-                <span className="font-semibold">Date:</span> {format(new Date(selectedBooking.start_time), "MMM d, yyyy")}
-              </div>
-              <div>
-                <span className="font-semibold">Time:</span> {format(new Date(selectedBooking.start_time), "h:mm a")} - {format(new Date(selectedBooking.end_time), "h:mm a")}
-              </div>
-              <div>
-                <span className="font-semibold">Status:</span> <Badge variant={getStatusBadgeVariant(selectedBooking.status)}>{selectedBooking.status}</Badge>
-              </div>
-              {selectedBooking.description && (
-                <div>
-                  <span className="font-semibold">Description:</span> {selectedBooking.description}
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Close</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FacilityManagerBookingDetailsModal
+        booking={selectedBooking}
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        onApprove={async (bookingId: string) => {
+          if (!user) return
+          try {
+            const token = localStorage.getItem("auth-token")
+            const response = await fetch(`/api/bookings/${bookingId}/status`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                status: 'confirmed',
+                userId: user.id
+              })
+            })
+            
+            if (response.ok) {
+              // Reload bookings after successful update
+              const bookingsData = await getAllBookingsByFacilityManager(user.id)
+              setBookings(bookingsData)
+              setFilteredBookings(bookingsData)
+            }
+          } catch (error) {
+            console.error('Error approving booking:', error)
+          }
+        }}
+        onReject={async (bookingId: string, reason: string) => {
+          if (!user) return
+          try {
+            const token = localStorage.getItem("auth-token")
+            const response = await fetch(`/api/bookings/${bookingId}/status`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                status: 'cancelled',
+                userId: user.id,
+                rejectionReason: reason
+              })
+            })
+            
+            if (response.ok) {
+              // Reload bookings after successful update
+              const bookingsData = await getAllBookingsByFacilityManager(user.id)
+              setBookings(bookingsData)
+              setFilteredBookings(bookingsData)
+            }
+          } catch (error) {
+            console.error('Error rejecting booking:', error)
+          }
+        }}
+      />
 
       {/* Cancel Dialog */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

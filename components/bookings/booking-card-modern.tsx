@@ -4,18 +4,18 @@ import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Building, 
-  Eye, 
-  Edit, 
-  Trash2, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Building,
+  Eye,
+  Trash2,
   MoreHorizontal,
   CheckCircle,
   AlertCircle,
-  XCircle
+  XCircle,
+  UserPlus
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { cn } from "@/lib/utils"
 import type { Booking, Room } from "@/types"
@@ -31,11 +32,11 @@ interface BookingCardModernProps {
   booking: Booking
   room: Room | null
   onView: (booking: Booking) => void
-  onEdit?: (booking: Booking) => void
+  onInvite?: (booking: Booking) => void
   onCancel: (bookingId: string, status: "pending" | "confirmed") => void
 }
 
-export function BookingCardModern({ booking, room, onView, onEdit, onCancel }: BookingCardModernProps) {
+export function BookingCardModern({ booking, room, onView, onInvite, onCancel }: BookingCardModernProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "confirmed":
@@ -107,138 +108,144 @@ export function BookingCardModern({ booking, room, onView, onEdit, onCancel }: B
       "border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800",
       "group relative overflow-hidden"
     )}>
-      {/* Progress indicator for upcoming/ongoing bookings */}
       {(isUpcoming || isOngoing) && (
         <div className={cn(
           "absolute top-0 left-0 right-0 h-0.5",
           isOngoing ? "bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" : "bg-gradient-to-r from-emerald-500 to-teal-500"
         )} />
       )}
-      
-      <CardContent className="p-4 md:p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-brand-navy-900 dark:text-brand-navy-50 truncate">
-              {booking.title}
-            </h3>
-          </div>
-          <Badge className={cn("ml-3 flex items-center gap-1.5", statusConfig.className)}>
-            <StatusIcon className="h-3 w-3" aria-hidden="true" />
-            {statusConfig.text}
-          </Badge>
-        </div>
-
-        {/* Meta information */}
-        <div className="space-y-3 mb-4">
-          {/* Room and Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
-              <Building className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400 flex-shrink-0" aria-hidden="true" />
-              <span className="truncate">{room?.name || "Unknown Room"}</span>
+      <CardContent className="p-3 md:p-3">
+        <div className="flex items-center gap-3">
+          {/* Left: Title + meta */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm md:text-base font-semibold text-brand-navy-900 dark:text-brand-navy-50 truncate">
+                {booking.title}
+              </h3>
+              <Badge className={cn("ml-1 hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 text-xs", statusConfig.className)}>
+                <StatusIcon className="h-3 w-3" aria-hidden="true" />
+                {statusConfig.text}
+              </Badge>
+              {booking.payment_status === 'paid' && booking.total_cost && (
+                <Badge className="ml-1 hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 text-xs bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20">
+                  GHS {booking.total_cost.toFixed(2)}
+                </Badge>
+              )}
+              {booking.status === 'confirmed' && booking.invitation_count && booking.invitation_count > 0 && (
+                <Badge className="ml-1 hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 text-xs bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20">
+                  {booking.invitation_count} invited
+                </Badge>
+              )}
             </div>
-            {room?.location && (
-              <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
-                <MapPin className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">{room.location}</span>
-              </div>
+            {booking.description && (
+              <p className="mt-0.5 text-xs text-brand-navy-600 dark:text-brand-navy-400 line-clamp-1">
+                {booking.description}
+              </p>
             )}
-          </div>
-
-          {/* Date and Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
-              <Calendar className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400 flex-shrink-0" aria-hidden="true" />
-              <span>{new Date(booking.start_time).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
-              <Clock className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400 flex-shrink-0" aria-hidden="true" />
-              <span>
+            {/* Inline meta */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-brand-navy-700 dark:text-brand-navy-300">
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <Building className="h-3.5 w-3.5 text-brand-navy-500 dark:text-brand-navy-400" aria-hidden="true" />
+                <span className="truncate">{room?.name || "Unknown Room"}</span>
+              </span>
+              {room?.location && (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <MapPin className="h-3.5 w-3.5 text-brand-navy-500 dark:text-brand-navy-400" aria-hidden="true" />
+                  <span className="truncate">{room.location}</span>
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-brand-navy-500 dark:text-brand-navy-400" aria-hidden="true" />
+                {new Date(booking.start_time).toLocaleDateString()}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-brand-navy-500 dark:text-brand-navy-400" aria-hidden="true" />
                 {new Date(booking.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 {" - "}
                 {new Date(booking.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
           </div>
+          {/* Right: Actions (desktop) */}
+          <div className="hidden md:flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button aria-label="View" variant="default" size="icon" onClick={() => onView(booking)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View details</TooltipContent>
+              </Tooltip>
+              {booking.status === "confirmed" && onInvite && new Date(booking.end_time) > new Date() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="Invite Members"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => onInvite(booking)}
+                      className="border-brand-teal-200 text-brand-teal-600 hover:bg-brand-teal-50 dark:border-brand-teal-700 dark:text-brand-teal-400 dark:hover:bg-brand-teal-900/20"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Invite Members</TooltipContent>
+                </Tooltip>
+              )}
+              {(booking.status === "pending" || booking.status === "confirmed") && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button aria-label="Delete" variant="outline" size="icon" onClick={() => onCancel(booking.id, booking.status as "pending" | "confirmed")} disabled={!canCancel} title={!canCancel ? reason : `Delete this ${booking.status} booking`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{canCancel ? "Delete" : "Cannot delete"}</TooltipContent>
+                </Tooltip>
+              )}
+            </TooltipProvider>
+          </div>
+          {/* Right: Status/Amount on mobile */}
+          <div className="md:hidden flex flex-col items-end gap-1">
+            <Badge className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 text-xs", statusConfig.className)}>
+              <StatusIcon className="h-3 w-3" aria-hidden="true" />
+              {statusConfig.text}
+            </Badge>
+            {booking.payment_status === 'paid' && booking.total_cost && (
+              <Badge className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20">
+                GHS {booking.total_cost.toFixed(2)}
+              </Badge>
+            )}
+          </div>
         </div>
-
-        {/* Description */}
-        {booking.description && (
-          <p className="text-sm text-brand-navy-600 dark:text-brand-navy-400 line-clamp-2 mb-4">
-            {booking.description}
-          </p>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* Primary View button */}
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={() => onView(booking)}
-            className="flex-1 sm:flex-none"
-          >
-            <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
-            View Details
+        {/* Mobile actions */}
+        <div className="mt-2 flex items-center gap-2 md:hidden">
+          <Button variant="default" size="sm" className="flex-1" onClick={() => onView(booking)}>
+            <Eye className="h-4 w-4 mr-2" />
+            View
           </Button>
-
-          {/* Desktop: Show all actions */}
-          <div className="hidden md:flex items-center gap-2">
-            {booking.status === "pending" && onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(booking)}
-              >
-                <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
-                Edit
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">More actions</span>
               </Button>
-            )}
-            
-            {(booking.status === "pending" || booking.status === "confirmed") && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => onCancel(booking.id, booking.status as "pending" | "confirmed")}
-                disabled={!canCancel}
-                title={!canCancel ? reason : `Delete this ${booking.status} booking`}
-              >
-                <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
-                {canCancel ? "Delete" : "Cannot Delete"}
-              </Button>
-            )}
-          </div>
-
-          {/* Mobile: Dropdown menu for secondary actions */}
-          <div className="md:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-                  <span className="sr-only">More actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {booking.status === "pending" && onEdit && (
-                  <DropdownMenuItem onClick={() => onEdit(booking)}>
-                    <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
-                    Edit Booking
-                  </DropdownMenuItem>
-                )}
-                
-                {(booking.status === "pending" || booking.status === "confirmed") && (
-                  <DropdownMenuItem 
-                    onClick={() => onCancel(booking.id, booking.status as "pending" | "confirmed")}
-                    disabled={!canCancel}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
-                    {canCancel ? "Delete Booking" : "Cannot Delete"}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {booking.status === "confirmed" && onInvite && new Date(booking.end_time) > new Date() && (
+                <DropdownMenuItem onClick={() => onInvite(booking)}>
+                  <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Invite Members
+                </DropdownMenuItem>
+              )}
+              {(booking.status === "pending" || booking.status === "confirmed") && (
+                <DropdownMenuItem onClick={() => onCancel(booking.id, booking.status as "pending" | "confirmed")} disabled={!canCancel} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                  {canCancel ? "Delete Booking" : "Cannot Delete"}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardContent>
     </Card>

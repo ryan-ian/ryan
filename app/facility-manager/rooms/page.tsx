@@ -19,7 +19,8 @@ import {
 import { RoomForm } from "@/components/forms/room-form"
 import { RoomCard, RoomCardSkeleton } from "@/components/cards/room-card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getRoomsByFacilityManager, createRoom, updateRoom, deleteRoom, getResourcesByFacility, getFacilitiesByManager } from "@/lib/supabase-data" 
+import { getRoomsByFacilityManager, createRoom, deleteRoom, getResourcesByFacility, getFacilitiesByManager } from "@/lib/supabase-data"
+import { ApiClient } from "@/lib/api-client" 
 import type { Room, Resource } from "@/types"
 import { useToast } from "@/components/ui/use-toast"
 import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
@@ -27,6 +28,7 @@ import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-man
 export default function RoomManagementPage() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const apiClient = new ApiClient()
   const [rooms, setRooms] = useState<Room[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -105,28 +107,42 @@ export default function RoomManagementPage() {
   const handleFormSubmit = async (formData: any) => {
     if (!user || !facilityId) return
     
+    console.log('🔍 DEBUG - Form data received:', formData)
+    console.log('🔍 DEBUG - User role:', user?.role)
+    console.log('🔍 DEBUG - Selected room:', selectedRoom?.id)
+    
     setIsSubmitting(true)
     const roomPayload = {
       ...formData,
       image: formData.image_url,
       facility_id: facilityId,
-      room_resources: formData.resources || []
+      room_resources: formData.resources || [],
+      // Ensure pricing fields are properly mapped
+      hourly_rate: Number(formData.hourly_rate) || 0,
+      currency: formData.currency || 'GHS'
     }
     delete roomPayload.resources
 
+    console.log('🔍 DEBUG - Room payload being sent:', roomPayload)
+
     try {
       if (selectedRoom) {
-        await updateRoom(selectedRoom.id, roomPayload)
+        const response = await apiClient.updateRoom(selectedRoom.id, roomPayload)
+        if (response.error) {
+          throw new Error(response.error)
+        }
+        console.log('✅ DEBUG - Room updated successfully via API:', response.data)
         toast({ title: "Success", description: "Room updated successfully." })
       } else {
-        await createRoom(roomPayload)
+        const newRoom = await createRoom(roomPayload)
+        console.log('✅ DEBUG - Room created successfully:', newRoom)
         toast({ title: "Success", description: "Room created successfully." })
       }
       
       await loadRoomsAndResources(facilityId)
       handleFormClose()
     } catch (err) {
-      console.error("Failed to save room", err)
+      console.error("❌ ERROR - Failed to save room:", err)
       toast({
         title: "Error",
         description: "Failed to save the room. Please try again.",

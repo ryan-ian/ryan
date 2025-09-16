@@ -6,7 +6,8 @@ import Link from "next/link"
 import { Building, MapPin, Users, Tag, Info, Package, Edit, ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
-import { getRoomById, updateRoom, getResourcesByFacility, getFacilitiesByManager } from "@/lib/supabase-data"
+import { getRoomById, getResourcesByFacility, getFacilitiesByManager } from "@/lib/supabase-data"
+import { ApiClient } from "@/lib/api-client"
 import type { Room, Resource } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +27,7 @@ export default function RoomDetailsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
+  const apiClient = new ApiClient()
 
   const [room, setRoom] = useState<Room | null>(null)
   const [resources, setResources] = useState<Resource[]>([])
@@ -66,8 +68,11 @@ export default function RoomDetailsPage() {
     if (!room) return
     setIsUpdatingStatus(true)
     try {
-      const updatedRoom = await updateRoom(room.id, { status: newStatus })
-      setRoom(updatedRoom)
+      const response = await apiClient.updateRoom(room.id, { status: newStatus })
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      setRoom(response.data)
       toast({ title: "Success", description: "Room status updated successfully." })
     } catch (err) {
       toast({ title: "Error", description: "Failed to update room status.", variant: "destructive" })
@@ -78,20 +83,48 @@ export default function RoomDetailsPage() {
 
   const handleFormSubmit = async (formData: any) => {
     if (!room) return
+    
+    console.log('🔍 DEBUG - Form data received:', formData)
+    console.log('🔍 DEBUG - User role:', user?.role)
+    console.log('🔍 DEBUG - Room ID:', room.id)
+    
     const roomPayload = {
       ...formData,
+      id: room.id, // Include room ID for API
       image: formData.image_url,
       facility_id: room.facility_id,
-      room_resources: formData.resources || []
+      room_resources: formData.resources || [],
+      // Ensure pricing fields are properly mapped
+      hourly_rate: Number(formData.hourly_rate) || 0,
+      currency: formData.currency || 'GHS'
     }
     delete roomPayload.resources
 
+    console.log('🔍 DEBUG - Room payload being sent:', roomPayload)
+
     try {
-      await updateRoom(room.id, roomPayload)
+      console.log('🚀 DEBUG - About to call API endpoint...')
+      console.log('🚀 DEBUG - Calling API with params:', { id: room.id, payload: roomPayload })
+      
+      const response = await apiClient.updateRoom(room.id, roomPayload)
+      
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      
+      console.log('✅ DEBUG - Room updated successfully via API:', response.data)
+      console.log('✅ DEBUG - Updated room pricing:', {
+        hourly_rate: response.data?.hourly_rate,
+        currency: response.data?.currency
+      })
+      
+      setRoom(response.data)
       toast({ title: "Success", description: "Room updated successfully." })
       setIsEditing(false)
-      loadRoomData() // Reload data
     } catch (err) {
+      console.error('❌ ERROR - Failed to update room:', err)
+      console.error('❌ ERROR - Error type:', typeof err)
+      console.error('❌ ERROR - Error details:', err)
       toast({ title: "Error", description: "Failed to update the room.", variant: "destructive" })
     }
   }

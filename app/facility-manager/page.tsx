@@ -324,12 +324,19 @@ export default function FacilityManagerDashboard() {
               <div className="space-y-4">
                 {pendingBookings.map((booking) => (
                   <div key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-colors">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title}</p>
                       <div className="text-sm text-brand-navy-700 dark:text-brand-navy-300 flex items-center gap-4 mt-1">
                         <span className="flex items-center gap-1.5"><Building className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.rooms.name}</span>
                         <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.users.name}</span>
                       </div>
+                      {(booking as any).total_cost && (
+                        <div className="mt-2">
+                          <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950">
+                            Amount: GH₵ {((booking as any).total_cost as number).toFixed(2)}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button 

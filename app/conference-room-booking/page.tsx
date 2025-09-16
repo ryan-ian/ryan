@@ -16,17 +16,19 @@ import { useToast } from "@/components/ui/use-toast"
 import type { Room, Resource, Facility } from "@/types"
 import { useAuth } from "@/contexts/auth-context"
 import { eventBus, EVENTS } from "@/lib/events"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { restoreBookingState, clearBookingState } from "@/lib/booking-state-manager"
 
 export default function ConferenceRoomBookingPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [rooms, setRooms] = useState<Room[]>([])
   const [resources, setResources] = useState<Resource[]>([])
@@ -42,6 +44,8 @@ export default function ConferenceRoomBookingPage() {
   const [availableFacilities, setAvailableFacilities] = useState<{id: string, name: string}[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [activeFiltersCount, setActiveFiltersCount] = useState(0)
+  const [shouldRestoreBooking, setShouldRestoreBooking] = useState(false)
+  const [restoredRoom, setRestoredRoom] = useState<Room | null>(null)
 
   useEffect(() => {
     fetchResources()
@@ -100,9 +104,52 @@ export default function ConferenceRoomBookingPage() {
     if (statusFilter !== "any") count++;
     if (facilityFilter !== "any") count++;
     if (selectedResources.length > 0) count += 1;
-    
+
     setActiveFiltersCount(count);
   }, [searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources]);
+
+  // Handle booking state restoration after payment redirect
+  useEffect(() => {
+    const restoreBooking = searchParams.get('restore_booking')
+    const stateId = searchParams.get('state_id')
+
+    if (restoreBooking === 'true' && stateId && rooms.length > 0) {
+      console.log("🔄 Attempting to restore booking state after payment redirect")
+
+      try {
+        const restoredState = restoreBookingState(stateId)
+        if (restoredState) {
+          // Find the room from the restored state
+          const room = rooms.find(r => r.id === restoredState.room.id)
+          if (room) {
+            setRestoredRoom(room)
+            setShouldRestoreBooking(true)
+
+            // Clear URL parameters
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete('restore_booking')
+            newUrl.searchParams.delete('state_id')
+            router.replace(newUrl.pathname + newUrl.search)
+
+            console.log("✅ Booking state restoration prepared")
+
+            // Show success message
+            toast({
+              title: "Payment Completed!",
+              description: "Your booking modal has been restored. You can continue or make additional bookings.",
+              duration: 5000,
+            })
+          } else {
+            console.error("❌ Room not found for restoration:", restoredState.room.id)
+            clearBookingState(stateId)
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to restore booking state:", error)
+        clearBookingState(stateId)
+      }
+    }
+  }, [searchParams, rooms, router, toast]);
   
   // Add back the filterRooms effect
   useEffect(() => {
@@ -766,6 +813,8 @@ export default function ConferenceRoomBookingPage() {
                     onBookRoom={handleBookRoom}
                     facilities={availableFacilities}
                     isAdminView={false}
+                    autoOpenBookingModal={shouldRestoreBooking && restoredRoom?.id === room.id}
+                    restoreBookingState={shouldRestoreBooking && restoredRoom?.id === room.id ? searchParams.get('state_id') || undefined : undefined}
                   />
                 )
               })

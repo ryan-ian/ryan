@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, Clock, MapPin, Building, CheckCircle, AlertCircle, XCircle, Eye, Edit, Trash2 } from "lucide-react"
+import { Calendar, Clock, MapPin, Building, CheckCircle, AlertCircle, XCircle, Eye, Trash2, UserPlus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ export interface BookingCardProps {
   booking: Booking
   room?: Room | null
   onView?: () => void
-  onEdit?: () => void
+  onInvite?: () => void
   onCancel?: () => void
   className?: string
   compact?: boolean
@@ -25,7 +25,7 @@ export function BookingCard({
   booking,
   room,
   onView,
-  onEdit,
+  onInvite,
   onCancel,
   className,
   compact = false,
@@ -243,25 +243,15 @@ export function BookingCard({
                 )}
               </Button>
               
-              {booking.status === "pending" && (
-                <Button 
-                  variant="outline" 
+              {booking.status === "confirmed" && onInvite && new Date(booking.end_time) > new Date() && (
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={onEdit}
-                  asChild={!onEdit}
-                  className="border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-brand-navy-100 dark:hover:bg-brand-navy-700"
+                  onClick={onInvite}
+                  className="border-brand-teal-200 dark:border-brand-teal-700 text-brand-teal-600 dark:text-brand-teal-400 hover:bg-brand-teal-50 dark:hover:bg-brand-teal-900/20"
                 >
-                  {onEdit ? (
-                    <>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </>
-                  ) : (
-                    <Link href={`/conference-room-booking/bookings/${booking.id}/edit`}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Link>
-                  )}
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Invite
                 </Button>
               )}
               

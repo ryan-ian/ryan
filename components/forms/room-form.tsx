@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Building, MapPin, Users, Tag, Info, Package, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Building, MapPin, Users, Tag, Info, Package, Image as ImageIcon, Loader2, DollarSign } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ImageUpload } from "@/components/ui/image-upload"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ResourceIcon } from "@/components/ui/resource-icon"
-import { cn } from "@/lib/utils"
+import { cn, validatePricing, formatCurrency } from "@/lib/utils"
 import type { Room, Resource } from "@/types"
 
 const roomFormSchema = z.object({
@@ -26,6 +26,9 @@ const roomFormSchema = z.object({
   description: z.string().optional(),
   resources: z.array(z.string()).optional(),
   image_url: z.string().optional(),
+  // Pricing fields
+  hourly_rate: z.coerce.number().min(0, { message: "Hourly rate must be positive." }).max(10000, { message: "Hourly rate cannot exceed ₵10,000/hr." }),
+  currency: z.string().default("GHS"),
 })
 
 type RoomFormValues = z.infer<typeof roomFormSchema>
@@ -51,6 +54,9 @@ export function RoomForm({ initialData, resources, onSubmit, onCancel, isLoading
       description: initialData?.description || "",
       resources: initialData?.room_resources || [],
       image_url: initialData?.image || "",
+      // Pricing defaults
+      hourly_rate: initialData?.hourly_rate || 0,
+      currency: initialData?.currency || "GHS",
     },
   })
 
@@ -172,6 +178,80 @@ export function RoomForm({ initialData, resources, onSubmit, onCancel, isLoading
                 </FormItem>
               )}
             />
+
+            {/* Pricing Section */}
+            <div className="space-y-4 p-4 border rounded-md bg-muted/30">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <FormLabel className="text-base font-semibold">Pricing Information</FormLabel>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="hourly_rate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hourly Rate</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₵</span>
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            min={0}
+                            max={10000}
+                            className="pl-8" 
+                            placeholder="0.00" 
+                            {...field} 
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">/hr</span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="GHS">Ghana Cedi (₵)</SelectItem>
+                          <SelectItem value="USD">US Dollar ($)</SelectItem>
+                          <SelectItem value="EUR">Euro (€)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+
+              
+              {/* Pricing Preview */}
+              {(() => {
+                const hourlyRate = Number(form.watch("hourly_rate")) || 0;
+                
+                return hourlyRate > 0 && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                    <p className="text-sm font-medium text-primary">
+                      Pricing Preview: {formatCurrency(hourlyRate)} per hour
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
 
             <div>
               <FormLabel>Resources</FormLabel>

@@ -46,10 +46,81 @@ export async function getUserById(id: string): Promise<types.User | null> {
  * Get facility manager's email for a given room ID
  * Follows the chain: bookings.room_id → rooms.facility_id → facilities.manager_id → users.email
  */
-export async function getFacilityManagerByRoomId(roomId: string): Promise<{ email: string; name: string; facilityName: string } | null> {
-  // Temporary placeholder - return null for now to prevent booking failures
-  console.log(`⚠️ [FACILITY MANAGER LOOKUP] Temporary placeholder - returning null for room ${roomId}`)
-  return null
+export async function getFacilityManagerByRoomId(roomId: string): Promise<{ id: string; email: string; name: string; facilityName: string } | null> {
+  try {
+    console.log(`🔍 [FACILITY MANAGER LOOKUP] Starting lookup for room ${roomId}`)
+
+    // Step 1: Get room with facility information
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, name, facility_id')
+      .eq('id', roomId)
+      .single()
+
+    if (roomError || !room) {
+      console.error(`❌ [FACILITY MANAGER LOOKUP] Room not found: ${roomId}`, roomError)
+      return null
+    }
+
+    console.log(`✅ [FACILITY MANAGER LOOKUP] Room found: ${room.name}, facility_id: ${room.facility_id}`)
+
+    if (!room.facility_id) {
+      console.warn(`⚠️ [FACILITY MANAGER LOOKUP] Room ${roomId} has no facility_id`)
+      return null
+    }
+
+    // Step 2: Get facility with manager information
+    const { data: facility, error: facilityError } = await supabase
+      .from('facilities')
+      .select('id, name, manager_id')
+      .eq('id', room.facility_id)
+      .single()
+
+    if (facilityError || !facility) {
+      console.error(`❌ [FACILITY MANAGER LOOKUP] Facility not found: ${room.facility_id}`, facilityError)
+      return null
+    }
+
+    console.log(`✅ [FACILITY MANAGER LOOKUP] Facility found: ${facility.name}, manager_id: ${facility.manager_id}`)
+
+    if (!facility.manager_id) {
+      console.warn(`⚠️ [FACILITY MANAGER LOOKUP] Facility ${facility.id} has no manager_id`)
+      return null
+    }
+
+    // Step 3: Get manager user information
+    const { data: manager, error: managerError } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('id', facility.manager_id)
+      .single()
+
+    if (managerError || !manager) {
+      console.error(`❌ [FACILITY MANAGER LOOKUP] Manager user not found: ${facility.manager_id}`, managerError)
+      return null
+    }
+
+    console.log(`✅ [FACILITY MANAGER LOOKUP] Manager found: ${manager.name} (${manager.email})`)
+
+    if (!manager.email || !manager.name) {
+      console.warn(`⚠️ [FACILITY MANAGER LOOKUP] Manager ${manager.id} missing email or name`)
+      return null
+    }
+
+    const result = {
+      id: manager.id,
+      email: manager.email,
+      name: manager.name,
+      facilityName: facility.name
+    }
+
+    console.log(`✅ [FACILITY MANAGER LOOKUP] Successfully resolved facility manager for room ${roomId}:`, result)
+    return result
+
+  } catch (error) {
+    console.error(`❌ [FACILITY MANAGER LOOKUP] Exception in getFacilityManagerByRoomId for room ${roomId}:`, error)
+    return null
+  }
 }
 
 export async function getUserByEmail(email: string): Promise<types.User | null> {
@@ -548,7 +619,10 @@ export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<typ
         image: roomInput.image || null,
         description: roomInput.description || null,
         facility_id: roomInput.facility_id,
-        facility_name: facilityName || 'Unknown Facility'
+        facility_name: facilityName || 'Unknown Facility',
+        // Pricing fields
+        hourly_rate: roomInput.hourly_rate || 0,
+        currency: roomInput.currency || 'GHS'
       })
       .select()
       .single()
@@ -568,6 +642,9 @@ export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<typ
 
 export async function updateRoom(id: string, roomInput: Partial<types.Room>): Promise<types.Room> {
   try {
+    console.log('🔍 DEBUG - updateRoom called with ID:', id, 'at', new Date().toISOString())
+    console.log('🔍 DEBUG - updateRoom input:', roomInput)
+    
     // If facility_id is provided but facility_name is not, look up the facility name
     let facilityName = roomInput.facility_name;
 
@@ -584,33 +661,79 @@ export async function updateRoom(id: string, roomInput: Partial<types.Room>): Pr
       }
     }
 
+    const updateData = {
+      name: roomInput.name,
+      location: roomInput.location,
+      capacity: roomInput.capacity,
+      room_resources: roomInput.room_resources,
+      status: roomInput.status,
+      image: roomInput.image,
+      description: roomInput.description,
+      facility_id: roomInput.facility_id,
+      facility_name: facilityName,
+      // Pricing fields (only update if provided)
+      ...(roomInput.hourly_rate !== undefined && { hourly_rate: roomInput.hourly_rate }),
+      ...(roomInput.currency !== undefined && { currency: roomInput.currency })
+    }
+
+    console.log('🔍 DEBUG - Supabase update data:', updateData)
+
+    // Test if columns exist by checking current room first
+    const { data: currentRoom, error: selectError } = await supabase
+      .from('rooms')
+      .select('id, name, hourly_rate, currency')
+      .eq('id', id)
+      .single()
+
+    if (selectError) {
+      console.error(`❌ ERROR - Could not fetch current room for ${id}:`, selectError)
+    } else {
+      console.log('🔍 DEBUG - Current room data:', currentRoom)
+    }
+
     // Update the room with resources directly in the room record
     const { data: room, error } = await supabase
       .from('rooms')
-      .update({
-        name: roomInput.name,
-        location: roomInput.location,
-        capacity: roomInput.capacity,
-        room_resources: roomInput.room_resources,
-        status: roomInput.status,
-        image: roomInput.image,
-        description: roomInput.description,
-        facility_id: roomInput.facility_id,
-        facility_name: facilityName
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
 
     if (error) {
-      console.error(`Error updating room ${id}:`, error)
+      console.error(`❌ ERROR - Supabase update error for room ${id}:`, error)
+      console.error(`❌ ERROR - Error details:`, error.details)
+      console.error(`❌ ERROR - Error hint:`, error.hint)
+      console.error(`❌ ERROR - Error message:`, error.message)
       throw error
     }
 
-    // Return the room with resource details
+    console.log('✅ DEBUG - Supabase update successful:', room)
+
+    // Return the updated room data directly (with resource details if needed)
+    if (room) {
+      // Get resource details for the updated room
+      const resourceDetails = room.room_resources ? 
+        await Promise.all(
+          room.room_resources.map(async (resourceId: string) => {
+            const { data } = await supabase
+              .from('resources')
+              .select('*')
+              .eq('id', resourceId)
+              .single()
+            return data
+          })
+        ).then(results => results.filter(Boolean)) : []
+
+      return {
+        ...room,
+        resourceDetails
+      } as types.Room
+    }
+
+    // Fallback to getRoomById if direct return fails
     return getRoomById(id) as Promise<types.Room>
   } catch (error) {
-    console.error('Exception in updateRoom:', error)
+    console.error('❌ Exception in updateRoom:', error)
     throw error
   }
 }
@@ -2414,5 +2537,451 @@ export async function getCheckInStatus(
   } catch (error) {
     console.error('Exception in getCheckInStatus:', error)
     return null
+  }
+}
+
+// Payment-related functions
+
+/**
+ * Create a payment record in the database
+ */
+export async function createPayment(paymentData: {
+  booking_id?: string
+  paystack_reference: string
+  amount: number
+  currency: string
+  status: string
+  paystack_response?: any
+}): Promise<any> {
+  try {
+    const adminClient = createAdminClient()
+
+    const { data, error } = await adminClient
+      .from('payments')
+      .insert({
+        ...paymentData,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating payment:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in createPayment:', error)
+    throw error
+  }
+}
+
+/**
+ * Get payment by Paystack reference
+ */
+export async function getPaymentByReference(reference: string): Promise<any> {
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('paystack_reference', reference)
+      .single()
+
+    if (error) {
+      console.error('Error fetching payment by reference:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in getPaymentByReference:', error)
+    throw error
+  }
+}
+
+/**
+ * Update payment status and details
+ */
+export async function updatePayment(paymentId: string, updates: {
+  status?: string
+  payment_method?: string
+  mobile_network?: string
+  mobile_number?: string
+  paystack_response?: any
+  paid_at?: string
+}): Promise<any> {
+  try {
+    const adminClient = createAdminClient()
+
+    const { data, error } = await adminClient
+      .from('payments')
+      .update(updates)
+      .eq('id', paymentId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating payment:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in updatePayment:', error)
+    throw error
+  }
+}
+
+/**
+ * Get booking with payment information
+ */
+export async function getBookingWithPayment(bookingId: string): Promise<any> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        payments:payment_id (*),
+        users:user_id (id, name, email, department),
+        rooms:room_id (id, name, location, facility_id, hourly_rate, currency)
+      `)
+      .eq('id', bookingId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching booking with payment:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in getBookingWithPayment:', error)
+    throw error
+  }
+}
+
+/**
+ * Get all payments for admin dashboard
+ */
+export async function adminGetAllPayments(): Promise<any[]> {
+  try {
+    const adminClient = createAdminClient()
+
+    const { data, error } = await adminClient
+      .from('payments')
+      .select(`
+        *,
+        bookings:booking_id (
+          id,
+          title,
+          start_time,
+          end_time,
+          status,
+          users:user_id (id, name, email),
+          rooms:room_id (id, name, location)
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Admin error fetching payments:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Exception in adminGetAllPayments:', error)
+    throw error
+  }
+}
+
+/**
+ * Get payments by user ID
+ */
+export async function getPaymentsByUserId(userId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        bookings:booking_id (
+          id,
+          title,
+          start_time,
+          end_time,
+          status,
+          rooms:room_id (id, name, location)
+        )
+      `)
+      .eq('bookings.user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching user payments:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Exception in getPaymentsByUserId:', error)
+    throw error
+  }
+}
+
+/**
+ * Clean up expired temporary payment data
+ * This function can be called periodically to clean up abandoned payments
+ */
+export async function cleanupExpiredPaymentData(): Promise<void> {
+  try {
+    const adminClient = createAdminClient()
+
+    // Find payments with temporary data that are older than 1 hour and still pending
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+    const { data: expiredPayments, error: findError } = await adminClient
+      .from('payments')
+      .select('id, paystack_response')
+      .eq('status', 'pending')
+      .lt('created_at', oneHourAgo)
+      .not('paystack_response->temp_booking_data', 'is', null)
+
+    if (findError) {
+      console.error('Error finding expired payments:', findError)
+      return
+    }
+
+    if (expiredPayments && expiredPayments.length > 0) {
+      console.log(`🧹 Cleaning up ${expiredPayments.length} expired payment records`)
+
+      // Update each payment to remove temporary data
+      for (const payment of expiredPayments) {
+        const { error: updateError } = await adminClient
+          .from('payments')
+          .update({
+            status: 'failed',
+            paystack_response: {
+              ...payment.paystack_response,
+              temp_booking_data: null
+            }
+          })
+          .eq('id', payment.id)
+
+        if (updateError) {
+          console.error(`Error cleaning up payment ${payment.id}:`, updateError)
+        }
+      }
+
+      console.log('✅ Cleanup completed')
+    }
+  } catch (error) {
+    console.error('Exception in cleanupExpiredPaymentData:', error)
+  }
+}
+
+// Meeting Invitations
+export async function getMeetingInvitations(bookingId: string): Promise<types.MeetingInvitation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_invitations')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('invited_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching meeting invitations:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Exception in getMeetingInvitations:', error)
+    throw error
+  }
+}
+
+export async function getMeetingInvitationById(id: string): Promise<types.MeetingInvitation | null> {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_invitations')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching meeting invitation:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in getMeetingInvitationById:', error)
+    throw error
+  }
+}
+
+export async function createMeetingInvitations(
+  bookingId: string,
+  organizerId: string,
+  inviteeEmails: string[]
+): Promise<types.MeetingInvitation[]> {
+  try {
+    console.log(`📧 [MEETING INVITATIONS] Creating invitations for booking ${bookingId}`)
+    console.log(`📧 [MEETING INVITATIONS] Organizer: ${organizerId}`)
+    console.log(`📧 [MEETING INVITATIONS] Invitees: ${inviteeEmails.join(', ')}`)
+
+    // Prepare invitation records
+    const invitations = inviteeEmails.map(email => ({
+      booking_id: bookingId,
+      organizer_id: organizerId,
+      invitee_email: email.trim().toLowerCase(),
+      status: 'pending' as const
+    }))
+
+    const { data, error } = await supabase
+      .from('meeting_invitations')
+      .insert(invitations)
+      .select()
+
+    if (error) {
+      console.error('Error creating meeting invitations:', error)
+      throw error
+    }
+
+    console.log(`✅ [MEETING INVITATIONS] Created ${data.length} invitations`)
+    return data || []
+  } catch (error) {
+    console.error('Exception in createMeetingInvitations:', error)
+    throw error
+  }
+}
+
+export async function updateMeetingInvitationStatus(
+  id: string,
+  status: 'pending' | 'accepted' | 'declined'
+): Promise<types.MeetingInvitation | null> {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_invitations')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating meeting invitation status:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Exception in updateMeetingInvitationStatus:', error)
+    throw error
+  }
+}
+
+export async function deleteMeetingInvitation(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('meeting_invitations')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting meeting invitation:', error)
+      throw error
+    }
+
+    return true
+  } catch (error) {
+    console.error('Exception in deleteMeetingInvitation:', error)
+    throw error
+  }
+}
+
+export async function deleteMeetingInvitationsByBooking(bookingId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('meeting_invitations')
+      .delete()
+      .eq('booking_id', bookingId)
+
+    if (error) {
+      console.error('Error deleting meeting invitations for booking:', error)
+      throw error
+    }
+
+    return true
+  } catch (error) {
+    console.error('Exception in deleteMeetingInvitationsByBooking:', error)
+    throw error
+  }
+}
+
+export async function getInvitationCountForBooking(bookingId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('meeting_invitations')
+      .select('*', { count: 'exact', head: true })
+      .eq('booking_id', bookingId)
+
+    if (error) {
+      console.error('Error counting meeting invitations:', error)
+      throw error
+    }
+
+    return count || 0
+  } catch (error) {
+    console.error('Exception in getInvitationCountForBooking:', error)
+    throw error
+  }
+}
+
+export async function checkInvitationCapacity(
+  bookingId: string,
+  newInviteeCount: number
+): Promise<{ canInvite: boolean; currentCount: number; roomCapacity: number; message?: string }> {
+  try {
+    // Get current invitation count
+    const currentCount = await getInvitationCountForBooking(bookingId)
+
+    // Get room capacity
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select(`
+        room_id,
+        rooms (
+          capacity
+        )
+      `)
+      .eq('id', bookingId)
+      .single()
+
+    if (bookingError || !booking) {
+      console.error('Error fetching booking for capacity check:', bookingError)
+      throw bookingError || new Error('Booking not found')
+    }
+
+    const roomCapacity = (booking.rooms as any)?.capacity || 0
+    const totalAfterInvite = currentCount + 1 + newInviteeCount // +1 for organizer
+
+    if (totalAfterInvite > roomCapacity) {
+      return {
+        canInvite: false,
+        currentCount,
+        roomCapacity,
+        message: `Cannot invite ${newInviteeCount} people. Room capacity is ${roomCapacity}, and you already have ${currentCount} invitations. Total would be ${totalAfterInvite} people (including organizer).`
+      }
+    }
+
+    return {
+      canInvite: true,
+      currentCount,
+      roomCapacity
+    }
+  } catch (error) {
+    console.error('Exception in checkInvitationCapacity:', error)
+    throw error
   }
 }

@@ -2,18 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Loader2, Calendar } from "lucide-react"
+import { Plus, RefreshCw, Loader2, Calendar, List as ListIcon, Table as TableIcon, Eye, Edit, Trash2, CheckCircle, AlertCircle, XCircle } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
 import type { Booking, Room } from "@/types"
 import { BookingDetailsModalModern } from "@/components/bookings/booking-details-modal-modern"
 import { BookingEditModalModern } from "@/components/bookings/booking-edit-modal-modern"
+import { MeetingInvitationModal } from "@/components/bookings/meeting-invitation-modal"
 import { DeleteBookingDialog } from "./delete-booking-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { eventBus, EVENTS } from "@/lib/events"
 import { StatsRow } from "@/components/bookings/stats-row"
 import { BookingCardModern } from "@/components/bookings/booking-card-modern"
 import { FiltersToolbar } from "@/components/bookings/filters-toolbar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
 export default function BookingsPage() {
   const { user } = useAuth()
@@ -35,10 +38,13 @@ export default function BookingsPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [bookingToEdit, setBookingToEdit] = useState<Booking | null>(null)
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false)
+  const [bookingToInvite, setBookingToInvite] = useState<Booking | null>(null)
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
   const [bookingStatusToCancel, setBookingStatusToCancel] = useState<"pending" | "confirmed">("pending")
   const [isCancelling, setIsCancelling] = useState(false)
+  const [viewMode, setViewMode] = useState<"list" | "table">("list")
 
 
   // Subscribe to global booking events
@@ -75,6 +81,15 @@ export default function BookingsPage() {
   useEffect(() => {
     filterBookings()
   }, [bookings, searchTerm, statusFilter, dateFilter, roomFilter, activeStatFilter])
+
+  // Load and persist view mode for session
+  useEffect(() => {
+    const saved = sessionStorage.getItem("bookings-view-mode") as "list" | "table" | null
+    if (saved === "list" || saved === "table") setViewMode(saved)
+  }, [])
+  useEffect(() => {
+    sessionStorage.setItem("bookings-view-mode", viewMode)
+  }, [viewMode])
 
   // Force a refresh by incrementing the refresh key
   const forceRefresh = () => {
@@ -309,6 +324,12 @@ export default function BookingsPage() {
   const handleEditBooking = (booking: Booking) => {
     setBookingToEdit(booking)
     setIsEditModalOpen(true)
+  }
+
+  // Handle opening the meeting invitation modal
+  const handleInviteMembers = (booking: Booking) => {
+    setBookingToInvite(booking)
+    setIsInvitationModalOpen(true)
   }
 
   // Handle submitting booking edits
@@ -554,6 +575,19 @@ export default function BookingsPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }
 
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return { text: "Confirmed", className: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20", icon: CheckCircle }
+      case "pending":
+        return { text: "Pending", className: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20", icon: AlertCircle }
+      case "cancelled":
+        return { text: "Cancelled", className: "bg-red-500/10 text-red-600 ring-1 ring-red-500/20", icon: XCircle }
+      default:
+        return { text: status, className: "bg-slate-500/10 text-slate-600 ring-1 ring-slate-500/20", icon: AlertCircle }
+    }
+  }
+
   return (
     <div className="p-6 space-y-8">
       {/* Header */}
@@ -567,6 +601,26 @@ export default function BookingsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 overflow-hidden">
+            <button
+              className={`px-3 py-2 text-sm flex items-center gap-2 transition-colors ${viewMode === "list" ? "bg-brand-navy-900 text-white" : "bg-transparent text-brand-navy-700 dark:text-brand-navy-300"}`}
+              onClick={() => setViewMode("list")}
+              aria-pressed={viewMode === "list"}
+              aria-label="List view"
+            >
+              <ListIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+            <button
+              className={`px-3 py-2 text-sm flex items-center gap-2 transition-colors border-l border-brand-navy-200 dark:border-brand-navy-700 ${viewMode === "table" ? "bg-brand-navy-900 text-white" : "bg-transparent text-brand-navy-700 dark:text-brand-navy-300"}`}
+              onClick={() => setViewMode("table")}
+              aria-pressed={viewMode === "table"}
+              aria-label="Table view"
+            >
+              <TableIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Table</span>
+            </button>
+          </div>
           <Button
             variant="outline"
             onClick={() => fetchBookings()}
@@ -630,19 +684,94 @@ export default function BookingsPage() {
         </p>
       </div>
 
-      {/* Bookings List */}
-      <div className="grid gap-4 md:gap-6">
-        {filteredBookings.map((booking) => (
-          <BookingCardModern
-            key={booking.id}
-            booking={booking}
-            room={getRoom(booking.room_id)}
-            onView={handleViewBooking}
-            onEdit={handleEditBooking}
-            onCancel={handleCancelClick}
-          />
-        ))}
-      </div>
+      {/* Bookings - View Modes */}
+      {viewMode === "list" && (
+        <div className="grid gap-4 md:gap-6">
+          {filteredBookings.map((booking) => (
+            <BookingCardModern
+              key={booking.id}
+              booking={booking}
+              room={getRoom(booking.room_id)}
+              onView={handleViewBooking}
+              onInvite={handleInviteMembers}
+              onCancel={handleCancelClick}
+            />
+          ))}
+        </div>
+      )}
+
+      {viewMode === "table" && (
+        <div className="rounded-xl border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 overflow-hidden">
+          <Table>
+            <TableHeader className="bg-slate-50 dark:bg-slate-900">
+              <TableRow>
+                <TableHead>Booking</TableHead>
+                <TableHead>Room</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredBookings.map((booking) => {
+                const room = getRoom(booking.room_id)
+                const statusCfg = getStatusConfig(booking.status)
+                return (
+                  <TableRow key={booking.id} className="align-middle">
+                    <TableCell className="font-medium text-brand-navy-900 dark:text-brand-navy-50">
+                      <div className="max-w-[360px] truncate">{booking.title}</div>
+                      {booking.description && (
+                        <div className="text-xs text-brand-navy-600 dark:text-brand-navy-400 truncate max-w-[420px]">{booking.description}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="truncate">{room?.name || "Unknown Room"}</div>
+                      {room?.location && (
+                        <div className="text-xs text-muted-foreground truncate">{room.location}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(booking.start_time).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(booking.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {" - "}
+                      {new Date(booking.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </TableCell>
+                    <TableCell>
+                      {booking.payment_status === 'paid' && booking.total_cost ? (
+                        <span className="text-emerald-600 font-medium">GHS {booking.total_cost.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`px-2 py-0.5 text-xs ${statusCfg.className}`}>{statusCfg.text}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="icon" aria-label="View" onClick={() => handleViewBooking(booking)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {booking.status === "pending" && (
+                          <Button variant="outline" size="icon" aria-label="Edit" onClick={() => handleEditBooking(booking)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {(booking.status === "pending" || booking.status === "confirmed") && (
+                          <Button variant="outline" size="icon" aria-label="Delete" onClick={() => handleCancelClick(booking.id, booking.status as "pending" | "confirmed")}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredBookings.length === 0 && (
@@ -674,10 +803,6 @@ export default function BookingsPage() {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         onCancel={handleCancelClick}
-        onEdit={(booking) => {
-          setIsDetailsModalOpen(false)
-          handleEditBooking(booking)
-        }}
       />
 
       {/* Booking Edit Modal */}
@@ -692,8 +817,23 @@ export default function BookingsPage() {
         onSubmit={handleEditSubmit}
       />
 
+      {/* Meeting Invitation Modal */}
+      <MeetingInvitationModal
+        booking={bookingToInvite}
+        room={bookingToInvite ? getRoom(bookingToInvite.room_id) : null}
+        isOpen={isInvitationModalOpen}
+        onClose={() => {
+          setIsInvitationModalOpen(false)
+          setBookingToInvite(null)
+        }}
+        onInvitationsSent={(invitations) => {
+          // Refresh bookings to show updated invitation count
+          fetchBookings()
+        }}
+      />
+
       {/* Delete Booking Confirmation Dialog */}
-      <DeleteBookingDialog 
+      <DeleteBookingDialog
         isOpen={isCancelDialogOpen}
         onClose={() => setIsCancelDialogOpen(false)}
         onConfirm={handleCancelConfirm}

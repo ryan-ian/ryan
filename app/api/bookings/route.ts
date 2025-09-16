@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
+import { getFacilityManagerByRoomId } from "@/lib/facility-manager-lookup"
 import { supabase } from "@/lib/supabase"
 import { createPendingApprovalNotificationsForAdmins, createNotification, createFacilityManagerBookingNotification } from "@/lib/notifications"
 import { sendBookingRequestSubmittedEmail, sendBookingCreationNotificationToManager } from "@/lib/email-service"

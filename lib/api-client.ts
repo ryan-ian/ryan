@@ -92,6 +92,12 @@ export interface Room {
   room_resources?: string[];
   facility_id: string;
   facility_name?: string;
+  // Pricing fields
+  hourly_rate?: number;
+  currency?: string;
+  min_booking_hours?: number;
+  max_booking_hours?: number;
+  pricing_notes?: string;
 }
 
 // Resource Types
@@ -162,7 +168,7 @@ export interface FilterParams {
 }
 
 // API Client Class
-class ApiClient {
+export class ApiClient {
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('auth-token');
@@ -1126,6 +1132,40 @@ class ApiClient {
         data: availableManagers as User[],
         error: null,
         status: 200
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error: this.handleError(error),
+        status: 500
+      };
+    }
+  }
+
+  async updateRoom(id: string, roomData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/rooms/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(roomData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: null,
+          error: result.error || 'Failed to update room',
+          status: response.status
+        };
+      }
+
+      return {
+        data: result.room,
+        error: null,
+        status: response.status
       };
     } catch (error) {
       return {

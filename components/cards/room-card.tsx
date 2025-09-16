@@ -2,14 +2,15 @@
 
 import { useState } from "react"
 import NextLink from "next/link"
-import { Building, MapPin, Users, Check, Edit, Trash2 } from "lucide-react"
+import { Building, MapPin, Users, Check, Edit, Trash2, DollarSign } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn, slugify } from "@/lib/utils"
+import { cn, slugify, formatCurrency, getPricingTier, getPricingTierColor } from "@/lib/utils"
 import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
+import { storeRoomData } from "@/lib/booking-session"
 import type { Room, Resource } from "@/types"
 
 export interface RoomCardProps {
@@ -31,6 +32,8 @@ export interface RoomCardProps {
   children?: React.ReactNode
   facilities?: { id: string; name: string }[]
   isAdminView?: boolean // Flag to determine if this is an admin view
+  autoOpenBookingModal?: boolean // Flag to auto-open booking modal
+  restoreBookingState?: string // State ID for booking restoration
 }
 
 export function RoomCard({
@@ -52,8 +55,10 @@ export function RoomCard({
   children,
   facilities,
   isAdminView = false,
+  autoOpenBookingModal = false,
+  restoreBookingState,
 }: RoomCardProps) {
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(autoOpenBookingModal)
 
   // Generate the appropriate href based on whether it's an admin view or user view
   const generateHref = () => {
@@ -227,12 +232,25 @@ export function RoomCard({
           </CardHeader>
           
           <CardContent className="p-0 flex-grow space-y-4">
-            <div className="flex items-center gap-4 text-brand-navy-700 dark:text-brand-navy-300">
-              <div className="flex items-center gap-2">
+            {/* Capacity and Pricing Row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
                 <Users className="h-5 w-5 text-brand-navy-600 dark:text-brand-navy-400" />
-                <span className="font-medium">{room.capacity}</span>
+                <span className="font-medium">{room.capacity} people</span>
               </div>
             </div>
+
+            {/* Compact Pricing Section */}
+            {room.hourly_rate && room.hourly_rate > 0 && (
+              <div className="flex items-center gap-2 bg-gradient-to-r from-brand-teal-50 to-emerald-50 dark:from-brand-teal-900/20 dark:to-emerald-900/20 border border-brand-teal-200 dark:border-brand-teal-800 rounded-lg p-2">
+                <div className="w-6 h-6 bg-brand-teal-100 dark:bg-brand-teal-900/30 rounded-full flex items-center justify-center">
+                  <DollarSign className="h-3 w-3 text-brand-teal-600 dark:text-brand-teal-400" />
+                </div>
+                <p className="text-sm font-bold text-brand-teal-700 dark:text-brand-teal-300">
+                  {formatCurrency(room.hourly_rate, room.currency)}/hr
+                </p>
+              </div>
+            )}
             
             {resourceDetails && resourceDetails.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -278,17 +296,29 @@ export function RoomCard({
                   </Button>
                 )
               ) : (
-                // User: Book Now only opens modal, never navigates
+                // User: Store room data and redirect to new booking page
                 <Button 
                   onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsBookingModalOpen(true);
-                  }} 
+                    e.preventDefault()
+                    e.stopPropagation()
+                    
+                    if (isBookable) {
+                      // Store room data in session storage for instant loading
+                      const stored = storeRoomData(room, 'room_card')
+                      if (stored) {
+                        console.log('Room data stored successfully for:', room.name)
+                      } else {
+                        console.warn('Failed to store room data, will fallback to API')
+                      }
+                      
+                      // Navigate to booking page
+                      window.location.href = `/conference-room-booking/booking/new?roomId=${room.id}`
+                    }
+                  }}
                   className={cn(
-                    "w-full",
+                    "w-full transition-all duration-200",
                     isBookable 
-                      ? "bg-brand-teal-500 hover:bg-brand-teal-600 text-white" 
+                      ? "bg-brand-teal-500 hover:bg-brand-teal-600 text-white hover:shadow-lg transform hover:scale-[1.02]" 
                       : room.status === "maintenance"
                         ? "bg-warning text-warning-foreground hover:bg-warning/90"
                         : "bg-destructive/80 text-destructive-foreground hover:bg-destructive/70"
@@ -309,6 +339,7 @@ export function RoomCard({
           onClose={() => setIsBookingModalOpen(false)}
           room={room}
           onSubmit={handleBookingSubmit}
+          restoreStateId={restoreBookingState}
         />
       )}
     </>

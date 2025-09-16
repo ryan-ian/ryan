@@ -43,6 +43,11 @@ export default function EditBookingPage() {
         throw new Error("You don't have permission to edit this booking")
       }
 
+      // Check if booking is paid (paid bookings cannot be edited)
+      if (bookingData.payment_status === 'paid') {
+        throw new Error("Paid bookings cannot be edited to maintain payment consistency")
+      }
+
       setBooking(bookingData)
 
       // Fetch room details

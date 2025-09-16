@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getRooms, createRoom, updateRoom, deleteRoom, getRoomById } from "@/lib/supabase-data"
+import { getRooms, createRoom, deleteRoom, getRoomById } from "@/lib/supabase-data"
 import { addCacheHeaders, addETag, cacheConfig } from "@/lib/api-cache"
 
 export async function GET(request: NextRequest) {
@@ -79,7 +79,10 @@ export async function POST(request: NextRequest) {
       room_resources: roomData.resources || [], // Map resources to room_resources
       status: roomData.status || "available",
       image: roomData.image || null,
-      description: roomData.description || null
+      description: roomData.description || null,
+      // Include pricing fields
+      hourly_rate: Number(roomData.hourly_rate) || 0,
+      currency: roomData.currency || 'GHS'
     })
 
     return NextResponse.json(newRoom, { status: 201 })
@@ -89,42 +92,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
 
-    if (!token) {
-      return NextResponse.json({ error: "Authorization required" }, { status: 401 })
-    }
-
-    // Note: Authentication check would go here
-    // For simplicity, we're assuming the token is valid and the user is an admin
-
-    const roomData = await request.json()
-    
-    console.log("Updating room data:", roomData)
-    
-    if (!roomData.id) {
-      return NextResponse.json({ error: "Room ID is required" }, { status: 400 })
-    }
-
-    // Update the room in Supabase
-    const updatedRoom = await updateRoom(roomData.id, {
-      name: roomData.name,
-      location: roomData.location,
-      capacity: roomData.capacity,
-      room_resources: roomData.resources || roomData.room_resources, // Use resources field if available
-      status: roomData.status,
-      image: roomData.image,
-      description: roomData.description
-    })
-
-    return NextResponse.json(updatedRoom)
-  } catch (error) {
-    console.error("Update room error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
 
 export async function DELETE(request: NextRequest) {
   try {

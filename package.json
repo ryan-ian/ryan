@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@paystack/inline-js": "^2.22.7",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
     "@radix-ui/react-aspect-ratio": "latest",
@@ -62,6 +63,7 @@
     "react-day-picker": "latest",
     "react-dom": "^19",
     "react-hook-form": "latest",
+    "react-paystack": "^6.0.0",
     "react-resizable-panels": "latest",
     "recharts": "latest",
     "sonner": "latest",

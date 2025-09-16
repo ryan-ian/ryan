@@ -57,6 +57,8 @@ export interface Database {
           status: "available" | "maintenance" | "reserved"
           image: string | null
           description: string | null
+          hourly_rate: number
+          currency: string
         }
         Insert: {
           id?: string
@@ -67,6 +69,8 @@ export interface Database {
           status?: "available" | "maintenance" | "reserved"
           image?: string | null
           description?: string | null
+          hourly_rate?: number
+          currency?: string
         }
         Update: {
           id?: string
@@ -77,6 +81,8 @@ export interface Database {
           status?: "available" | "maintenance" | "reserved"
           image?: string | null
           description?: string | null
+          hourly_rate?: number
+          currency?: string
         }
       }
       bookings: {

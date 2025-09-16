@@ -56,6 +56,15 @@ export interface Room {
     location: string
   }
   availability?: RoomAvailability
+  // Pricing fields
+  hourly_rate?: number
+  currency?: string
+}
+
+// Pricing Types
+export interface PricingInfo {
+  hourly_rate: number
+  currency: string
 }
 
 // Room Availability Management Types
@@ -160,6 +169,31 @@ export interface FacilityManager {
   user?: User
 }
 
+// Payment Status Types
+export type PaymentStatus = 
+  | 'not_required' 
+  | 'pending' 
+  | 'processing' 
+  | 'paid' 
+  | 'failed' 
+  | 'refunded';
+
+export type BookingStatus =
+  | 'pending'
+  | 'payment_pending'
+  | 'paid'
+  | 'confirmed'
+  | 'cancelled'
+  | 'completed';
+
+export type PaymentTransactionStatus = 
+  | 'pending' 
+  | 'processing' 
+  | 'success' 
+  | 'failed' 
+  | 'abandoned' 
+  | 'cancelled';
+
 export interface Booking {
   id: string
   room_id: string
@@ -169,7 +203,7 @@ export interface Booking {
   start_time: string
   end_time: string
   attendees?: string[]
-  status: "pending" | "confirmed" | "cancelled"
+  status: BookingStatus
   resources?: string[]
   rejection_reason?: string
   created_at: string
@@ -179,6 +213,74 @@ export interface Booking {
   check_in_required?: boolean
   auto_release_at?: string
   grace_period_minutes?: number
+  // Payment fields
+  total_amount?: number
+  total_cost?: number
+  payment_status: PaymentStatus
+  payment_reference?: string
+  paystack_reference?: string
+  payment_date?: string
+  payment_method?: string
+  payment_expires_at?: string
+  // Meeting invitation fields
+  invitation_count?: number
+}
+
+// Payment Transaction Interface
+export interface PaymentTransaction {
+  id: string
+  booking_id: string
+  user_id: string
+  amount: number
+  currency: string
+  payment_reference: string
+  paystack_reference?: string
+  paystack_transaction_id?: string
+  status: PaymentTransactionStatus
+  payment_method?: string
+  gateway_response?: any
+  created_at: string
+  updated_at: string
+  expires_at?: string
+}
+
+// Room Pricing History Interface
+export interface RoomPricingHistory {
+  id: string
+  room_id: string
+  old_price?: number
+  new_price: number
+  currency: string
+  changed_by: string
+  change_reason?: string
+  effective_from: string
+  created_at: string
+}
+
+// Payment Analytics Interface
+export interface PaymentAnalytics {
+  id: string
+  facility_id?: string
+  room_id?: string
+  date: string
+  total_revenue: number
+  total_bookings: number
+  successful_payments: number
+  failed_payments: number
+  average_booking_value: number
+  currency: string
+  created_at: string
+  updated_at: string
+}
+
+// Payment Calculation Interface
+export interface PaymentCalculation {
+  startTime: Date
+  endTime: Date
+  pricePerHour: number
+  currency: string
+  totalAmount: number
+  durationHours: number
 }
 
 export interface BookingWithDetails extends Booking {
@@ -269,4 +371,26 @@ export interface Notification {
   related_id?: string // ID of related entity (booking, room, etc.)
   is_read: boolean
   created_at: string
+}
+
+export interface MeetingInvitation {
+  id: string
+  booking_id: string
+  organizer_id: string
+  invitee_email: string
+  invitee_name?: string
+  invitation_token?: string
+  invited_at: string
+  status: "pending" | "accepted" | "declined"
+  email_sent_at?: string
+  email_status?: "pending" | "sent" | "failed" | "bounced" | "delivered"
+  responded_at?: string
+  response_token?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MeetingAttendee {
+  name?: string
+  email: string
 }

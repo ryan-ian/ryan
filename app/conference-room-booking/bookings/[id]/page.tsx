@@ -116,6 +116,8 @@ export default function BookingDetailPage() {
 
   const canEditOrCancel = () => {
     if (!booking || !user) return false
+    // Paid bookings cannot be edited to maintain payment consistency
+    if (booking.payment_status === 'paid') return false
     return user.role === 'admin' || (booking.user_id === user.id && booking.status !== "cancelled");
   }
 

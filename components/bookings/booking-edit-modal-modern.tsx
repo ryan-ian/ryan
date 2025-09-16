@@ -465,8 +465,8 @@ export function BookingEditModalModern({
 
   if (!booking || !room) return null
 
-  // Only allow editing pending bookings
-  if (booking.status !== "pending") {
+  // Only allow editing pending bookings that are not paid
+  if (booking.status !== "pending" || booking.payment_status === 'paid') {
     return (
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) onClose()
@@ -486,7 +486,10 @@ export function BookingEditModalModern({
             <Alert className="border-warning/50 bg-warning/10">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-warning">
-                Only pending bookings can be edited. This booking has a status of "{booking.status}".
+                {booking.payment_status === 'paid'
+                  ? "Paid bookings cannot be edited to maintain payment consistency."
+                  : `Only pending bookings can be edited. This booking has a status of "${booking.status}".`
+                }
               </AlertDescription>
             </Alert>
           </div>

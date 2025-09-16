@@ -385,10 +385,10 @@ export async function getRoomsByFacilityManager(userId: string): Promise<types.R
 
 export async function getRoomsByFacilityId(facilityId: string): Promise<types.Room[]> {
   try {
-    // Get all rooms that belong to the specified facility with explicit join
+    // Get all rooms that belong to the specified facility with left join to handle missing facilities
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
-      .select(`*, facilities!facility_id(id, name, location)`)
+      .select(`*, facilities!left(id, name, location)`)
       .eq('facility_id', facilityId);
 
     if (roomsError) {
@@ -399,13 +399,14 @@ export async function getRoomsByFacilityId(facilityId: string): Promise<types.Ro
     // Normalize facility property
     const normalizedRooms = rooms ? rooms.map(room => {
       let normalizedFacility = null;
-      if (room.facilities) {
+      if (room.facilities && room.facilities.name) {
         normalizedFacility = {
           id: room.facilities.id,
           name: room.facilities.name,
           location: room.facilities.location
         };
       } else if (room.facility_id) {
+        console.warn(`⚠️  Room "${room.name}" (${room.id}) references missing facility: ${room.facility_id}`);
         normalizedFacility = {
           id: room.facility_id,
           name: "Unknown Facility",
@@ -430,14 +431,14 @@ export async function getRoomsByFacilityId(facilityId: string): Promise<types.Ro
 
 export async function getRooms(): Promise<types.Room[]> {
   try {
-    console.log('Fetching rooms with explicit facility join...');
+    console.log('Fetching rooms with left join to facilities...');
 
-    // Use the same join pattern that works in getRoomsByFacilityManager
-    const { data: roomsWithFacilities, error: roomsError } = await supabase
+    // Use left join to handle missing facilities gracefully
+    const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
       .select(`
         *,
-        facilities!facility_id(id, name, location)
+        facilities!left(id, name, location)
       `)
 
     if (roomsError) {
@@ -445,18 +446,33 @@ export async function getRooms(): Promise<types.Room[]> {
       throw roomsError
     }
 
-    if (!roomsWithFacilities || roomsWithFacilities.length === 0) {
+    if (!rooms || rooms.length === 0) {
       console.log('No rooms found');
       return []
     }
 
-    console.log(`Found ${roomsWithFacilities.length} rooms`);
+    console.log(`Found ${rooms.length} rooms`);
+    
+    const roomsWithFacility = rooms.filter(room => room.facilities && room.facilities.name);
+    const roomsWithoutFacility = rooms.filter(room => !room.facilities || !room.facilities.name);
+    
+    console.log(`Rooms with valid facility data: ${roomsWithFacility.length}`);
+    console.log(`Rooms with missing facility data: ${roomsWithoutFacility.length}`);
+    
+    if (roomsWithoutFacility.length > 0) {
+      const sampleRoom = roomsWithoutFacility[0];
+      console.log(`Sample room with missing facility: Room ID ${sampleRoom.id}, Facility ID ${sampleRoom.facility_id}`);
+      
+      // Log a warning but don't throw an error
+      console.warn(`⚠️  Found ${roomsWithoutFacility.length} rooms with missing facility references. These rooms will show as "Unknown Facility".`);
+    }
 
-    // Process the results to normalize the facility property using the same approach as getRoomsByFacilityManager
-    const normalizedRooms = roomsWithFacilities.map(room => {
+    // Process the results to normalize the facility property
+    const normalizedRooms = rooms.map(room => {
       let normalizedFacility = null;
+      
       // If the join returned facility data, use it
-      if (room.facilities) {
+      if (room.facilities && room.facilities.name) {
         normalizedFacility = {
           id: room.facilities.id,
           name: room.facilities.name,
@@ -464,6 +480,7 @@ export async function getRooms(): Promise<types.Room[]> {
         };
       } else if (room.facility_id) {
         // Fallback if the join didn't work but we have facility_id
+        console.warn(`⚠️  Room "${room.name}" (${room.id}) references missing facility: ${room.facility_id}`);
         normalizedFacility = {
           id: room.facility_id,
           name: "Unknown Facility",
@@ -518,12 +535,12 @@ export async function getRooms(): Promise<types.Room[]> {
 
 export async function getRoomById(id: string): Promise<types.Room | null> {
   try {
-    // Get the room with its resources using explicit join
+    // Get the room with its resources using left join to handle missing facilities
     const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select(`
         *,
-        facilities!facility_id (id, name, location)
+        facilities!left (id, name, location)
       `)
       .eq('id', id)
       .single()
@@ -537,13 +554,14 @@ export async function getRoomById(id: string): Promise<types.Room | null> {
 
     // Normalize facility property
     let facility = null;
-    if (room.facilities) {
+    if (room.facilities && room.facilities.name) {
       facility = {
         id: room.facilities.id,
         name: room.facilities.name,
         location: room.facilities.location
       };
     } else if (room.facility_id) {
+      console.warn(`⚠️  Room "${room.name}" (${room.id}) references missing facility: ${room.facility_id}`);
       facility = {
         id: room.facility_id,
         name: "Unknown Facility",

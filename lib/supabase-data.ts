@@ -640,7 +640,9 @@ export async function createRoom(roomInput: Omit<types.Room, 'id'>): Promise<typ
         facility_name: facilityName || 'Unknown Facility',
         // Pricing fields
         hourly_rate: roomInput.hourly_rate || 0,
-        currency: roomInput.currency || 'GHS'
+        currency: roomInput.currency || 'GHS',
+        // Audit fields
+        created_by: roomInput.created_by
       })
       .select()
       .single()
@@ -691,7 +693,9 @@ export async function updateRoom(id: string, roomInput: Partial<types.Room>): Pr
       facility_name: facilityName,
       // Pricing fields (only update if provided)
       ...(roomInput.hourly_rate !== undefined && { hourly_rate: roomInput.hourly_rate }),
-      ...(roomInput.currency !== undefined && { currency: roomInput.currency })
+      ...(roomInput.currency !== undefined && { currency: roomInput.currency }),
+      // Audit fields
+      ...(roomInput.updated_by && { updated_by: roomInput.updated_by })
     }
 
     console.log('🔍 DEBUG - Supabase update data:', updateData)

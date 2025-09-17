@@ -53,6 +53,21 @@ export async function PATCH(
     console.log(`🚀 [API] PATCH /api/rooms/${id} - Updating room`)
     console.log(`📝 [API] Update details:`, body)
 
+    // Get user info from authorization header for audit trail
+    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    let userId = null
+    
+    if (token) {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        if (!authError && user) {
+          userId = user.id
+        }
+      } catch (error) {
+        console.warn("Could not get user from token for audit trail:", error)
+      }
+    }
+
     // Validate required fields
     if (!body.name || !body.location || !body.capacity) {
       return NextResponse.json(
@@ -64,22 +79,25 @@ export async function PATCH(
       )
     }
 
-    // If facility_id is provided but facility_name is not, look up the facility name
+    // Always look up the facility name to ensure it's populated correctly
     let facilityName = body.facility_name
 
-    if (body.facility_id && !facilityName) {
-      const { data: facilityData } = await supabase
+    if (body.facility_id) {
+      const { data: facilityData, error: facilityError } = await supabase
         .from('facilities')
         .select('name')
         .eq('id', body.facility_id)
         .single()
 
-      if (facilityData) {
+      if (!facilityError && facilityData) {
         facilityName = facilityData.name
+        console.log(`🔍 [API] Found facility name: ${facilityName} for facility_id: ${body.facility_id}`)
+      } else {
+        console.warn(`⚠️ [API] Could not find facility name for facility_id: ${body.facility_id}`, facilityError)
       }
     }
 
-    // Prepare update data
+    // Prepare base update data without pricing fields
     const updateData = {
       name: body.name,
       location: body.location,
@@ -90,14 +108,68 @@ export async function PATCH(
       description: body.description || null,
       facility_id: body.facility_id,
       facility_name: facilityName,
-      // Pricing fields (only update if provided)
-      ...(body.hourly_rate !== undefined && { hourly_rate: Number(body.hourly_rate) || 0 }),
-      ...(body.currency !== undefined && { currency: body.currency || 'GHS' })
+      // Audit fields
+      ...(userId && { updated_by: userId })
     }
 
     console.log('🔍 DEBUG - Supabase update data:', updateData)
 
-    // Update the room
+    // Handle pricing separately to avoid trigger conflicts
+    let pricingUpdateSuccess = true
+    if (body.hourly_rate !== undefined || body.currency !== undefined) {
+      try {
+        // Get current room pricing to compare
+        const { data: currentRoom } = await supabase
+          .from('rooms')
+          .select('hourly_rate, currency')
+          .eq('id', id)
+          .single()
+
+        const newPrice = Number(body.hourly_rate) || (currentRoom?.hourly_rate || 0)
+        const newCurrency = body.currency || currentRoom?.currency || 'GHS'
+
+        // Create pricing history record first (if price is changing and we have userId)
+        if (userId && currentRoom && currentRoom.hourly_rate !== newPrice) {
+          await supabase
+            .from('room_pricing_history')
+            .insert({
+              room_id: id,
+              old_price: currentRoom.hourly_rate || 0,
+              new_price: newPrice,
+              currency: newCurrency,
+              changed_by: userId,
+              change_reason: 'Room price updated by facility manager'
+            })
+          
+          console.log(`💰 [API] Created pricing history record for room ${id}`)
+        }
+
+        // Update pricing fields separately
+        const pricingUpdate = {
+          ...(body.hourly_rate !== undefined && { hourly_rate: newPrice }),
+          ...(body.currency !== undefined && { currency: newCurrency })
+        }
+
+        if (Object.keys(pricingUpdate).length > 0) {
+          const { error: pricingError } = await supabase
+            .from('rooms')
+            .update(pricingUpdate)
+            .eq('id', id)
+
+          if (pricingError) {
+            console.error('❌ [API] Error updating pricing:', pricingError)
+            pricingUpdateSuccess = false
+          } else {
+            console.log(`💰 [API] Updated pricing for room ${id}`)
+          }
+        }
+      } catch (pricingError) {
+        console.warn('⚠️ [API] Could not handle pricing update:', pricingError)
+        pricingUpdateSuccess = false
+      }
+    }
+
+    // Update the room (non-pricing fields)
     const { data: room, error } = await supabase
       .from('rooms')
       .update(updateData)
@@ -134,7 +206,11 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       room,
-      message: "Room updated successfully"
+      message: "Room updated successfully",
+      ...(body.hourly_rate !== undefined && { 
+        pricingUpdateSuccess,
+        pricingMessage: pricingUpdateSuccess ? "Pricing updated successfully" : "Pricing update had issues - check logs"
+      })
     })
   } catch (error: any) {
     const { id } = await params

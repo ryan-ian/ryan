@@ -340,7 +340,7 @@ export default function SignupPage() {
               <div>
                 <p className="text-base text-slate-600 mb-3 font-medium dark:text-slate-400">Already have an account?</p>
                 <Link
-                  href="/user-login"
+                  href="/login"
                   className="inline-block text-teal-600 hover:text-teal-700 font-semibold text-lg transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
                 >
                   Sign In

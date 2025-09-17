@@ -59,6 +59,7 @@
     "next-themes": "latest",
     "nodemailer": "^7.0.5",
     "path": "latest",
+    "puppeteer": "^22.15.0",
     "react": "^19",
     "react-day-picker": "latest",
     "react-dom": "^19",
@@ -75,6 +76,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/nodemailer": "^6.4.17",
+    "@types/puppeteer": "^7.0.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.2.0",

@@ -64,12 +64,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authorization required" }, { status: 401 })
     }
 
-    // Note: Authentication check would go here
-    // For simplicity, we're assuming the token is valid and the user is an admin
+    // Get user info from token
+    const { supabase } = await import("@/lib/supabase")
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
 
     const roomData = await request.json()
     
     console.log("Received room data:", roomData)
+    console.log("Creating room for user:", user.id)
 
     // Create the room in Supabase
     const newRoom = await createRoom({
@@ -80,9 +86,12 @@ export async function POST(request: NextRequest) {
       status: roomData.status || "available",
       image: roomData.image || null,
       description: roomData.description || null,
+      facility_id: roomData.facility_id, // Include facility_id
       // Include pricing fields
       hourly_rate: Number(roomData.hourly_rate) || 0,
-      currency: roomData.currency || 'GHS'
+      currency: roomData.currency || 'GHS',
+      // Include audit fields
+      created_by: user.id
     })
 
     return NextResponse.json(newRoom, { status: 201 })

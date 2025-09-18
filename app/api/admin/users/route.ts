@@ -265,8 +265,8 @@ export async function PUT(request: NextRequest) {
       sanitizedData.status = updateData.status;
     }
 
-    if (updateData.department) {
-      sanitizedData.department = sanitizeInput(updateData.department);
+    if (updateData.organization) {
+      sanitizedData.organization = sanitizeInput(updateData.organization);
     }
 
     if (updateData.position) {

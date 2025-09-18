@@ -31,7 +31,7 @@ export interface User {
   name: string;
   role: 'user' | 'facility_manager' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'locked';
-  department: string;
+  organization: string;
   position?: string;
   phone?: string;
   profile_image?: string;
@@ -51,7 +51,7 @@ export interface UserFormData {
   name: string;
   role: 'user' | 'facility_manager' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'locked';
-  department?: string;
+  organization?: string;
   position?: string;
   phone?: string;
   password?: string; // Only for new users
@@ -444,7 +444,7 @@ export async function createUser(userData: UserFormData): Promise<User> {
       email_confirm: true, // Auto-confirm email
       user_metadata: {
         name: userData.name,
-        department: userData.department,
+        organization: userData.organization,
         position: userData.position,
       },
     });
@@ -458,7 +458,7 @@ export async function createUser(userData: UserFormData): Promise<User> {
       .update({
         role: userData.role,
         status: userData.status,
-        department: userData.department,
+        organization: userData.organization,
         position: userData.position,
       })
       .eq('id', authData.user.id)
@@ -499,7 +499,7 @@ export async function updateUser(userId: string, userData: Partial<UserFormData>
         name: userData.name,
         role: userData.role,
         status: userData.status,
-        department: userData.department,
+        organization: userData.organization,
         position: userData.position,
       })
       .eq('id', userId)

@@ -98,19 +98,19 @@ export default function BookingsPage() {
 
   const fetchBookings = async () => {
     try {
-      // Check if we have a user and token before proceeding
-      const token = localStorage.getItem("auth-token")
-      if (!token || !user?.id) {
-        console.log("Skipping fetchBookings: No token or user ID available")
+      // Check if we have a user before proceeding
+      if (!user?.id) {
+        console.log("Skipping fetchBookings: No user ID available")
         return
       }
       
       setLoading(true)
       
-      // Use the user-specific bookings endpoint with cache-busting
-      const response = await fetch(`/api/bookings/user?user_id=${user.id}&timestamp=${Date.now()}`, {
+      // Use the new authenticated fetch utility
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
+      
+      const response = await authenticatedFetch(`/api/bookings/user?user_id=${user.id}&timestamp=${Date.now()}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'

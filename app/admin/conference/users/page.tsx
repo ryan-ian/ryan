@@ -319,7 +319,7 @@ export default function UserManagementPage() {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Department</TableHead>
+                        <TableHead>Organization</TableHead>
                         <TableHead>Status</TableHead>
                         {/* Temporarily hidden - Actions column */}
                         {/* <TableHead className="text-right">Actions</TableHead> */}
@@ -355,7 +355,7 @@ export default function UserManagementPage() {
                               size="sm"
                             />
                           </TableCell>
-                          <TableCell>{user.department || '-'}</TableCell>
+                          <TableCell>{user.organization || '-'}</TableCell>
                           <TableCell>
                             <UserStatusIndicator
                               status={user.status}

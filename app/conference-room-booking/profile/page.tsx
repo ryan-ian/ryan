@@ -24,7 +24,7 @@ export default function ProfilePage() {
     name: "",
     email: "",
     phone: "",
-    department: "",
+    organization: "",
   })
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -38,7 +38,7 @@ export default function ProfilePage() {
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
-        department: user.department || "",
+        organization: user.organization || "",
       })
 
       // Fetch user booking stats
@@ -49,19 +49,9 @@ export default function ProfilePage() {
   const fetchUserStats = async () => {
     if (!user) return;
     try {
-      // Get the current session token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
       
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-      
-      const response = await fetch(`/api/bookings/user?user_id=${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch(`/api/bookings/user?user_id=${user.id}`);
       
       if (!response.ok) throw new Error("Could not fetch stats")
       const bookings = await response.json()
@@ -110,7 +100,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           name: formData.name,
           phone: formData.phone,
-          department: formData.department
+          organization: formData.organization
         })
       })
       if (!response.ok) throw new Error("Failed to update profile")
@@ -138,7 +128,7 @@ export default function ProfilePage() {
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
-        department: user.department || "",
+        organization: user.organization || "",
       })
     }
     setIsEditing(false)
@@ -248,8 +238,8 @@ export default function ProfilePage() {
                     <Input id="phone" value={formData.phone} onChange={(e) => handleInputChange("phone", e.target.value)} disabled={!isEditing} placeholder="Your phone number" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Input id="department" value={formData.department} onChange={(e) => handleInputChange("department", e.target.value)} disabled={!isEditing} placeholder="Your department" />
+                    <Label htmlFor="organization">Organization</Label>
+                    <Input id="organization" value={formData.organization} onChange={(e) => handleInputChange("organization", e.target.value)} disabled={!isEditing} placeholder="Your organization" />
                   </div>
                 </div>
               </CardContent>

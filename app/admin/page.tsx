@@ -183,9 +183,9 @@ export default function AdminLandingPage() {
                   </div>
                   <div className="text-center sm:text-left">
                     <p className="font-semibold text-muted-foreground text-sm uppercase tracking-wide mb-2">
-                      Department
+                      Organization
                     </p>
-                    <p className="text-lg font-medium">{user?.department || "Administration"}</p>
+                    <p className="text-lg font-medium">{user?.organization || "Administration"}</p>
                   </div>
                   <div className="text-center sm:text-left">
                     <p className="font-semibold text-muted-foreground text-sm uppercase tracking-wide mb-2">Position</p>

@@ -210,8 +210,8 @@ export default function UserProfilePage() {
                     <p className="font-medium">{user.phone || 'Not provided'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Department</label>
-                    <p className="font-medium">{user.department || 'Not specified'}</p>
+                    <label className="text-sm font-medium text-muted-foreground">Organization</label>
+                    <p className="font-medium">{user.organization || 'Not specified'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Position</label>

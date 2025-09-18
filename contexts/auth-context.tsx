@@ -10,12 +10,22 @@ import { Session, User } from "@supabase/supabase-js"
 interface AuthContextType {
   user: AuthUser | null
   login: (email: string, password: string, isAdmin?: boolean) => Promise<boolean>
+  signInWithGoogle: () => Promise<void>
   signup: (email: string, password: string, userData: Omit<AuthUser, 'id' | 'email' | 'role'>) => Promise<{ success: boolean; needsVerification?: boolean }>
+  completeProfile: (organization: string, position: string) => Promise<{ success: boolean; message: string }>
   logout: () => Promise<void>
+  forgotPassword: (email: string) => Promise<{ success: boolean; message: string }>
+  resetPassword: (newPassword: string) => Promise<{ success: boolean; message: string }>
   loading: boolean
+  needsProfileCompletion: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Helper function to check if profile needs completion
+const checkProfileCompletion = (user: AuthUser): boolean => {
+  return user.organization === 'OAuth - Pending' || user.position === 'OAuth - Pending'
+}
 
 // Helper function to convert Supabase user to our AuthUser type
 const mapSupabaseUser = async (session: Session | null): Promise<AuthUser | null> => {
@@ -41,7 +51,7 @@ const mapSupabaseUser = async (session: Session | null): Promise<AuthUser | null
           name: session.user.user_metadata?.name || 'User',
           email: session.user.email || '',
           role: session.user.user_metadata?.role || 'user',
-          department: session.user.user_metadata?.department || 'Unassigned',
+          organization: session.user.user_metadata?.organization || 'Unassigned',
           position: session.user.user_metadata?.position || 'Unassigned'
         }
       }
@@ -58,7 +68,7 @@ const mapSupabaseUser = async (session: Session | null): Promise<AuthUser | null
       name: data.name,
       email: data.email,
       role: data.role,
-      department: data.department,
+      organization: data.organization,
       position: data.position
     }
   } catch (error) {
@@ -70,6 +80,7 @@ const mapSupabaseUser = async (session: Session | null): Promise<AuthUser | null
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
 
   // Initialize user on mount
   useEffect(() => {
@@ -84,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session) {
           const authUser = await mapSupabaseUser(session)
           setUser(authUser)
+          setNeedsProfileCompletion(authUser ? checkProfileCompletion(authUser) : false)
         } else if (token) {
           // Try to use the token from localStorage if no active session
           try {
@@ -92,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!error && data.user) {
               const authUser = await mapSupabaseUser({ user: data.user, access_token: token } as Session)
               setUser(authUser)
+              setNeedsProfileCompletion(authUser ? checkProfileCompletion(authUser) : false)
             } else {
               // Invalid token, remove it
               localStorage.removeItem("auth-token")
@@ -110,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (event === 'SIGNED_IN' && session) {
               const authUser = await mapSupabaseUser(session)
               setUser(authUser)
+              setNeedsProfileCompletion(authUser ? checkProfileCompletion(authUser) : false)
               
               // Store token on sign in
               if (session.access_token) {
@@ -117,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             } else if (event === 'SIGNED_OUT') {
               setUser(null)
+              setNeedsProfileCompletion(false)
               localStorage.removeItem("auth-token")
             }
           }
@@ -175,6 +190,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false
     }
   }
+
+  const signInWithGoogle = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      
+      if (error) {
+        console.error("Google OAuth error:", error.message)
+        throw error
+      }
+      
+      // The redirect will handle the rest of the flow
+    } catch (error) {
+      console.error("Google sign-in error:", error)
+      throw error
+    }
+  }
+
+  const completeProfile = async (organization: string, position: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      if (!user) {
+        return { success: false, message: "No authenticated user found" }
+      }
+
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        return { success: false, message: "No valid session found" }
+      }
+
+      // Update the user profile via API
+      const response = await fetch('/api/auth/complete-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ organization, position })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        return { success: false, message: error.message || 'Failed to update profile' }
+      }
+
+      // Update local user state
+      const updatedUser = { ...user, organization, position }
+      setUser(updatedUser)
+      setNeedsProfileCompletion(false)
+
+      return { success: true, message: 'Profile completed successfully' }
+    } catch (error) {
+      console.error("Profile completion error:", error)
+      return { success: false, message: 'An unexpected error occurred' }
+    }
+  }
   
   const signup = async (
     email: string,
@@ -189,7 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           data: {
             name: userData.name,
-            department: userData.department,
+            organization: userData.organization,
             position: userData.position,
             role: 'user' // Add role to metadata as well
           },
@@ -226,7 +302,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, login, logout, signup, loading }}>{children}</AuthContext.Provider>
+  const forgotPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+
+      if (error) {
+        console.error("Forgot password error:", error.message)
+        return { 
+          success: false, 
+          message: "Failed to send reset email. Please try again." 
+        }
+      }
+
+      return { 
+        success: true, 
+        message: "Password reset instructions have been sent to your email." 
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error)
+      return { 
+        success: false, 
+        message: "An unexpected error occurred. Please try again." 
+      }
+    }
+  }
+
+  const resetPassword = async (newPassword: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      })
+
+      if (error) {
+        console.error("Reset password error:", error.message)
+        return { 
+          success: false, 
+          message: "Failed to reset password. Please try again." 
+        }
+      }
+
+      return { 
+        success: true, 
+        message: "Password has been successfully reset." 
+      }
+    } catch (error) {
+      console.error("Reset password error:", error)
+      return { 
+        success: false, 
+        message: "An unexpected error occurred. Please try again." 
+      }
+    }
+  }
+
+  return <AuthContext.Provider value={{ 
+    user, 
+    login, 
+    signInWithGoogle, 
+    signup, 
+    completeProfile, 
+    logout, 
+    forgotPassword, 
+    resetPassword, 
+    loading, 
+    needsProfileCompletion 
+  }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

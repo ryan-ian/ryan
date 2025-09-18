@@ -27,7 +27,7 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'user' | 'facility_manager';
-  department: string;
+  organization: string;
   position: string;
   phone?: string;
   profile_image?: string;
@@ -40,7 +40,7 @@ export interface UserCreateRequest {
   password: string;
   name: string;
   role: 'admin' | 'user' | 'facility_manager';
-  department: string;
+  organization: string;
   position: string;
   phone?: string;
 }
@@ -48,7 +48,7 @@ export interface UserCreateRequest {
 export interface UserUpdateRequest {
   name?: string;
   role?: 'admin' | 'user' | 'facility_manager';
-  department?: string;
+  organization?: string;
   position?: string;
   phone?: string;
   profile_image?: string;
@@ -435,7 +435,7 @@ export class ApiClient {
         user_metadata: {
           name: userData.name,
           role: userData.role,
-          department: userData.department,
+          organization: userData.organization,
           position: userData.position,
           phone: userData.phone
         }
@@ -487,7 +487,7 @@ export class ApiClient {
         .update({
           name: userData.name,
           role: userData.role,
-          department: userData.department,
+          organization: userData.organization,
           position: userData.position,
           phone: userData.phone,
           profile_image: userData.profile_image
@@ -869,14 +869,14 @@ export class ApiClient {
           };
         }
         
-        case 'department-usage': {
+        case 'organization-usage': {
           const { startDate, endDate } = params;
 
-          // Get bookings with user department information
+          // Get bookings with user organization information
           const { data: bookings, error } = await supabase
             .from('bookings')
             .select(`
-              users!inner(department)
+              users!inner(organization)
             `)
             .gte('start_time', startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
             .lte('end_time', endDate || new Date().toISOString())
@@ -890,11 +890,11 @@ export class ApiClient {
             };
           }
 
-          // Group by department on the client side
-          const departmentUsage = this.aggregateDepartmentUsage(bookings || []);
+          // Group by organization on the client side
+          const organizationUsage = this.aggregateOrganizationUsage(bookings || []);
 
           return {
-            data: departmentUsage,
+            data: organizationUsage,
             error: null,
             status: 200
           };
@@ -996,25 +996,25 @@ export class ApiClient {
     return Object.values(roomData).sort((a, b) => b.total_hours - a.total_hours);
   }
 
-  // Helper method for aggregating department usage data
-  private aggregateDepartmentUsage(bookings: any[]): any[] {
-    const departmentData: { [key: string]: { users: { department: string }, booking_count: number } } = {};
+  // Helper method for aggregating organization usage data
+  private aggregateOrganizationUsage(bookings: any[]): any[] {
+    const organizationData: { [key: string]: { users: { organization: string }, booking_count: number } } = {};
 
     bookings.forEach(booking => {
-      const department = booking.users?.department || 'Unknown';
+      const organization = booking.users?.organization || 'Unknown';
 
-      if (!departmentData[department]) {
-        departmentData[department] = {
-          users: { department },
+      if (!organizationData[organization]) {
+        organizationData[organization] = {
+          users: { organization },
           booking_count: 0
         };
       }
 
-      departmentData[department].booking_count++;
+      organizationData[organization].booking_count++;
     });
 
     // Convert to array and sort by booking count (descending)
-    return Object.values(departmentData).sort((a, b) => b.booking_count - a.booking_count);
+    return Object.values(organizationData).sort((a, b) => b.booking_count - a.booking_count);
   }
 
   // Export report data as CSV

@@ -3,9 +3,9 @@ import { supabase } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, department, position, phone } = await request.json()
+    const { name, email, password, organization, position, phone } = await request.json()
 
-    if (!name || !email || !password || !department || !position) {
+    if (!name || !email || !password || !organization || !position) {
       return NextResponse.json({ error: "All required fields must be provided" }, { status: 400 })
     }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       options: {
         data: {
           name,
-          department,
+          organization,
           position,
           role: 'user'
         }

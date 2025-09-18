@@ -75,7 +75,7 @@ export function EmergencyBookingMessage({
     name: "Facility Manager",
     email: "manager@conferencehub.com",
     phone: "+233 XX XXX XXXX",
-    department: "Facilities Management"
+    organization: "Facilities Management"
   }
 
   const contactInfo = facilityManager || defaultContact

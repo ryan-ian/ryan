@@ -5,10 +5,13 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, Lock } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import Link from "next/link"
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -108,6 +111,22 @@ export function LoginForm() {
   }
 
   return (
+    <div className="space-y-6">
+      {/* Google OAuth Button */}
+      <GoogleOAuthButton text="Sign in with Google" />
+      
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-slate-200 dark:border-slate-600" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-slate-500 font-medium dark:bg-slate-800 dark:text-slate-400">
+            Or continue with email
+          </span>
+        </div>
+      </div>
+
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-3">
         <Label htmlFor="email" className="text-slate-700 font-semibold text-base dark:text-slate-200">Email</Label>
@@ -127,17 +146,24 @@ export function LoginForm() {
       <div className="space-y-3">
         <Label htmlFor="password" className="text-slate-700 font-semibold text-base dark:text-slate-200">Password</Label>
         <div className="relative">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-          <Input
+          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500 z-10" />
+          <PasswordInput
             id="password"
-            type="password"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="pl-12 pr-4 py-3 bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 transition-all duration-300 rounded-xl text-base font-medium hover:bg-slate-50 focus:bg-white dark:bg-slate-700/80 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700 dark:focus:border-teal-400"
+            className="pl-12 pr-12 py-3 bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 transition-all duration-300 rounded-xl text-base font-medium hover:bg-slate-50 focus:bg-white dark:bg-slate-700/80 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700 dark:focus:border-teal-400"
           />
         </div>
+      </div>
+      <div className="flex justify-end">
+        <Link
+          href="/auth/forgot-password"
+          className="text-sm text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 font-medium transition-colors duration-200"
+        >
+          Forgot Password?
+        </Link>
       </div>
       {error && (
         <div>
@@ -154,5 +180,6 @@ export function LoginForm() {
         {loading ? "Signing in..." : "Sign In"}
       </Button>
     </form>
+    </div>
   )
 } 

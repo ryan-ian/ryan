@@ -89,12 +89,8 @@ export function useUserBookings(userId: string | undefined) {
     queryKey: ['bookings', 'user', userId],
     queryFn: async () => {
       if (!userId) throw new Error('User ID is required')
-      const token = localStorage.getItem('auth-token')
-      const response = await fetch(`/api/bookings/user?user_id=${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
+      const response = await authenticatedFetch(`/api/bookings/user?user_id=${userId}`)
       if (!response.ok) {
         throw new Error('Failed to fetch user bookings')
       }

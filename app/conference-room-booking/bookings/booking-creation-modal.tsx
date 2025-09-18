@@ -300,18 +300,10 @@ export function BookingCreationModal({
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd')
-      const token = localStorage.getItem("auth-token")
       
-      if (!token) {
-        console.error('No auth token found')
-        return
-      }
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
       
-      const response = await fetch(`/api/bookings/user?date=${dateStr}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const response = await authenticatedFetch(`/api/bookings/user?date=${dateStr}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch user bookings')

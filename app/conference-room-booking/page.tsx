@@ -197,10 +197,11 @@ export default function ConferenceRoomBookingPage() {
 
   const fetchUserBookings = async () => {
     try {
-      const token = localStorage.getItem("auth-token")
-      const response = await fetch(`/api/bookings/user?user_id=${user?.id}&timestamp=${Date.now()}`, {
+      if (!user?.id) return
+      
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
+      const response = await authenticatedFetch(`/api/bookings/user?user_id=${user.id}&timestamp=${Date.now()}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'

@@ -37,10 +37,10 @@ export async function PATCH(request: NextRequest) {
     const userId = userData.user.id
     const body = await request.json()
     // Only allow updating certain fields
-    const { name, phone, department, bio } = body
+    const { name, phone, organization, bio } = body
     const { data, error } = await supabase
       .from('users')
-      .update({ name, phone, department, bio })
+      .update({ name, phone, organization, bio })
       .eq('id', userId)
       .select()
       .single()

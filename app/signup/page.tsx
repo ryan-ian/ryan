@@ -10,10 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Users, User, Mail, Lock, Briefcase, Building2, ArrowLeft, Clock, UserPlus, CheckCircle, Star } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -21,7 +21,7 @@ export default function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    department: "",
+    organization: "",
     position: ""
   })
   const [error, setError] = useState("")
@@ -34,9 +34,6 @@ export default function SignupPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleDepartmentChange = (value: string) => {
-    setFormData(prev => ({ ...prev, department: value }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,7 +58,7 @@ export default function SignupPage() {
         formData.password,
         {
           name: formData.name,
-          department: formData.department,
+          organization: formData.organization,
           position: formData.position
         }
       )
@@ -85,10 +82,10 @@ export default function SignupPage() {
     setLoading(false)
   }
 
-  const inputClasses = "pl-12 pr-4 py-3 bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 transition-all duration-300 rounded-xl text-base font-medium hover:bg-slate-50 focus:bg-white dark:bg-slate-700/80 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700 dark:focus:border-teal-400"
+  const inputClasses = "pl-12 pr-4 py-2.5 bg-slate-50/80 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500/20 transition-all duration-300 rounded-xl text-base font-medium hover:bg-slate-50 focus:bg-white dark:bg-slate-700/80 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700 dark:focus:border-teal-400"
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="h-screen flex bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
       {/* Left Side - Hero Section with Image and Branding */}
       <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
         {/* Background Image with Blur Effect */}
@@ -169,11 +166,11 @@ export default function SignupPage() {
       </div>
 
       {/* Right Side - Enhanced Signup Form */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 min-h-screen lg:min-h-0">
+      <div className="w-full lg:w-2/5 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 h-full overflow-y-auto">
         <div className="w-full max-w-lg">
           {/* Mobile Header - Only visible on small screens */}
-          <div className="lg:hidden text-center mb-10">
-            <div className="flex items-center justify-center gap-4 mb-6">
+          <div className="lg:hidden text-center mb-6">
+            <div className="flex items-center justify-center gap-4 mb-4">
               <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg dark:shadow-teal-500/25">
                 <Users className="h-8 w-8 text-white" />
               </div>
@@ -183,7 +180,7 @@ export default function SignupPage() {
               </div>
             </div>
             {/* Enhanced Mobile benefits */}
-            <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-slate-50 border border-teal-200/50 dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/50">
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-slate-50 border border-teal-200/50 dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/50">
               <p className="text-base text-slate-700 font-medium mb-4 dark:text-slate-300">
                 Join thousands of teams already using Conference Hub to:
               </p>
@@ -205,18 +202,33 @@ export default function SignupPage() {
           </div>
 
           <Card className="border-0 bg-white/90 backdrop-blur-xl shadow-2xl shadow-slate-200/50 rounded-3xl animate-slide-up dark:bg-slate-800/90 dark:shadow-slate-900/50">
-            <CardHeader className="text-center pb-8 pt-10">
-              <div className="flex items-center justify-center gap-4 mb-6">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 dark:shadow-teal-500/25 dark:hover:shadow-teal-500/40">
-                  <UserPlus className="h-8 w-8 text-white" />
+            <CardHeader className="text-center pb-4 pt-6">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 dark:shadow-teal-500/25 dark:hover:shadow-teal-500/40">
+                  <UserPlus className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <CardTitle className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">Join Conference Hub</CardTitle>
-              <CardDescription className="text-slate-600 text-lg font-medium dark:text-slate-300">Create your account to start booking conference rooms</CardDescription>
+              <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight dark:text-slate-100">Join Conference Hub</CardTitle>
+              <CardDescription className="text-slate-600 text-base font-medium dark:text-slate-300">Create your account to start booking conference rooms</CardDescription>
             </CardHeader>
-          <CardContent className="pb-10 px-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
+          <CardContent className="pb-6 px-8">
+            {/* Google OAuth Button */}
+            <GoogleOAuthButton text="Sign up with Google" />
+            
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-200 dark:border-slate-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-4 text-slate-500 font-medium dark:bg-slate-800 dark:text-slate-400">
+                  Or create account with email
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
                 <Label htmlFor="name" className="text-slate-700 font-semibold text-base dark:text-slate-200">Full Name</Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -232,7 +244,7 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 <Label htmlFor="email" className="text-slate-700 font-semibold text-base dark:text-slate-200">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -249,27 +261,24 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-3">
-                <Label htmlFor="department" className="text-slate-700 font-semibold text-base dark:text-slate-200">Department</Label>
+            <div className="space-y-2">
+                <Label htmlFor="organization" className="text-slate-700 font-semibold text-base dark:text-slate-200">Organization</Label>
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 z-10 dark:text-slate-500" />
-              <Select value={formData.department} onValueChange={handleDepartmentChange} required>
-                    <SelectTrigger className={`pl-12 ${inputClasses}`}>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200 text-slate-900 rounded-xl shadow-xl dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100">
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                  <SelectItem value="hr">Human Resources</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                </SelectContent>
-              </Select>
+                  <Input
+                    id="organization"
+                    name="organization"
+                    type="text"
+                    placeholder="Enter your organization name"
+                    value={formData.organization}
+                    onChange={handleChange}
+                    className={inputClasses}
+                    required
+                  />
+                </div>
             </div>
-              </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 <Label htmlFor="position" className="text-slate-700 font-semibold text-base dark:text-slate-200">Position</Label>
                 <div className="relative">
                   <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -285,7 +294,7 @@ export default function SignupPage() {
             </div>
               </div>
               
-            <div className="space-y-3">
+            <div className="space-y-2">
                 <Label htmlFor="password" className="text-slate-700 font-semibold text-base dark:text-slate-200">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -302,7 +311,7 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-slate-700 font-semibold text-base dark:text-slate-200">Confirm Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -329,19 +338,19 @@ export default function SignupPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 text-lg shadow-xl shadow-teal-500/25 transition-all duration-300 hover:shadow-teal-500/40 hover:scale-[1.02] active:scale-[0.98] rounded-xl dark:shadow-teal-500/20 dark:hover:shadow-teal-500/30"
+                className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 text-base shadow-lg shadow-teal-500/25 transition-all duration-300 hover:shadow-teal-500/40 hover:scale-[1.02] active:scale-[0.98] rounded-xl dark:shadow-teal-500/20 dark:hover:shadow-teal-500/30"
                 disabled={loading}
               >
               {loading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
             
-            <div className="mt-8 pt-8 border-t border-slate-200 text-center space-y-6 dark:border-slate-600">
+            <div className="mt-6 pt-6 border-t border-slate-200 text-center space-y-4 dark:border-slate-600">
               <div>
-                <p className="text-base text-slate-600 mb-3 font-medium dark:text-slate-400">Already have an account?</p>
+                <p className="text-sm text-slate-600 mb-2 font-medium dark:text-slate-400">Already have an account?</p>
                 <Link
                   href="/login"
-                  className="inline-block text-teal-600 hover:text-teal-700 font-semibold text-lg transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
+                  className="inline-block text-teal-600 hover:text-teal-700 font-semibold text-base transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
                 >
                   Sign In
                 </Link>

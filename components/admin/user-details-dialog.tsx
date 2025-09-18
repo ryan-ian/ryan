@@ -183,7 +183,7 @@ export function UserDetailsDialog({ userId, open, onOpenChange, onEdit }: UserDe
                     )}
                     <div className="flex items-center gap-2">
                       <Building className="h-4 w-4 text-muted-foreground" />
-                      <span>{user.department || 'Not specified'}</span>
+                      <span>{user.organization || 'Not specified'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Position:</span>

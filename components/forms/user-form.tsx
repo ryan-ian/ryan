@@ -39,7 +39,7 @@ const userFormSchema = z.object({
   status: z.enum(['active', 'inactive', 'suspended', 'locked'], {
     required_error: 'Please select a status.',
   }),
-  department: z.string().optional(),
+  organization: z.string().optional(),
   position: z.string().optional(),
   phone: z.string().optional(),
   password: z.string().min(8, {
@@ -87,7 +87,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
       email: user?.email || '',
       role: user?.role || 'user',
       status: user?.status || 'active',
-      department: user?.department || '',
+      organization: user?.organization || '',
       position: user?.position || '',
       phone: user?.phone || '',
       password: '',
@@ -107,7 +107,7 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
         email: values.email,
         role: values.role,
         status: values.status,
-        department: values.department || undefined,
+        organization: values.organization || undefined,
         position: values.position || undefined,
         phone: values.phone || undefined,
       };
@@ -237,12 +237,12 @@ export function UserForm({ user, onSubmit, onCancel }: UserFormProps) {
           
           <FormField
             control={form.control}
-            name="department"
+            name="organization"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Department</FormLabel>
+                <FormLabel>Organization</FormLabel>
                 <FormControl>
-                  <Input placeholder="Engineering" {...field} />
+                  <Input placeholder="Acme Corporation" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

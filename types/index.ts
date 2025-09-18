@@ -4,7 +4,7 @@ export interface User {
   email: string
   role: "admin" | "facility_manager" | "user"
   status?: "active" | "inactive" | "suspended" | "locked"
-  department: string
+  organization: string
   position: string
   phone?: string
   profile_image?: string
@@ -363,7 +363,7 @@ export interface AuthUser {
   name: string
   email: string
   role: "admin" | "facility_manager" | "user"
-  department: string
+  organization: string
   position: string
 }
 

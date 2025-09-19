@@ -11,6 +11,7 @@ interface AuthContextType {
   user: AuthUser | null
   login: (email: string, password: string, isAdmin?: boolean) => Promise<boolean>
   signInWithGoogle: () => Promise<void>
+  signInWithMicrosoft: () => Promise<void>
   signup: (email: string, password: string, userData: Omit<AuthUser, 'id' | 'email' | 'role'>) => Promise<{ success: boolean; needsVerification?: boolean }>
   completeProfile: (organization: string, position: string) => Promise<{ success: boolean; message: string }>
   logout: () => Promise<void>
@@ -196,7 +197,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'openid email profile'
         }
       })
       
@@ -208,6 +210,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // The redirect will handle the rest of the flow
     } catch (error) {
       console.error("Google sign-in error:", error)
+      throw error
+    }
+  }
+
+  const signInWithMicrosoft = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'openid email profile'
+        }
+      })
+      
+      if (error) {
+        console.error("Microsoft OAuth error:", error.message)
+        throw error
+      }
+      
+      // The redirect will handle the rest of the flow
+    } catch (error) {
+      console.error("Microsoft sign-in error:", error)
       throw error
     }
   }
@@ -359,7 +383,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={{ 
     user, 
     login, 
-    signInWithGoogle, 
+    signInWithGoogle,
+    signInWithMicrosoft, 
     signup, 
     completeProfile, 
     logout, 

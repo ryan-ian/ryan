@@ -14,6 +14,7 @@ import { Users, User, Mail, Lock, Briefcase, Building2, ArrowLeft, Clock, UserPl
 import Link from "next/link"
 import Image from "next/image"
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
+import { MicrosoftSignInButton } from "@/components/auth/microsoft-signin-button"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -212,8 +213,13 @@ export default function SignupPage() {
               <CardDescription className="text-slate-600 text-base font-medium dark:text-slate-300">Create your account to start booking conference rooms</CardDescription>
             </CardHeader>
           <CardContent className="pb-6 px-8">
-            {/* Google OAuth Button */}
-            <GoogleOAuthButton text="Sign up with Google" />
+            {/* OAuth Buttons */}
+            <div className="space-y-4">
+              <GoogleOAuthButton text="Sign up with Google" />
+              <MicrosoftSignInButton variant="outline" className="text-slate-700 dark:text-slate-300">
+                Sign up with Microsoft
+              </MicrosoftSignInButton>
+            </div>
             
             {/* Divider */}
             <div className="relative my-6">

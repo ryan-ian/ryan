@@ -12,6 +12,7 @@ import { Mail, Lock } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
+import { MicrosoftSignInButton } from "@/components/auth/microsoft-signin-button"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -112,8 +113,11 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      {/* Google OAuth Button */}
-      <GoogleOAuthButton text="Sign in with Google" />
+      {/* OAuth Buttons */}
+      <div className="space-y-4">
+        <GoogleOAuthButton text="Sign in with Google" />
+        <MicrosoftSignInButton />
+      </div>
       
       {/* Divider */}
       <div className="relative">

@@ -1,6 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateBooking, getUserById, getRoomById } from "@/lib/supabase-data"
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from "@/lib/email-service"
+import { updateBooking, getUserById, getRoomById, getMeetingInvitations } from "@/lib/supabase-data"
+import { 
+  sendBookingConfirmationEmail, 
+  sendBookingRejectionEmail,
+  sendBookingConfirmationEmailWithICS,
+  sendMeetingInvitationEmailWithICS,
+  sendBookingCancellationEmailWithICS
+} from "@/lib/email-service"
+import { 
+  generateBookingApprovalICS, 
+  generateBookingCancellationICS 
+} from "@/lib/ics-generator"
+import { getRoomTimezone, getDefaultReminderMinutes } from "@/lib/timezone-utils"
 
 export async function POST(
   request: NextRequest,
@@ -43,29 +54,140 @@ export async function POST(
           console.log(`📧 [API] Sending ${status} email to ${user.email}`)
 
           if (status === "confirmed") {
-            // Send booking confirmation email
-            await sendBookingConfirmationEmail(
+            // Get facility name for location
+            const facilityName = room.location || "Conference Hub"
+            
+            // Determine timezone and reminder settings
+            const timezone = getRoomTimezone(room, { name: facilityName, location: room.location })
+            const reminderMinutes = getDefaultReminderMinutes(timezone)
+            
+            console.log(`📅 [API] Using timezone ${timezone} with ${reminderMinutes}-minute reminder for booking ${id}`)
+            
+            // Generate ICS for the booking approval
+            const icsContent = generateBookingApprovalICS(
+              id,
+              updatedBooking.title,
+              updatedBooking.description,
+              room.name,
+              facilityName,
+              updatedBooking.start_time,
+              updatedBooking.end_time,
+              user.email,
+              user.name,
+              [], // No attendees for organizer's copy
+              reminderMinutes,
+              timezone
+            )
+            
+            // Send booking confirmation email with ICS
+            await sendBookingConfirmationEmailWithICS(
               user.email,
               user.name,
               updatedBooking.title,
               room.name,
+              facilityName,
               updatedBooking.start_time,
-              updatedBooking.end_time
+              updatedBooking.end_time,
+              updatedBooking.description,
+              icsContent
             )
-            console.log(`✅ [API] Booking confirmation email sent successfully to ${user.email}`)
+            console.log(`✅ [API] Booking confirmation email with ICS sent successfully to ${user.email}`)
+            console.log(`📋 [API] Booking approved - organizer can now invite attendees through the system`)
+            
           } else if (status === "cancelled") {
-            // Send booking rejection email
+            // Get facility name for location
+            const facilityName = room.location || "Conference Hub"
+            
+            // Determine timezone (same as approval)
+            const timezone = getRoomTimezone(room, { name: facilityName, location: room.location })
+            
+            console.log(`📅 [API] Using timezone ${timezone} for cancellation of booking ${id}`)
+            
+            // Generate cancellation ICS
+            const cancellationIcsContent = generateBookingCancellationICS(
+              id,
+              updatedBooking.title,
+              updatedBooking.description,
+              room.name,
+              facilityName,
+              updatedBooking.start_time,
+              updatedBooking.end_time,
+              user.email,
+              user.name,
+              [], // No attendees for organizer's copy initially
+              0, // Sequence 0 for now (should be incremented in real implementation)
+              timezone
+            )
+            
+            // Send booking cancellation email with ICS
             const rejectionReasonText = rejection_reason || "No specific reason provided"
-            await sendBookingRejectionEmail(
+            await sendBookingCancellationEmailWithICS(
               user.email,
               user.name,
               updatedBooking.title,
               room.name,
-              rejectionReasonText,
+              facilityName,
               updatedBooking.start_time,
-              updatedBooking.end_time
+              updatedBooking.end_time,
+              rejectionReasonText,
+              cancellationIcsContent
             )
-            console.log(`✅ [API] Booking rejection email sent successfully to ${user.email}`)
+            console.log(`✅ [API] Booking cancellation email with ICS sent successfully to ${user.email}`)
+            
+            // Send cancellation notices to attendees if any exist
+            try {
+              const invitations = await getMeetingInvitations(id)
+              console.log(`📧 [API] Found ${invitations.length} meeting invitations for cancelled booking ${id}`)
+              
+              if (invitations.length > 0) {
+                // Generate cancellation ICS with attendees for invitees
+                const attendees = invitations.map(inv => ({
+                  email: inv.invitee_email,
+                  name: inv.invitee_name || undefined
+                }))
+                
+                const inviteeCancellationIcs = generateBookingCancellationICS(
+                  id,
+                  updatedBooking.title,
+                  updatedBooking.description,
+                  room.name,
+                  facilityName,
+                  updatedBooking.start_time,
+                  updatedBooking.end_time,
+                  user.email,
+                  user.name,
+                  attendees,
+                  0, // Sequence 0 for now
+                  timezone
+                )
+                
+                // Send cancellation notices to all invitees
+                const cancellationPromises = invitations.map(async (invitation) => {
+                  try {
+                    await sendBookingCancellationEmailWithICS(
+                      invitation.invitee_email,
+                      invitation.invitee_name || "Attendee",
+                      updatedBooking.title,
+                      room.name,
+                      facilityName,
+                      updatedBooking.start_time,
+                      updatedBooking.end_time,
+                      `Meeting cancelled by organizer: ${rejectionReasonText}`,
+                      inviteeCancellationIcs
+                    )
+                    console.log(`✅ [API] Meeting cancellation notice with ICS sent to ${invitation.invitee_email}`)
+                  } catch (emailError) {
+                    console.error(`❌ [API] Failed to send cancellation email to ${invitation.invitee_email}:`, emailError)
+                  }
+                })
+                
+                await Promise.allSettled(cancellationPromises)
+                console.log(`✅ [API] All meeting cancellation emails processed for booking ${id}`)
+              }
+            } catch (invitationError) {
+              console.error(`❌ [API] Failed to process meeting cancellations for booking ${id}:`, invitationError)
+              // Don't fail the cancellation if invitations fail
+            }
           }
         }
       }

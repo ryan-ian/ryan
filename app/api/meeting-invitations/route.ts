@@ -12,7 +12,9 @@ import {
   getBookingById,
   getUserById
 } from "@/lib/supabase-data"
-import { sendMeetingInvitationEmail } from "@/lib/email-service"
+import { sendMeetingInvitationEmail, sendMeetingInvitationEmailWithICS } from "@/lib/email-service"
+import { generateBookingApprovalICS } from "@/lib/ics-generator"
+import { getRoomTimezone, getDefaultReminderMinutes } from "@/lib/timezone-utils"
 
 // GET - Fetch meeting invitations for a booking
 export async function GET(request: NextRequest) {
@@ -130,22 +132,51 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Send invitation emails
+    // Determine timezone and generate ICS for the meeting
+    const facilityName = room.location || "Conference Room"
+    const timezone = getRoomTimezone(room, { name: facilityName, location: room.location })
+    const reminderMinutes = getDefaultReminderMinutes(timezone)
+    
+    console.log(`📅 [API] Using timezone ${timezone} with ${reminderMinutes}-minute reminder for meeting invitations`)
+    
+    // Generate ICS with all attendees for the invitations
+    const icsAttendees = invitations.map(inv => ({
+      email: inv.invitee_email,
+      name: inv.invitee_name || undefined
+    }))
+    
+    const icsContent = generateBookingApprovalICS(
+      bookingId,
+      booking.title,
+      booking.description,
+      room.name,
+      facilityName,
+      booking.start_time,
+      booking.end_time,
+      organizer.email,
+      organizer.name,
+      icsAttendees,
+      reminderMinutes,
+      timezone
+    )
+    
+    // Send invitation emails with ICS attachments
     const emailPromises = invitations.map(async (invitation) => {
       try {
-        await sendMeetingInvitationEmail(
+        await sendMeetingInvitationEmailWithICS(
           invitation.invitee_email,
           invitation.invitee_name || "", // Pass the invitee name
           organizer.name,
           organizer.email,
           booking.title,
           room.name,
-          room.location || "Conference Room", // Use location as facility name fallback
+          facilityName,
           booking.start_time,
           booking.end_time,
-          booking.description
+          booking.description,
+          icsContent
         )
-        console.log(`✅ Invitation email sent to ${invitation.invitee_email}${invitation.invitee_name ? ` (${invitation.invitee_name})` : ''}`)
+        console.log(`✅ Meeting invitation with ICS sent to ${invitation.invitee_email}${invitation.invitee_name ? ` (${invitation.invitee_name})` : ''}`)
       } catch (emailError) {
         console.error(`❌ Failed to send invitation email to ${invitation.invitee_email}:`, emailError)
         // Don't fail the entire request if email fails

@@ -81,17 +81,29 @@ export async function initEmailService(): Promise<boolean> {
   }
 }
 
+// Interface for email attachments
+export interface EmailAttachment {
+  filename: string
+  content: string | Buffer
+  contentType: string
+  encoding?: string
+}
+
 // Send basic email
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  text: string
+  text: string,
+  attachments?: EmailAttachment[]
 ): Promise<boolean> {
   try {
     console.log(`📧 ===== SEND EMAIL START =====`)
     console.log(`📧 To: ${to}`)
     console.log(`📧 Subject: ${subject}`)
+    if (attachments && attachments.length > 0) {
+      console.log(`📎 Attachments: ${attachments.map(a => a.filename).join(', ')}`)
+    }
     
     if (!transporter) {
       console.log('📧 Transporter not initialized, initializing now...')
@@ -103,12 +115,22 @@ export async function sendEmail(
       }
     }
 
-    const mailOptions = {
+    const mailOptions: any = {
       from: `${process.env.EMAIL_FROM_NAME || 'Conference Hub'} <${process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER}>`,
       to,
       subject,
       html,
       text,
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      mailOptions.attachments = attachments.map(attachment => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        contentType: attachment.contentType,
+        encoding: attachment.encoding || 'utf8'
+      }))
     }
 
     console.log(`📧 Sending email...`)
@@ -970,6 +992,492 @@ export async function sendMeetingInvitationEmail(
   console.log('📧 ===== MEETING INVITATION EMAIL END =====');
 
   return result;
+}
+
+// Send booking confirmation email with ICS attachment
+export async function sendBookingConfirmationEmailWithICS(
+  userEmail: string,
+  userName: string,
+  bookingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string,
+  description?: string,
+  icsContent?: string
+): Promise<boolean> {
+  const subject = `Booking Approved: ${bookingTitle}`
+  
+  // Format dates
+  const startDate = new Date(startTime)
+  const endDate = new Date(endTime)
+  const dateStr = startDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const timeStr = `${startDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })} - ${endDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })}`
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Booking Approved</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+        .booking-details { background: #e8f5e9; border: 1px solid #4CAF50; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .detail-row { display: flex; margin-bottom: 12px; }
+        .detail-label { font-weight: bold; min-width: 120px; color: #2E7D32; }
+        .detail-value { color: #1f2937; }
+        .success-note { background: #d4edda; border: 1px solid #4CAF50; border-radius: 6px; padding: 15px; margin: 20px 0; }
+        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        .calendar-note { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0; font-size: 28px;">🎉 Booking Approved!</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Your room reservation has been confirmed</p>
+        </div>
+
+        <div class="content">
+          <p>Hello <strong>${userName}</strong>,</p>
+
+          <div class="success-note">
+            <p style="margin: 0;"><strong>✅ Great news!</strong> Your booking request has been approved and confirmed.</p>
+          </div>
+
+          <div class="booking-details">
+            <h3 style="margin-top: 0; color: #2E7D32;">${bookingTitle}</h3>
+
+            <div class="detail-row">
+              <span class="detail-label">📅 Date:</span>
+              <span class="detail-value">${dateStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">🕒 Time:</span>
+              <span class="detail-value">${timeStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">📍 Location:</span>
+              <span class="detail-value">${roomName}, ${facilityName}</span>
+            </div>
+
+            ${description ? `
+            <div class="detail-row">
+              <span class="detail-label">📝 Description:</span>
+              <span class="detail-value">${description}</span>
+            </div>` : ''}
+          </div>
+
+          ${icsContent ? `
+          <div class="calendar-note">
+            <p style="margin: 0;"><strong>📅 Calendar Integration:</strong> An invitation file has been attached to this email. Opening it will add this meeting to your calendar with automatic reminders.</p>
+          </div>` : ''}
+
+          <p>Your room is now reserved and ready for your meeting. Please arrive on time and ensure you have everything you need for a successful session.</p>
+
+          <p>If you need to make any changes or have questions, please contact the facility manager.</p>
+
+          <p>Thank you for using Conference Hub!</p>
+        </div>
+
+        <div class="footer">
+          <p>This confirmation was sent through Conference Hub</p>
+          <p style="margin: 5px 0 0 0; font-size: 12px;">
+            Please save this email for your records.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const text = `
+    Booking Approved: ${bookingTitle}
+
+    Hello ${userName},
+
+    Great news! Your booking request has been approved and confirmed.
+
+    Booking Details:
+    - Title: ${bookingTitle}
+    - Date: ${dateStr}
+    - Time: ${timeStr}
+    - Location: ${roomName}, ${facilityName}
+    ${description ? `- Description: ${description}` : ''}
+
+    ${icsContent ? 'A calendar invitation file has been attached to this email. Opening it will add this meeting to your calendar with automatic reminders.' : ''}
+
+    Your room is now reserved and ready for your meeting. Please arrive on time and ensure you have everything you need for a successful session.
+
+    If you need to make any changes or have questions, please contact the facility manager.
+
+    Thank you for using Conference Hub!
+
+    ---
+    This confirmation was sent through Conference Hub
+  `
+
+  // Prepare attachments
+  const attachments: EmailAttachment[] = []
+  if (icsContent) {
+    attachments.push({
+      filename: 'meeting-invitation.ics',
+      content: icsContent,
+      contentType: 'text/calendar; charset=utf-8; method=REQUEST'
+    })
+  }
+
+  console.log('📧 [EMAIL DEBUG] About to call sendEmail for booking confirmation with ICS')
+  const result = await sendEmail(userEmail, subject, html, text, attachments)
+  console.log(`📧 [EMAIL DEBUG] sendEmail result for confirmation: ${result}`)
+
+  return result
+}
+
+// Send meeting invitation email with ICS attachment  
+export async function sendMeetingInvitationEmailWithICS(
+  inviteeEmail: string,
+  inviteeName: string,
+  organizerName: string,
+  organizerEmail: string,
+  meetingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string,
+  meetingDescription?: string,
+  icsContent?: string
+): Promise<boolean> {
+  const subject = `Meeting Invitation: ${meetingTitle}`
+
+  // Format dates
+  const startDate = new Date(startTime)
+  const endDate = new Date(endTime)
+  const dateStr = startDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const timeStr = `${startDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })} - ${endDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })}`
+
+  const greeting = inviteeName ? `Hello ${inviteeName}` : 'Hello'
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Meeting Invitation</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+        .meeting-details { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .detail-row { display: flex; margin-bottom: 12px; }
+        .detail-label { font-weight: bold; min-width: 120px; color: #374151; }
+        .detail-value { color: #1f2937; }
+        .invitation-note { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 15px; margin: 20px 0; }
+        .calendar-note { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0; }
+        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0; font-size: 28px;">Meeting Invitation</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">You're invited to join a meeting</p>
+        </div>
+
+        <div class="content">
+          <p>${greeting},</p>
+
+          <p><strong>${organizerName}</strong> has invited you to join the following meeting:</p>
+
+          <div class="meeting-details">
+            <h3 style="margin-top: 0; color: #1e3a8a;">${meetingTitle}</h3>
+
+            <div class="detail-row">
+              <span class="detail-label">📅 Date:</span>
+              <span class="detail-value">${dateStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">🕒 Time:</span>
+              <span class="detail-value">${timeStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">📍 Location:</span>
+              <span class="detail-value">${roomName}, ${facilityName}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">👤 Organizer:</span>
+              <span class="detail-value">${organizerName} (${organizerEmail})</span>
+            </div>
+
+            ${meetingDescription ? `
+            <div class="detail-row">
+              <span class="detail-label">📝 Description:</span>
+              <span class="detail-value">${meetingDescription}</span>
+            </div>` : ''}
+          </div>
+
+          ${icsContent ? `
+          <div class="calendar-note">
+            <p style="margin: 0;"><strong>📅 Calendar Integration:</strong> An invitation file has been attached to this email. Opening it will add this meeting to your calendar with automatic reminders.</p>
+          </div>` : ''}
+
+          <div class="invitation-note">
+            <p style="margin: 0;"><strong>📌 Important:</strong> Please confirm your attendance by contacting the organizer directly. This invitation is for informational purposes.</p>
+          </div>
+
+          <p>If you have any questions about this meeting, please contact <strong>${organizerName}</strong> at <a href="mailto:${organizerEmail}">${organizerEmail}</a>.</p>
+
+          <p>We look forward to seeing you there!</p>
+        </div>
+
+        <div class="footer">
+          <p>This invitation was sent through Conference Hub</p>
+          <p style="margin: 5px 0 0 0; font-size: 12px;">
+            If you believe you received this email in error, please contact the organizer directly.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const text = `
+    Meeting Invitation: ${meetingTitle}
+
+    ${greeting},
+
+    ${organizerName} has invited you to join the following meeting:
+
+    Meeting: ${meetingTitle}
+    Date: ${dateStr}
+    Time: ${timeStr}
+    Location: ${roomName}, ${facilityName}
+    Organizer: ${organizerName} (${organizerEmail})
+    ${meetingDescription ? `Description: ${meetingDescription}` : ''}
+
+    ${icsContent ? 'A calendar invitation file has been attached to this email. Opening it will add this meeting to your calendar with automatic reminders.' : ''}
+
+    Important: Please confirm your attendance by contacting the organizer directly.
+
+    If you have any questions about this meeting, please contact ${organizerName} at ${organizerEmail}.
+
+    We look forward to seeing you there!
+
+    ---
+    This invitation was sent through Conference Hub
+  `
+
+  // Prepare attachments
+  const attachments: EmailAttachment[] = []
+  if (icsContent) {
+    attachments.push({
+      filename: 'meeting-invitation.ics',
+      content: icsContent,
+      contentType: 'text/calendar; charset=utf-8; method=REQUEST'
+    })
+  }
+
+  console.log('📧 [EMAIL DEBUG] About to call sendEmail for meeting invitation with ICS')
+  const result = await sendEmail(inviteeEmail, subject, html, text, attachments)
+  console.log(`📧 [EMAIL DEBUG] sendEmail result for invitation: ${result}`)
+
+  return result
+}
+
+// Send booking cancellation email with ICS attachment
+export async function sendBookingCancellationEmailWithICS(
+  userEmail: string,
+  userName: string,
+  bookingTitle: string,
+  roomName: string,
+  facilityName: string,
+  startTime: string,
+  endTime: string,
+  cancellationReason?: string,
+  icsContent?: string
+): Promise<boolean> {
+  const subject = `Booking Cancelled: ${bookingTitle}`
+  
+  // Format dates
+  const startDate = new Date(startTime)
+  const endDate = new Date(endTime)
+  const dateStr = startDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const timeStr = `${startDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })} - ${endDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })}`
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Booking Cancelled</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+        .booking-details { background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .detail-row { display: flex; margin-bottom: 12px; }
+        .detail-label { font-weight: bold; min-width: 120px; color: #d32f2f; }
+        .detail-value { color: #1f2937; }
+        .cancel-note { background: #ffcdd2; border: 1px solid #f44336; border-radius: 6px; padding: 15px; margin: 20px 0; }
+        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        .calendar-note { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0; font-size: 28px;">❌ Booking Cancelled</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Your room reservation has been cancelled</p>
+        </div>
+
+        <div class="content">
+          <p>Hello <strong>${userName}</strong>,</p>
+
+          <div class="cancel-note">
+            <p style="margin: 0;"><strong>📋 Notice:</strong> Your booking has been cancelled and is no longer active.</p>
+          </div>
+
+          <div class="booking-details">
+            <h3 style="margin-top: 0; color: #d32f2f;">${bookingTitle}</h3>
+
+            <div class="detail-row">
+              <span class="detail-label">📅 Date:</span>
+              <span class="detail-value">${dateStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">🕒 Time:</span>
+              <span class="detail-value">${timeStr}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">📍 Location:</span>
+              <span class="detail-value">${roomName}, ${facilityName}</span>
+            </div>
+
+            ${cancellationReason ? `
+            <div class="detail-row">
+              <span class="detail-label">📝 Reason:</span>
+              <span class="detail-value">${cancellationReason}</span>
+            </div>` : ''}
+          </div>
+
+          ${icsContent ? `
+          <div class="calendar-note">
+            <p style="margin: 0;"><strong>📅 Calendar Update:</strong> A cancellation file has been attached to this email. Opening it will remove this meeting from your calendar.</p>
+          </div>` : ''}
+
+          <p>The room is now available for other bookings. If you need to make a new reservation, please visit the Conference Hub booking system.</p>
+
+          <p>If you have any questions about this cancellation, please contact the facility manager.</p>
+
+          <p>Thank you for using Conference Hub!</p>
+        </div>
+
+        <div class="footer">
+          <p>This cancellation notice was sent through Conference Hub</p>
+          <p style="margin: 5px 0 0 0; font-size: 12px;">
+            Please save this email for your records.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const text = `
+    Booking Cancelled: ${bookingTitle}
+
+    Hello ${userName},
+
+    Your booking has been cancelled and is no longer active.
+
+    Cancelled Booking Details:
+    - Title: ${bookingTitle}
+    - Date: ${dateStr}
+    - Time: ${timeStr}
+    - Location: ${roomName}, ${facilityName}
+    ${cancellationReason ? `- Reason: ${cancellationReason}` : ''}
+
+    ${icsContent ? 'A cancellation file has been attached to this email. Opening it will remove this meeting from your calendar.' : ''}
+
+    The room is now available for other bookings. If you need to make a new reservation, please visit the Conference Hub booking system.
+
+    If you have any questions about this cancellation, please contact the facility manager.
+
+    Thank you for using Conference Hub!
+
+    ---
+    This cancellation notice was sent through Conference Hub
+  `
+
+  // Prepare attachments
+  const attachments: EmailAttachment[] = []
+  if (icsContent) {
+    attachments.push({
+      filename: 'meeting-cancellation.ics',
+      content: icsContent,
+      contentType: 'text/calendar; charset=utf-8; method=CANCEL'
+    })
+  }
+
+  console.log('📧 [EMAIL DEBUG] About to call sendEmail for booking cancellation with ICS')
+  const result = await sendEmail(userEmail, subject, html, text, attachments)
+  console.log(`📧 [EMAIL DEBUG] sendEmail result for cancellation: ${result}`)
+
+  return result
 }
 
 // Check if email service is ready

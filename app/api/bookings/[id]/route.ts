@@ -1,7 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateBooking, getUserById, getRoomById } from "@/lib/supabase-data"
+import { updateBooking, getUserById, getRoomById, getMeetingInvitations } from "@/lib/supabase-data"
 import { supabase } from "@/lib/supabase"
-import { sendBookingModificationConfirmationToUser, sendBookingModificationNotificationToManager, ensureEmailReady } from "@/lib/email-service"
+import { 
+  sendBookingModificationConfirmationToUser, 
+  sendBookingModificationNotificationToManager, 
+  sendBookingConfirmationEmailWithICS,
+  sendMeetingInvitationEmailWithICS,
+  ensureEmailReady 
+} from "@/lib/email-service"
+import { generateBookingUpdateICS } from "@/lib/ics-generator"
+import { getRoomTimezone, getDefaultReminderMinutes } from "@/lib/timezone-utils"
 
 // Inline implementation of deleteBooking function
 async function deleteBooking(id: string): Promise<boolean> {
@@ -270,6 +278,113 @@ async function sendBookingUpdateEmailNotifications(
     } else {
       console.warn(`⚠️ [EMAIL DEBUG] No facility manager email found for facility ${facility.name}`)
       console.warn(`⚠️ [EMAIL DEBUG] Facility manager object:`, manager)
+    }
+
+    // Send ICS updates if this is a confirmed booking and has significant changes
+    if (updatedBooking.status === 'confirmed' && changes.length > 0) {
+      console.log(`📧 [EMAIL DEBUG] Sending ICS updates for confirmed booking with ${changes.length} changes`)
+      
+      try {
+        // Determine timezone and reminder settings
+        const timezone = getRoomTimezone(room, facility)
+        const reminderMinutes = getDefaultReminderMinutes(timezone)
+        
+        console.log(`📅 [EMAIL DEBUG] Using timezone ${timezone} with ${reminderMinutes}-minute reminder for update`)
+        
+        // We need to determine the sequence number - for now using a simple increment
+        // In a production system, you'd store this in the database
+        const sequence = 1 // This should be incremented based on previous updates
+        
+        // Generate updated ICS for organizer
+        const organizerIcsContent = generateBookingUpdateICS(
+          updatedBooking.id,
+          updatedBooking.title,
+          updatedBooking.description,
+          room.name,
+          facility.name,
+          updatedBooking.start_time,
+          updatedBooking.end_time,
+          user.email,
+          user.name,
+          [], // No attendees for organizer's copy
+          sequence,
+          reminderMinutes,
+          timezone
+        )
+        
+        // Send updated confirmation to organizer
+        if (user.email) {
+          await sendBookingConfirmationEmailWithICS(
+            user.email,
+            user.name,
+            updatedBooking.title,
+            room.name,
+            facility.name,
+            updatedBooking.start_time,
+            updatedBooking.end_time,
+            updatedBooking.description,
+            organizerIcsContent
+          )
+          console.log(`✅ [EMAIL DEBUG] Updated ICS sent to organizer ${user.email}`)
+        }
+        
+        // Send updates to attendees if any exist
+        const invitations = await getMeetingInvitations(updatedBooking.id)
+        console.log(`📧 [EMAIL DEBUG] Found ${invitations.length} meeting invitations for updated booking`)
+        
+        if (invitations.length > 0) {
+          // Generate ICS with attendees for invitees
+          const attendees = invitations.map(inv => ({
+            email: inv.invitee_email,
+            name: inv.invitee_name || undefined
+          }))
+          
+          const inviteeIcsContent = generateBookingUpdateICS(
+            updatedBooking.id,
+            updatedBooking.title,
+            updatedBooking.description,
+            room.name,
+            facility.name,
+            updatedBooking.start_time,
+            updatedBooking.end_time,
+            user.email,
+            user.name,
+            attendees,
+            sequence,
+            reminderMinutes,
+            timezone
+          )
+          
+          // Send updated invitations to all invitees
+          const updatePromises = invitations.map(async (invitation) => {
+            try {
+              await sendMeetingInvitationEmailWithICS(
+                invitation.invitee_email,
+                invitation.invitee_name || "",
+                user.name,
+                user.email,
+                updatedBooking.title,
+                room.name,
+                facility.name,
+                updatedBooking.start_time,
+                updatedBooking.end_time,
+                updatedBooking.description,
+                inviteeIcsContent
+              )
+              console.log(`✅ [EMAIL DEBUG] Updated invitation with ICS sent to ${invitation.invitee_email}`)
+            } catch (emailError) {
+              console.error(`❌ [EMAIL DEBUG] Failed to send updated invitation to ${invitation.invitee_email}:`, emailError)
+            }
+          })
+          
+          await Promise.allSettled(updatePromises)
+          console.log(`✅ [EMAIL DEBUG] All meeting update notifications processed`)
+        }
+        
+      } catch (icsError) {
+        console.error(`❌ [EMAIL DEBUG] Failed to send ICS updates:`, icsError)
+        // Don't fail the update if ICS sending fails
+      }
     }
 
   } catch (error) {

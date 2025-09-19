@@ -193,6 +193,17 @@ export function RoomCard({
                 <Check className="h-4 w-4" />
               </div>
             )}
+            {/* Price overlay in bottom-left corner */}
+            {room.hourly_rate && Number(room.hourly_rate) > 0 && (
+              <div className="absolute bottom-3 left-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-3 w-3 text-brand-teal-600 dark:text-brand-teal-400" />
+                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    {formatCurrency(room.hourly_rate, room.currency)}/hr
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {(onEdit || onDelete) && (
@@ -240,17 +251,6 @@ export function RoomCard({
               </div>
             </div>
 
-            {/* Compact Pricing Section */}
-            {room.hourly_rate && room.hourly_rate > 0 && (
-              <div className="flex items-center gap-2 bg-gradient-to-r from-brand-teal-50 to-emerald-50 dark:from-brand-teal-900/20 dark:to-emerald-900/20 border border-brand-teal-200 dark:border-brand-teal-800 rounded-lg p-2">
-                <div className="w-6 h-6 bg-brand-teal-100 dark:bg-brand-teal-900/30 rounded-full flex items-center justify-center">
-                  <DollarSign className="h-3 w-3 text-brand-teal-600 dark:text-brand-teal-400" />
-                </div>
-                <p className="text-sm font-bold text-brand-teal-700 dark:text-brand-teal-300">
-                  {formatCurrency(room.hourly_rate, room.currency)}/hr
-                </p>
-              </div>
-            )}
             
             {resourceDetails && resourceDetails.length > 0 && (
               <div className="flex flex-wrap gap-2">

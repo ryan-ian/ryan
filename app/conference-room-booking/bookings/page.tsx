@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw, Loader2, Calendar, List as ListIcon, Table as TableIcon, Eye, Edit, Trash2, CheckCircle, AlertCircle, XCircle } from "lucide-react"
 import Link from "next/link"
@@ -17,6 +17,7 @@ import { BookingCardModern } from "@/components/bookings/booking-card-modern"
 import { FiltersToolbar } from "@/components/bookings/filters-toolbar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { useUserRealtime } from "@/hooks/use-user-realtime"
 
 export default function BookingsPage() {
   const { user } = useAuth()
@@ -45,7 +46,35 @@ export default function BookingsPage() {
   const [bookingStatusToCancel, setBookingStatusToCancel] = useState<"pending" | "confirmed">("pending")
   const [isCancelling, setIsCancelling] = useState(false)
   const [viewMode, setViewMode] = useState<"list" | "table">("list")
+  const [statusUpdateCount, setStatusUpdateCount] = useState(0)
 
+  // Handle real-time booking status changes
+  const handleBookingStatusChange = useCallback((booking: Booking, oldStatus: string, newStatus: string) => {
+    console.log(`👤 [User Bookings] Real-time status change: ${oldStatus} → ${newStatus} for booking ${booking.id}`)
+    
+    // Add visual indicator for status changes
+    setStatusUpdateCount(prev => prev + 1)
+    setTimeout(() => {
+      setStatusUpdateCount(prev => Math.max(0, prev - 1))
+    }, 3000)
+    
+    // Force refresh to show updated data
+    forceRefresh()
+  }, [])
+
+  // Handle real-time booking updates
+  const handleBookingUpdate = useCallback(() => {
+    console.log('👤 [User Bookings] Real-time booking update received')
+    forceRefresh()
+  }, [])
+
+  // Set up real-time subscription for user booking updates
+  useUserRealtime({
+    onBookingStatusChange: handleBookingStatusChange,
+    onBookingUpdate: handleBookingUpdate,
+    enabled: !!user,
+    showToasts: true,
+  })
 
   // Subscribe to global booking events
   useEffect(() => {
@@ -636,6 +665,11 @@ export default function BookingsPage() {
               <>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
+                {statusUpdateCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 animate-pulse">
+                    {statusUpdateCount} update{statusUpdateCount > 1 ? 's' : ''}
+                  </Badge>
+                )}
               </>
             )}
           </Button>

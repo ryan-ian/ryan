@@ -173,12 +173,12 @@ export function RoomCard({
     <>
       <CardContentWrapper>
         <div className="relative">
-          <div className={cn("relative w-full", compact ? "h-32" : "h-48")}>
+          <div className={cn("relative w-full overflow-hidden", compact ? "h-32" : "h-48")}>
             {room.image ? (
               <img 
                 src={room.image} 
                 alt={room.name} 
-                className="w-full h-full object-cover" 
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
               />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -188,18 +188,27 @@ export function RoomCard({
             <div className="absolute top-3 right-3">
               {getStatusBadge(room.status)}
             </div>
+            {/* Capacity overlay in top-left corner */}
+            <div className="absolute top-3 left-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-900 group-hover:shadow-xl group-hover:scale-105">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-600 dark:text-gray-400 transition-colors duration-300 group-hover:text-brand-teal-600 dark:group-hover:text-brand-teal-400" />
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 transition-colors duration-300 group-hover:text-brand-teal-700 dark:group-hover:text-brand-teal-300">
+                  {room.capacity} People
+                </p>
+              </div>
+            </div>
             {selected && (
               <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-full p-1.5">
                 <Check className="h-4 w-4" />
               </div>
             )}
             {/* Price overlay in bottom-left corner */}
-            {room.hourly_rate && Number(room.hourly_rate) > 0 && (
-              <div className="absolute bottom-3 left-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg border border-gray-200 dark:border-gray-700">
+            {room.hourly_rate !== undefined && room.hourly_rate !== null && (
+              <div className="absolute bottom-3 left-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-900 group-hover:shadow-xl group-hover:scale-105">
                 <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3 text-brand-teal-600 dark:text-brand-teal-400" />
-                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                    {formatCurrency(room.hourly_rate, room.currency)}/hr
+                  {/* <DollarSign className="h-3 w-3 text-brand-teal-600 dark:text-brand-teal-400" /> */}
+                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100 transition-colors duration-300 group-hover:text-brand-teal-700 dark:group-hover:text-brand-teal-300">
+                    {Number(room.hourly_rate) === 0 ? "Free" : `${formatCurrency(room.hourly_rate, room.currency)}/hr`}
                   </p>
                 </div>
               </div>
@@ -243,14 +252,6 @@ export function RoomCard({
           </CardHeader>
           
           <CardContent className="p-0 flex-grow space-y-4">
-            {/* Capacity and Pricing Row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-brand-navy-700 dark:text-brand-navy-300">
-                <Users className="h-5 w-5 text-brand-navy-600 dark:text-brand-navy-400" />
-                <span className="font-medium">{room.capacity} people</span>
-              </div>
-            </div>
-
             
             {resourceDetails && resourceDetails.length > 0 && (
               <div className="flex flex-wrap gap-2">

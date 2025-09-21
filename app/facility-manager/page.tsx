@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Building, BookCheck, Clock, User, Calendar, Check, X, AlertCircle, Bell, Loader2 } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/components/ui/use-toast"
 import { getPendingBookingsByFacilityManager, getTodaysBookingsByFacilityManager, getRoomsByFacilityManager } from "@/lib/supabase-data"
 import { expirePendingBookings } from "@/lib/room-availability"
+import { useManagerRealtime } from "@/hooks/use-manager-realtime"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -111,7 +112,56 @@ export default function FacilityManagerDashboard() {
   const [selectedBookingTitle, setSelectedBookingTitle] = useState<string>("")
   const [processingStatus, setProcessingStatus] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [newRequestsCount, setNewRequestsCount] = useState(0)
   const { toast } = useToast()
+
+  // Refresh dashboard data
+  const refreshDashboardData = useCallback(async () => {
+    if (!user) return
+    try {
+      console.log('🔄 Refreshing dashboard data...')
+      const [pending, today, rooms] = await Promise.all([
+        getPendingBookingsByFacilityManager(user.id),
+        getTodaysBookingsByFacilityManager(user.id),
+        getRoomsByFacilityManager(user.id)
+      ])
+      setPendingBookings(pending)
+      setTodaysBookings(today)
+      setTotalRooms(rooms.length)
+    } catch (err) {
+      console.error("Error refreshing dashboard data:", err)
+    }
+  }, [user])
+
+  // Handle new booking requests in real-time
+  const handleNewBooking = useCallback((booking: BookingWithDetails) => {
+    console.log('🏢 New booking request received:', booking)
+    if (booking.status === 'pending') {
+      setNewRequestsCount(prev => prev + 1)
+      // Add visual indicator that will fade after a few seconds
+      setTimeout(() => {
+        setNewRequestsCount(prev => Math.max(0, prev - 1))
+      }, 5000)
+    }
+  }, [])
+
+  // Handle booking status changes in real-time
+  const handleBookingStatusChange = useCallback((
+    booking: BookingWithDetails, 
+    oldStatus: string, 
+    newStatus: string
+  ) => {
+    console.log(`🏢 Booking status changed: ${oldStatus} → ${newStatus}`)
+    // The refreshDashboardData will be called automatically
+  }, [])
+
+  // Set up real-time subscription
+  useManagerRealtime({
+    onNewBooking: handleNewBooking,
+    onBookingStatusChange: handleBookingStatusChange,
+    onBookingUpdate: refreshDashboardData,
+    enabled: !!user,
+  })
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -279,7 +329,14 @@ export default function FacilityManagerDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{pendingBookings.length}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{pendingBookings.length}</div>
+              {newRequestsCount > 0 && (
+                <Badge variant="destructive" className="animate-pulse">
+                  +{newRequestsCount} new
+                </Badge>
+              )}
+            </div>
             <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Awaiting your approval</p>
           </CardContent>
         </Card>

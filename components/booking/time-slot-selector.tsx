@@ -1,11 +1,31 @@
 "use client"
 
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, Clock, AlertCircle } from "lucide-react"
+import { Loader2, Clock, AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+
+interface SlotAvailabilityData {
+  date: string
+  operatingHours: {
+    enabled: boolean
+    start: string
+    end: string
+  } | null
+  restrictions: {
+    minDuration: number
+    maxDuration: number
+    bufferTime: number
+    advanceBookingDays: number
+    sameDayBookingEnabled: boolean
+  }
+  startOptions: string[]
+  endOptionsByStart: Record<string, string[]>
+  unavailableReasons: Record<string, string | null>
+  error?: string
+}
 
 interface TimeSlotSelectorProps {
   selectedDate: Date
@@ -13,8 +33,9 @@ interface TimeSlotSelectorProps {
   endTime: string
   onStartTimeChange: (time: string) => void
   onEndTimeChange: (time: string) => void
-  bookedSlots: string[]
-  isLoading: boolean
+  roomId: string // NEW: For fetching availability
+  bookedSlots?: string[] // DEPRECATED: Will be replaced by availability data
+  isLoading?: boolean
 }
 
 export function TimeSlotSelector({
@@ -23,12 +44,72 @@ export function TimeSlotSelector({
   endTime,
   onStartTimeChange,
   onEndTimeChange,
-  bookedSlots,
-  isLoading
+  roomId,
+  bookedSlots = [], // Keep for backward compatibility
+  isLoading = false
 }: TimeSlotSelectorProps) {
   
-  // Generate time slots from 8 AM to 6 PM in 30-minute intervals
+  const [availabilityData, setAvailabilityData] = useState<SlotAvailabilityData | null>(null)
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch availability data when date or room changes
+  useEffect(() => {
+    if (selectedDate && roomId) {
+      fetchAvailabilityData()
+    }
+  }, [selectedDate, roomId])
+
+  const fetchAvailabilityData = async () => {
+    setLoadingSlots(true)
+    setError(null)
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd')
+      const response = await fetch(`/api/rooms/${roomId}/availability/slots?date=${dateStr}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch availability: ${response.statusText}`)
+      }
+      
+      const data: SlotAvailabilityData = await response.json()
+      setAvailabilityData(data)
+      
+      // Clear selections if they're no longer valid
+      if (startTime && !data.startOptions.includes(startTime)) {
+        onStartTimeChange('')
+      }
+      if (endTime && startTime && !data.endOptionsByStart[startTime]?.includes(endTime)) {
+        onEndTimeChange('')
+      }
+    } catch (err) {
+      console.error('Error fetching availability data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch availability')
+      setAvailabilityData(null)
+    } finally {
+      setLoadingSlots(false)
+    }
+  }
+
+  // Generate time slots based on operating hours or fallback to default
   const generateTimeSlots = () => {
+    if (availabilityData?.operatingHours?.enabled) {
+      const slots = []
+      const [startHour, startMin] = availabilityData.operatingHours.start.split(':').map(Number)
+      const [endHour, endMin] = availabilityData.operatingHours.end.split(':').map(Number)
+      
+      for (let hour = startHour; hour < endHour || (hour === endHour && endMin > 0); hour++) {
+        for (let minute of [0, 30]) {
+          if (hour === endHour && minute >= endMin) break
+          if (hour === startHour && minute < startMin) continue
+          
+          const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+          slots.push(time)
+        }
+      }
+      return slots
+    }
+    
+    // Fallback to default 8 AM - 6 PM
     const slots = []
     for (let hour = 8; hour < 18; hour++) {
       for (let minute of [0, 30]) {
@@ -46,12 +127,26 @@ export function TimeSlotSelector({
     return hours * 60 + minutes
   }
   
-  const isSlotBooked = (time: string) => {
-    return bookedSlots.includes(time)
+  // Check if a time slot is available based on new availability data
+  const isSlotAvailable = (time: string) => {
+    if (!availabilityData) {
+      // Fallback to old booked slots logic
+      return !bookedSlots.includes(time)
+    }
+    return availabilityData.startOptions.includes(time)
   }
   
   const isValidStartTime = (time: string) => {
-    if (isSlotBooked(time)) return false
+    if (!availabilityData) {
+      // Fallback to old logic
+      if (bookedSlots.includes(time)) return false
+      if (endTime && timeToMinutes(time) >= timeToMinutes(endTime)) return false
+      return true
+    }
+    
+    // Use new availability data
+    const isAvailable = availabilityData.startOptions.includes(time)
+    if (!isAvailable) return false
     if (endTime && timeToMinutes(time) >= timeToMinutes(endTime)) return false
     return true
   }
@@ -60,16 +155,43 @@ export function TimeSlotSelector({
     if (!startTime) return false
     if (timeToMinutes(time) <= timeToMinutes(startTime)) return false
     
-    // Check if any slot between start and end is booked
-    const startMinutes = timeToMinutes(startTime)
-    const endMinutes = timeToMinutes(time)
-    
-    for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-      const slotTime = `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`
-      if (isSlotBooked(slotTime)) return false
+    if (!availabilityData) {
+      // Fallback to old logic
+      const startMinutes = timeToMinutes(startTime)
+      const endMinutes = timeToMinutes(time)
+      
+      for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+        const slotTime = `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`
+        if (bookedSlots.includes(slotTime)) return false
+      }
+      return true
     }
     
-    return true
+    // Use new availability data
+    return availabilityData.endOptionsByStart[startTime]?.includes(time) || false
+  }
+  
+  // Get reason why a slot is unavailable
+  const getUnavailableReason = (time: string) => {
+    if (!availabilityData) return "This time slot is not available"
+    
+    const reason = availabilityData.unavailableReasons[time]
+    if (!reason) return null
+    
+    switch (reason) {
+      case 'conflict:existing_booking':
+        return 'Already booked'
+      case 'conflict:blackout':
+        return 'Room maintenance'
+      case 'conflict:buffer':
+        return 'Buffer time required'
+      case 'rule:max_duration':
+        return 'Duration limit exceeded'
+      case 'rule:min_duration':
+        return 'Duration too short'
+      default:
+        return 'Not available'
+    }
   }
   
   const formatTimeDisplay = (time: string) => {
@@ -95,12 +217,50 @@ export function TimeSlotSelector({
     return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minutes`
   }
   
-  if (isLoading) {
+  if (isLoading || loadingSlots) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Loading available times...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error || availabilityData?.error) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
+          <p className="text-sm text-destructive font-medium">Unable to load availability</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {error || availabilityData?.error}
+          </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchAvailabilityData}
+            className="mt-3"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show message if no times are available
+  if (availabilityData && availabilityData.startOptions.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <Clock className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm font-medium">No times available</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {availabilityData.error || "This room has no available time slots for the selected date."}
+          </p>
         </div>
       </div>
     )
@@ -112,16 +272,33 @@ export function TimeSlotSelector({
         <h3 className="text-lg font-semibold mb-2">
           Select Time for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
         </h3>
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground flex-wrap">
+          {availabilityData?.operatingHours && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              <span>
+                Open {formatTimeDisplay(availabilityData.operatingHours.start)} - {formatTimeDisplay(availabilityData.operatingHours.end)}
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
+            <Info className="h-4 w-4" />
             <span>30-minute intervals</span>
           </div>
-          <div className="flex items-center gap-1">
-            <AlertCircle className="h-4 w-4" />
-            <span>Minimum 30 minutes</span>
-          </div>
+          {availabilityData?.restrictions && (
+            <div className="flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" />
+              <span>
+                {availabilityData.restrictions.minDuration} - {availabilityData.restrictions.maxDuration} min duration
+              </span>
+            </div>
+          )}
         </div>
+        {availabilityData?.restrictions?.bufferTime > 0 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {availabilityData.restrictions.bufferTime} minute buffer required between bookings
+          </p>
+        )}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -147,13 +324,13 @@ export function TimeSlotSelector({
                   !isValidStartTime(time) && "opacity-50"
                 )}
                 title={
-                  isSlotBooked(time) ? "This time slot is booked" :
+                  !isValidStartTime(time) ? getUnavailableReason(time) || "Not available" :
                   endTime && timeToMinutes(time) >= timeToMinutes(endTime) ? "Must be before end time" :
                   `Select ${formatTimeDisplay(time)} as start time`
                 }
               >
                 {formatTimeDisplay(time)}
-                {isSlotBooked(time) && <span className="ml-1 text-xs">📅</span>}
+                {!isSlotAvailable(time) && <span className="ml-1 text-xs">🚫</span>}
               </Button>
             ))}
           </div>
@@ -183,7 +360,7 @@ export function TimeSlotSelector({
                 title={
                   !startTime ? "Please select start time first" :
                   timeToMinutes(time) <= timeToMinutes(startTime) ? "Must be after start time" :
-                  !isValidEndTime(time) ? "Time range conflicts with existing booking" :
+                  !isValidEndTime(time) ? "Time range has conflicts or violates duration rules" :
                   `Select ${formatTimeDisplay(time)} as end time`
                 }
               >

@@ -163,51 +163,14 @@ const BookingForm = ({
   formData, 
   onChange, 
   room 
-}: { 
+}: {
   formData: BookingFormData
   onChange: (data: Partial<BookingFormData>) => void
   room: Room 
 }) => {
-  const [bookedTimeSlots, setBookedTimeSlots] = useState<string[]>([])
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false)
-
-  // Fetch booked time slots when date changes
-  useEffect(() => {
-    if (formData.date && room) {
-      fetchBookedSlots(formData.date, room.id)
-    }
-  }, [formData.date, room])
-
-  const fetchBookedSlots = async (date: Date, roomId: string) => {
-    setIsLoadingSlots(true)
-    try {
-      const dateStr = format(date, 'yyyy-MM-dd')
-      const response = await fetch(`/api/bookings?roomId=${roomId}&date=${dateStr}`)
-      
-      if (response.ok) {
-        const bookings = await response.json()
-        const bookedSlots: string[] = []
-        
-        bookings.forEach((booking: any) => {
-          const start = new Date(booking.start_time)
-          const end = new Date(booking.end_time)
-          
-          // Generate 30-minute slots between start and end
-          const currentSlot = new Date(start)
-          while (currentSlot < end) {
-            bookedSlots.push(format(currentSlot, 'HH:mm'))
-            currentSlot.setMinutes(currentSlot.getMinutes() + 30)
-          }
-        })
-        
-        setBookedTimeSlots(bookedSlots)
-      }
-    } catch (error) {
-      console.error('Error fetching booked slots:', error)
-    } finally {
-      setIsLoadingSlots(false)
-    }
-  }
+  // Remove booked slots state as it's now handled by TimeSlotSelector
+  // const [bookedTimeSlots, setBookedTimeSlots] = useState<string[]>([])
+  // const [isLoadingSlots, setIsLoadingSlots] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -260,8 +223,7 @@ const BookingForm = ({
               endTime={formData.endTime}
               onStartTimeChange={(time) => onChange({ startTime: time })}
               onEndTimeChange={(time) => onChange({ endTime: time })}
-              bookedSlots={bookedTimeSlots}
-              isLoading={isLoadingSlots}
+              roomId={room.id}
             />
           </div>
         </div>

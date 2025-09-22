@@ -168,8 +168,8 @@ export default function RoomDetailsPage() {
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          {/* <TabsTrigger value="availability">Availability</TabsTrigger>
-          <TabsTrigger value="blackouts">Blackouts</TabsTrigger> */}
+          <TabsTrigger value="availability">Availability</TabsTrigger>
+          <TabsTrigger value="blackouts">Blackouts</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 

@@ -943,7 +943,7 @@ export async function sendMeetingInvitationEmail(
           </div>
 
           <div class="invitation-note">
-            <p style="margin: 0;"><strong>📌 Important:</strong> Please confirm your attendance by contacting the organizer directly. This invitation is for informational purposes.</p>
+            <p style="margin: 0;"><strong>📌 Important:</strong> On arrival, scan the QR code on the room display to mark your attendance.</p>
           </div>
 
           <p>If you have any questions about this meeting, please contact <strong>${organizerName}</strong> at <a href="mailto:${organizerEmail}">${organizerEmail}</a>.</p>
@@ -1259,7 +1259,7 @@ export async function sendMeetingInvitationEmailWithICS(
           </div>` : ''}
 
           <div class="invitation-note">
-            <p style="margin: 0;"><strong>📌 Important:</strong> Please confirm your attendance by contacting the organizer directly. This invitation is for informational purposes.</p>
+            <p style="margin: 0;"><strong>📌 Important:</strong> On arrival, scan the QR code on the room display to mark your attendance.</p>
           </div>
 
           <p>If you have any questions about this meeting, please contact <strong>${organizerName}</strong> at <a href="mailto:${organizerEmail}">${organizerEmail}</a>.</p>
@@ -1322,6 +1322,99 @@ export async function sendMeetingInvitationEmailWithICS(
 }
 
 // Send booking cancellation email with ICS attachment
+export async function sendAttendanceCodeEmail(
+  userEmail: string,
+  userName: string,
+  meetingTitle: string,
+  roomName: string,
+  startTime: string,
+  endTime: string,
+  attendanceCode: string
+): Promise<boolean> {
+  console.log('📧 ===== ATTENDANCE CODE EMAIL START =====');
+  console.log(`📧 User Email: ${userEmail}`);
+  console.log(`📧 User Name: ${userName}`);
+  console.log(`📧 Meeting Title: ${meetingTitle}`);
+  console.log(`📧 Room Name: ${roomName}`);
+  console.log(`📧 Attendance Code: ${attendanceCode}`);
+
+  if (!userEmail || !userEmail.includes('@')) {
+    console.error('❌ Invalid user email address:', userEmail);
+    return false;
+  }
+
+  if (!attendanceCode || attendanceCode.length !== 4) {
+    console.error('❌ Invalid attendance code:', attendanceCode);
+    return false;
+  }
+
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
+  const formattedDate = format(startDate, 'EEEE, MMMM d, yyyy');
+  const formattedStartTime = format(startDate, 'h:mm a');
+  const formattedEndTime = format(endDate, 'h:mm a');
+
+  const subject = `Your Attendance Code: ${meetingTitle}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2196F3;">Your Attendance Code</h2>
+      <p>Hello ${userName},</p>
+      <p>Here is your attendance code for the meeting:</p>
+      
+      <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
+        <p><strong>Meeting:</strong> ${meetingTitle}</p>
+        <p><strong>Room:</strong> ${roomName}</p>
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+      </div>
+
+      <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 25px 0; border: 2px solid #ff9800; text-align: center;">
+        <h3 style="margin: 0 0 10px 0; color: #e65100;">Your Attendance Code</h3>
+        <div style="font-size: 36px; font-weight: bold; color: #e65100; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+          ${attendanceCode}
+        </div>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this code on the room display to mark your attendance</p>
+      </div>
+
+      <div style="background-color: #f3e5f5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #9c27b0;">
+        <h4 style="margin-top: 0; color: #9c27b0;">How to Mark Attendance:</h4>
+        <ol style="margin-bottom: 0;">
+          <li>Scan the QR code displayed on the room screen</li>
+          <li>Select your name from the attendee list</li>
+          <li>Enter the 4-digit code above when prompted</li>
+          <li>Your attendance will be marked automatically</li>
+        </ol>
+      </div>
+
+      <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
+        <h4 style="margin-top: 0; color: #f44336;">Important Notes:</h4>
+        <ul style="margin-bottom: 0;">
+          <li>This code is unique to you and this meeting</li>
+          <li>The code expires at the end of the meeting</li>
+          <li>You can only mark attendance during the meeting time</li>
+          <li>If you have issues, contact the meeting organizer</li>
+        </ul>
+      </div>
+
+      <p>Thank you for attending!</p>
+      <p>Best regards,<br>Conference Hub Team</p>
+    </div>
+  `;
+
+  console.log('📧 About to send attendance code email...');
+  
+  const emailResult = await sendEmail(
+    userEmail,
+    subject,
+    html
+  );
+
+  console.log(`📧 Attendance code email result: ${emailResult ? '✅ SUCCESS' : '❌ FAILED'}`);
+  console.log('📧 ===== ATTENDANCE CODE EMAIL END =====');
+  
+  return emailResult;
+}
+
 export async function sendBookingCancellationEmailWithICS(
   userEmail: string,
   userName: string,

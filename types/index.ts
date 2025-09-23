@@ -393,9 +393,83 @@ export interface MeetingInvitation {
   response_token?: string
   created_at: string
   updated_at: string
+  // Attendance fields
+  attendance_code_hash?: string
+  attendance_code_salt?: string
+  attendance_code_expires_at?: string
+  attendance_code_last_sent_at?: string
+  attendance_code_send_count?: number
+  attendance_status?: "not_present" | "present"
+  attended_at?: string
+  verification_attempts?: number
+  last_verification_attempt_at?: string
+  check_in_method?: "self_qr" | "manual_admin"
 }
 
 export interface MeetingAttendee {
   name?: string
   email: string
+}
+
+// Attendance system types
+export interface MeetingAttendanceEvent {
+  id: string
+  booking_id: string
+  invitation_id?: string
+  event_type: "rsvp_accept" | "rsvp_decline" | "code_sent" | "verify_success" | "verify_failed" | "manual_override"
+  ip_address?: string
+  user_agent?: string
+  additional_data?: Record<string, any>
+  created_at: string
+}
+
+export interface AttendanceContext {
+  meeting: {
+    id: string
+    title: string
+    start_time: string
+    end_time: string
+    room_name: string
+    room_capacity: number
+  }
+  occupancy: {
+    present: number
+    invited: number
+    capacity: number
+  }
+  showQr: boolean
+  qrData?: string
+}
+
+export interface AttendeeListItem {
+  invitation_id: string
+  display_name: string
+  attendance_status: "not_present" | "present"
+}
+
+export interface AttendanceCodeRequest {
+  invitation_id: string
+}
+
+export interface AttendanceVerificationRequest {
+  invitation_id: string
+  code: string
+}
+
+export interface AttendanceVerificationResponse {
+  success: boolean
+  error?: string
+  attended_at?: string
+  occupancy?: {
+    present: number
+    accepted: number
+    capacity: number
+  }
+}
+
+export interface QRTokenPayload {
+  booking_id: string
+  scope: "attendance_view"
+  exp: number
+  iat: number
 }

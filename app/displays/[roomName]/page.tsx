@@ -30,6 +30,7 @@ import { ScheduleRail } from "@/components/displays/schedule-rail"
 import { RoomBanner } from "@/components/displays/room-banner"
 import { ActionBar } from "@/components/displays/action-bar"
 import { MeetingCarousel } from "@/components/displays/meeting-carousel"
+import { QRAttendance } from "@/components/displays/qr-attendance"
 
 
 // Constants
@@ -418,6 +419,15 @@ export default function RoomDisplayPage() {
                 </div>
               )}
 
+              {/* QR Attendance Component */}
+              <div className="w-full max-w-md">
+                <QRAttendance
+                  bookingId={currentBooking.id}
+                  meetingTitle={currentBooking.title}
+                  className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300"
+                />
+              </div>
+
               {/* Action Bar */}
               <div className="w-full max-w-md">
                 <ActionBar
@@ -525,6 +535,17 @@ export default function RoomDisplayPage() {
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              )}
+              
+              {/* QR Attendance Component */}
+              {currentBooking && (
+                <div className="w-full max-w-md">
+                  <QRAttendance
+                    bookingId={currentBooking.id}
+                    meetingTitle={currentBooking.title}
+                    className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300"
+                  />
                 </div>
               )}
               

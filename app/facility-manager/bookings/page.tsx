@@ -37,11 +37,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
+import { cn } from "@/lib/utils"
 import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
 import { expirePendingBookings } from "@/lib/room-availability"
 import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { getRoomsByFacilityManager } from "@/lib/supabase-data"
@@ -54,6 +56,7 @@ type StatusFilter = "all" | "pending" | "confirmed" | "cancelled"
 
 export default function BookingsManagementPage() {
   const { user } = useAuth()
+  const router = useRouter()
   
   // Helper function to check if a booking can be re-approved
   const canReapproveBooking = (booking: BookingWithDetails): boolean => {
@@ -101,6 +104,7 @@ export default function BookingsManagementPage() {
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null)
   const [rooms, setRooms] = useState<{ id: string; name: string }[]>([])
   const [roomFilter, setRoomFilter] = useState<string>("__all__")
+  const [navigating, setNavigating] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadBookings() {
@@ -453,6 +457,11 @@ export default function BookingsManagementPage() {
     setDetailsModalOpen(true)
   }
 
+  const navigateToBookingDetails = (bookingId: string) => {
+    setNavigating(bookingId)
+    router.push(`/facility-manager/bookings/${bookingId}`)
+  }
+
   // Calculate stats
   const pendingBookings = bookings.filter(b => b.status === "pending").length;
   const confirmedBookings = bookings.filter(b => b.status === "confirmed").length;
@@ -549,7 +558,9 @@ export default function BookingsManagementPage() {
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex-1">
               <CardTitle className="text-xl">All Bookings</CardTitle>
-              <CardDescription className="mt-1">View and manage all bookings for your facility</CardDescription>
+              <CardDescription className="mt-1">
+                View and manage all bookings for your facility. Click on a booking card to view detailed analytics, or use the eye icon for quick preview.
+              </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <div className="flex items-center gap-2 flex-wrap">
@@ -633,7 +644,14 @@ export default function BookingsManagementPage() {
               {/* Mobile View - Cards */}
               <div className="grid gap-4 md:hidden">
                 {filteredBookings.map((booking) => (
-                  <Card key={booking.id} className="overflow-hidden">
+                  <Card 
+                    key={booking.id} 
+                    className={cn(
+                      "overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-primary/50",
+                      navigating === booking.id && "opacity-50 pointer-events-none"
+                    )}
+                    onClick={() => navigateToBookingDetails(booking.id)}
+                  >
                     <CardHeader className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -641,6 +659,9 @@ export default function BookingsManagementPage() {
                           <CardDescription className="text-xs mt-1">
                             {booking.rooms?.name || "Unknown Room"}
                           </CardDescription>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Tap card for full details
+                          </div>
                         </div>
                         <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1 text-xs">
                           {getStatusIcon(booking.status)}
@@ -664,25 +685,65 @@ export default function BookingsManagementPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-end gap-1 flex-wrap pt-2 border-t border-border -mx-4 px-4">
-                        <Button variant="ghost" size="sm" onClick={() => openDetailsModal(booking)} className="h-8 px-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDetailsModal(booking)
+                          }} 
+                          className="h-8 px-2 hover:bg-blue-50"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canReapproveBooking(booking) && (
-                          <Button variant="outline" size="sm" onClick={() => openConfirmDialog(booking.id)} className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openConfirmDialog(booking.id)
+                            }} 
+                            className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                          >
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                         )}
                         {booking.status === "pending" && (
-                          <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id)} className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openRejectDialog(booking.id)
+                            }} 
+                            className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
+                          >
                             <XCircle className="h-4 w-4" />
                           </Button>
                         )}
                         {booking.status === "confirmed" && (
-                          <Button variant="outline" size="sm" onClick={() => openCancelDialog(booking.id)} className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openCancelDialog(booking.id)
+                            }} 
+                            className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
+                          >
                             <Ban className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(booking.id)} className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDeleteDialog(booking.id)
+                          }} 
+                          className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -690,6 +751,16 @@ export default function BookingsManagementPage() {
                   </Card>
                 ))}
               </div>
+              
+              {/* Loading indicator for navigation */}
+              {navigating && (
+                <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex items-center gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Loading booking details...</span>
+                  </div>
+                </div>
+              )}
 
               {/* Desktop View - Table */}
               <div className="hidden md:block rounded-md border overflow-hidden">
@@ -718,7 +789,14 @@ export default function BookingsManagementPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredBookings.map((booking) => (
-                        <TableRow key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                        <TableRow 
+                          key={booking.id} 
+                          className={cn(
+                            "hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer transition-colors",
+                            navigating === booking.id && "opacity-50 pointer-events-none"
+                          )}
+                          onClick={() => navigateToBookingDetails(booking.id)}
+                        >
                           <TableCell className="font-medium">
                             <div className="truncate max-w-[250px]">{booking.title}</div>
                           </TableCell>
@@ -759,25 +837,65 @@ export default function BookingsManagementPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1 flex-wrap">
-                              <Button variant="ghost" size="sm" onClick={() => openDetailsModal(booking)} className="h-8 px-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openDetailsModal(booking)
+                                }} 
+                                className="h-8 px-2 hover:bg-blue-50"
+                              >
                                 <Eye className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">View</span>
                               </Button>
                               {canReapproveBooking(booking) && (
-                                <Button variant="outline" size="sm" onClick={() => openConfirmDialog(booking.id)} className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openConfirmDialog(booking.id)
+                                  }} 
+                                  className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                                >
                                   <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Approve</span>
                                 </Button>
                               )}
                               {booking.status === "pending" && (
-                                <Button variant="outline" size="sm" onClick={() => openRejectDialog(booking.id)} className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openRejectDialog(booking.id)
+                                  }} 
+                                  className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
+                                >
                                   <XCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Reject</span>
                                 </Button>
                               )}
                               {booking.status === "confirmed" && (
-                                <Button variant="outline" size="sm" onClick={() => openCancelDialog(booking.id)} className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openCancelDialog(booking.id)
+                                  }} 
+                                  className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
+                                >
                                   <Ban className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Cancel</span>
                                 </Button>
                               )}
-                              <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(booking.id)} className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openDeleteDialog(booking.id)
+                                }} 
+                                className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                              >
                                 <Trash2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Delete</span>
                               </Button>
                             </div>

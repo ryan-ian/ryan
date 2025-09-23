@@ -39,12 +39,14 @@ import {
   UserPlus,
   DollarSign,
   CreditCard,
-  Check
+  Check,
+  ExternalLink
 } from "lucide-react"
 import type { BookingWithDetails, MeetingInvitation } from "@/types"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import Link from "next/link"
 
 interface FacilityManagerBookingDetailsModalProps {
   booking: BookingWithDetails | null
@@ -531,6 +533,12 @@ export function FacilityManagerBookingDetailsModal({
                 </Button>
               </>
             )}
+            <Button variant="outline" asChild className="flex-1 sm:flex-none">
+              <Link href={`/facility-manager/bookings/${booking.id}`}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Full Details
+              </Link>
+            </Button>
             <Button variant="ghost" onClick={onClose}>
               Close
             </Button>

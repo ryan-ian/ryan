@@ -78,6 +78,7 @@ export async function createMeetingInvitationsWithNames(
       invitee_email: attendee.email.toLowerCase().trim(),
       invitee_name: attendee.name?.trim() || null,
       invitation_token: randomUUID(),
+      response_token: randomUUID(), // For RSVP responses
       status: 'pending' as const,
       email_status: 'pending' as const,
       invited_at: new Date().toISOString()

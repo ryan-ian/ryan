@@ -23,6 +23,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const subscriptionRef = useRef<any>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
 
   // Set up real-time subscription for new notifications
   const setupNotificationsSubscription = () => {
@@ -63,17 +65,50 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
           })
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('🔔 Subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to notifications')
+          setIsRealtimeConnected(true)
+          // Clear any polling fallback
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error subscribing to notifications')
+          console.error('❌ Error subscribing to notifications:', err)
+          setIsRealtimeConnected(false)
+          // Start polling as fallback
+          startPollingFallback()
+        } else if (status === 'CLOSED') {
+          console.log('🔌 Notifications subscription closed')
+          setIsRealtimeConnected(false)
+          // Start polling as fallback
+          startPollingFallback()
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏰ Notifications subscription timed out, will retry...')
+          setIsRealtimeConnected(false)
+          setTimeout(() => {
+            setupNotificationsSubscription()
+          }, 3000)
         }
       })
 
     // Store the subscription reference
     subscriptionRef.current = subscription
+  }
+
+  // Polling fallback when realtime fails
+  const startPollingFallback = () => {
+    if (pollingIntervalRef.current) return // Already polling
+    
+    console.log('🔄 Starting polling fallback for notifications')
+    pollingIntervalRef.current = setInterval(() => {
+      if (user && !isRealtimeConnected) {
+        console.log('🔄 Polling for new notifications...')
+        fetchNotifications()
+      }
+    }, 30000) // Poll every 30 seconds
   }
 
   // Fetch notifications when user changes
@@ -95,6 +130,12 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         subscriptionRef.current.unsubscribe()
         subscriptionRef.current = null
       }
+      if (pollingIntervalRef.current) {
+        console.log('🔄 Cleaning up polling interval')
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+      setIsRealtimeConnected(false)
     }
   }, [user])
 

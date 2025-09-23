@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { Users, Clock, MapPin, CheckCircle, AlertCircle, Loader2, Send, Shield }
 import { format } from 'date-fns'
 import * as types from '@/types'
 
-export default function AttendancePage() {
+function AttendanceContent() {
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('b')
   const token = searchParams.get('t')
@@ -394,6 +394,23 @@ export default function AttendancePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center p-6">
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p>Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <AttendanceContent />
+    </Suspense>
   )
 }
 

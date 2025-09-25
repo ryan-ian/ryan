@@ -20,10 +20,10 @@ yarn-error.log*
 .env*
 
 #sql queries
-*sql
+# *sql
 
 # md files
-*.md
+# *.md
 
 # vercel
 .vercel

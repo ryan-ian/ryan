@@ -62,3 +62,4 @@ export default function BookingDetailsError({ error, reset }: ErrorProps) {
 }
 
 
+

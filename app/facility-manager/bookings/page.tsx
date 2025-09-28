@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +49,8 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { getRoomsByFacilityManager } from "@/lib/supabase-data"
 import { FacilityManagerSkeleton } from "@/app/components/skeletons/facility-manager-skeleton"
 import { FacilityManagerBookingDetailsModal } from "@/components/bookings/facility-manager-booking-details-modal"
+import { useManagerRealtime } from "@/hooks/use-manager-realtime"
+import { RealtimeStatusFull } from "@/components/realtime-status"
 
 type SortField = "title" | "room" | "organizer" | "date" | "status"
 type SortDirection = "asc" | "desc"
@@ -105,6 +107,71 @@ export default function BookingsManagementPage() {
   const [rooms, setRooms] = useState<{ id: string; name: string }[]>([])
   const [roomFilter, setRoomFilter] = useState<string>("__all__")
   const [navigating, setNavigating] = useState<string | null>(null)
+  const [newBookingsCount, setNewBookingsCount] = useState(0)
+
+  // Refresh bookings data
+  const refreshBookingsData = useCallback(async () => {
+    if (!user) return
+    try {
+      console.log('🔄 [Bookings Page] Refreshing bookings data...')
+      const bookingsData = await getAllBookingsByFacilityManager(user.id)
+      setBookings(bookingsData)
+      setFilteredBookings(bookingsData)
+    } catch (err) {
+      console.error("Error refreshing bookings data:", err)
+    }
+  }, [user])
+
+  // Handle new booking requests in real-time
+  const handleNewBooking = useCallback((booking: BookingWithDetails) => {
+    console.log('📋 [Bookings Page] New booking request received:', booking)
+    if (booking.status === 'pending') {
+      // Add the new booking to the list immediately
+      setBookings(prev => [booking, ...prev])
+
+      // Show "new" badge indicator
+      setNewBookingsCount(prev => prev + 1)
+
+      // Show toast notification
+      toast({
+        title: "New Booking Request",
+        description: `${booking.users?.name} has requested ${booking.rooms?.name}`,
+        duration: 6000,
+      })
+
+      // Auto-hide the "new" badge after 10 seconds
+      setTimeout(() => {
+        setNewBookingsCount(prev => Math.max(0, prev - 1))
+      }, 10000)
+    }
+  }, [toast])
+
+  // Handle booking status changes in real-time
+  const handleBookingStatusChange = useCallback((
+    booking: BookingWithDetails,
+    oldStatus: string,
+    newStatus: string
+  ) => {
+    console.log(`📋 [Bookings Page] Booking status changed: ${oldStatus} → ${newStatus}`)
+
+    // Update the booking in the list immediately
+    setBookings(prev => prev.map(b => b.id === booking.id ? booking : b))
+  }, [])
+
+  // Set up real-time subscription
+  useManagerRealtime({
+    onNewBooking: handleNewBooking,
+    onBookingStatusChange: handleBookingStatusChange,
+    onBookingUpdate: refreshBookingsData,
+    enabled: !!user,
+  })
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   useEffect(() => {
     async function loadBookings() {
@@ -493,6 +560,9 @@ export default function BookingsManagementPage() {
           <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Booking Management</h2>
           <p className="text-muted-foreground mt-1">Manage all bookings for your facility</p>
         </div>
+        <div className="flex items-center gap-4">
+          <RealtimeStatusFull className="text-sm" />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -533,7 +603,14 @@ export default function BookingsManagementPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingBookings}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold">{pendingBookings}</div>
+              {newBookingsCount > 0 && (
+                <Badge variant="destructive" className="animate-pulse">
+                  +{newBookingsCount} new
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
           </CardContent>
         </Card>

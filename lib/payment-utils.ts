@@ -6,13 +6,13 @@ import { PAYSTACK_CONFIG, convertToKobo, convertFromKobo } from './paystack-conf
 /**
  * Calculate the total cost for a booking based on duration and hourly rate
  * @param startTime - Booking start time
- * @param endTime - Booking end time  
+ * @param endTime - Booking end time
  * @param pricePerHour - Room hourly rate in GHS
  * @returns Payment calculation details
  */
 export function calculateBookingAmount(
-  startTime: Date, 
-  endTime: Date, 
+  startTime: Date,
+  endTime: Date,
   pricePerHour: number
 ): {
   startTime: Date
@@ -21,23 +21,28 @@ export function calculateBookingAmount(
   currency: string
   totalAmount: number
   durationHours: number
+  actualDurationHours: number
+  durationMinutes: number
 } {
   // Calculate duration in milliseconds
   const durationMs = endTime.getTime() - startTime.getTime()
-  
-  // Convert to hours and round up partial hours
-  const durationHours = Math.ceil(durationMs / (1000 * 60 * 60))
-  
-  // Calculate total amount
-  const totalAmount = durationHours * pricePerHour
-  
+
+  // Calculate exact duration in hours (proportional pricing)
+  const actualDurationHours = durationMs / (1000 * 60 * 60)
+  const durationMinutes = Math.round(durationMs / (1000 * 60))
+
+  // Calculate total amount based on proportional pricing
+  const totalAmount = actualDurationHours * pricePerHour
+
   return {
     startTime,
     endTime,
     pricePerHour,
     currency: PAYSTACK_CONFIG.CURRENCY,
     totalAmount,
-    durationHours
+    durationHours: actualDurationHours, // Keep for backward compatibility
+    actualDurationHours,
+    durationMinutes
   }
 }
 
@@ -114,13 +119,50 @@ export function validatePaymentAmount(amount: number): { isValid: boolean; error
  */
 export function calculateBookingDuration(startTime: Date, endTime: Date) {
   const durationMs = endTime.getTime() - startTime.getTime()
-  
+
   return {
     milliseconds: durationMs,
     minutes: Math.floor(durationMs / (1000 * 60)),
     hours: durationMs / (1000 * 60 * 60),
     hoursRounded: Math.ceil(durationMs / (1000 * 60 * 60))
   }
+}
+
+/**
+ * Format booking duration for display
+ * @param startTime - Start time
+ * @param endTime - End time
+ * @returns Formatted duration string (e.g., "30 minutes", "1.5 hours", "2 hours 15 minutes")
+ */
+export function formatBookingDuration(startTime: Date, endTime: Date): string {
+  const durationMs = endTime.getTime() - startTime.getTime()
+  const totalMinutes = Math.round(durationMs / (1000 * 60))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0) {
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`
+  } else if (minutes === 0) {
+    return `${hours} hour${hours !== 1 ? 's' : ''}`
+  } else {
+    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`
+  }
+}
+
+/**
+ * Format duration in decimal hours for payment display
+ * @param startTime - Start time
+ * @param endTime - End time
+ * @returns Formatted duration string (e.g., "0.5 hours", "1.25 hours")
+ */
+export function formatDurationHours(startTime: Date, endTime: Date): string {
+  const durationMs = endTime.getTime() - startTime.getTime()
+  const hours = durationMs / (1000 * 60 * 60)
+
+  // Round to 2 decimal places for display
+  const roundedHours = Math.round(hours * 100) / 100
+
+  return `${roundedHours} hour${roundedHours !== 1 ? 's' : ''}`
 }
 
 /**

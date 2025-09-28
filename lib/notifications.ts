@@ -31,7 +31,7 @@ export async function createNotification(
         type,
         related_id: relatedId,
         is_read: false,
-      })
+      } as any)
       .select()
       .single()
     
@@ -47,93 +47,20 @@ export async function createNotification(
   }
 }
 
-/**
- * Creates a notification for facility managers when a booking is made for a room in their facility
- * @param facilityManagerId - The ID of the facility manager
- * @param bookingId - The ID of the booking
- * @param userName - The name of the user who made the booking
- * @param bookingTitle - The title of the booking
- * @param roomName - The name of the room
- * @param startTime - The start time of the booking
- * @param endTime - The end time of the booking
- * @returns The created notification or null if there was an error
- */
-export async function createFacilityManagerBookingNotification(
-  facilityManagerId: string,
-  bookingId: string,
-  userName: string,
-  bookingTitle: string,
-  roomName: string,
-  startTime: string,
-  endTime: string
-): Promise<Notification | null> {
-  // Format the times nicely
-  const startDateTime = new Date(startTime);
-  const endDateTime = new Date(endTime);
-  const dateStr = startDateTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-  const startTimeStr = startDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const endTimeStr = endDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  
-  return createNotification(
-    facilityManagerId,
-    'New Room Booking',
-    `${userName} has booked "${roomName}" for "${bookingTitle}" on ${dateStr} from ${startTimeStr} to ${endTimeStr}.`,
-    'booking_request',
-    bookingId
-  )
-}
+// REMOVED: createFacilityManagerBookingNotification
+// This function duplicated the Supabase database trigger functionality.
+// Booking request notifications are now handled automatically by the
+// create_booking_notification database function when bookings are inserted.
 
-/**
- * Creates a booking confirmation notification
- * @param userId - The ID of the user who made the booking
- * @param bookingId - The ID of the booking
- * @param bookingTitle - The title of the booking
- * @param roomName - The name of the room
- * @returns The created notification or null if there was an error
- */
-export async function createBookingConfirmationNotification(
-  userId: string,
-  bookingId: string,
-  bookingTitle: string,
-  roomName: string
-): Promise<Notification | null> {
-  return createNotification(
-    userId,
-    'Booking Confirmed',
-    `Your booking "${bookingTitle}" in ${roomName} has been confirmed.`,
-    'booking_confirmation',
-    bookingId
-  )
-}
+// REMOVED: createBookingConfirmationNotification
+// This function duplicated the Supabase database trigger functionality.
+// Booking confirmation notifications are now handled automatically by the
+// create_booking_notification database function when booking status changes to 'confirmed'.
 
-/**
- * Creates a booking rejection notification
- * @param userId - The ID of the user who made the booking
- * @param bookingId - The ID of the booking
- * @param bookingTitle - The title of the booking
- * @param roomName - The name of the room
- * @param reason - Optional reason for rejection
- * @returns The created notification or null if there was an error
- */
-export async function createBookingRejectionNotification(
-  userId: string,
-  bookingId: string,
-  bookingTitle: string,
-  roomName: string,
-  reason?: string
-): Promise<Notification | null> {
-  const message = reason
-    ? `Your booking "${bookingTitle}" in ${roomName} has been rejected. Reason: ${reason}`
-    : `Your booking "${bookingTitle}" in ${roomName} has been rejected.`
-  
-  return createNotification(
-    userId,
-    'Booking Rejected',
-    message,
-    'booking_rejection',
-    bookingId
-  )
-}
+// REMOVED: createBookingRejectionNotification
+// This function duplicated the Supabase database trigger functionality.
+// Booking rejection notifications are now handled automatically by the
+// create_booking_notification database function when booking status changes to 'cancelled'.
 
 /**
  * Creates a booking reminder notification
@@ -206,85 +133,15 @@ export async function createSystemNotification(
   )
 }
 
-/**
- * Creates a booking request notification for admins
- * @param adminId - The ID of the admin to notify
- * @param bookingId - The ID of the booking
- * @param userName - The name of the user who made the booking
- * @param bookingTitle - The title of the booking
- * @param roomName - The name of the room
- * @returns The created notification or null if there was an error
- */
-export async function createBookingRequestNotification(
-  adminId: string,
-  bookingId: string,
-  userName: string,
-  bookingTitle: string,
-  roomName: string
-): Promise<Notification | null> {
-  return createNotification(
-    adminId,
-    'New Booking Request',
-    `${userName} has requested to book "${bookingTitle}" in ${roomName}.`,
-    'booking_request',
-    bookingId
-  )
-}
+// REMOVED: createBookingRequestNotification
+// This function duplicated the Supabase database trigger functionality.
+// Booking request notifications for admins are now handled automatically by the
+// create_booking_notification database function when bookings are inserted.
 
-/**
- * Creates pending approval notifications for all admins
- * @param bookingId - The ID of the booking
- * @param userName - The name of the user who made the booking
- * @param bookingTitle - The title of the booking
- * @param roomName - The name of the room
- * @returns An array of created notifications or empty array if there was an error
- */
-export async function createPendingApprovalNotificationsForAdmins(
-  bookingId: string,
-  userName: string,
-  bookingTitle: string,
-  roomName: string
-): Promise<Notification[]> {
-  try {
-    // Use admin client to bypass RLS
-    const adminClient = createAdminClient()
-    
-    // Get all admin users
-    const { data: admins, error: adminsError } = await adminClient
-      .from('users')
-      .select('id, name')
-      .eq('role', 'admin')
-    
-    if (adminsError || !admins) {
-      console.error('Error fetching admins:', adminsError)
-      return []
-    }
-    
-    // Create notifications for each admin
-    const notificationPromises = admins.map(admin => 
-      createBookingRequestNotification(
-        admin.id,
-        bookingId,
-        userName,
-        bookingTitle,
-        roomName
-      )
-    )
-    
-    // Wait for all notifications to be created
-    const results = await Promise.allSettled(notificationPromises)
-    
-    // Return only successful notifications
-    return results
-      .filter((result): result is PromiseFulfilledResult<Notification> => 
-        result.status === 'fulfilled' && result.value !== null
-      )
-      .map(result => result.value)
-  } catch (error) {
-    console.error('Exception in createPendingApprovalNotificationsForAdmins:', error)
-    return []
-  }
-}
+// REMOVED: createPendingApprovalNotificationsForAdmins
+// This function duplicated the Supabase database trigger functionality.
+// Admin notifications for new booking requests are now handled automatically by the
+// create_booking_notification database function when bookings are inserted.
 
 /**
  * Creates a daily summary notification for admins with pending bookings
@@ -333,7 +190,7 @@ export async function sendPendingBookingsSummaryToAdmins(): Promise<Notification
     const { data: admins, error: adminsError } = await adminClient
       .from('users')
       .select('id')
-      .eq('role', 'admin')
+      .eq('role', 'admin') as { data: { id: string }[] | null, error: any }
     
     if (adminsError || !admins) {
       console.error('Error fetching admins:', adminsError)

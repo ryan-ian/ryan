@@ -29,15 +29,36 @@ export function useUserRealtime({
 }: UseUserRealtimeOptions = {}) {
   const { user } = useAuth()
   const subscriptionRef = useRef<any>(null)
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isConnectedRef = useRef(false)
 
   const setupRealtimeSubscription = useCallback(() => {
-    if (!user || !enabled) return
+    if (!user || !enabled) {
+      console.log('👤 [User Realtime] Skipping subscription setup - user or enabled check failed:', { user: !!user, enabled })
+      return
+    }
+
+    // Validate user has required properties
+    if (!user.id || !user.email) {
+      console.error('👤 [User Realtime] Invalid user data - missing id or email:', { id: user.id, email: user.email })
+      return
+    }
 
     // Clean up existing subscription
     if (subscriptionRef.current) {
       console.log('👤 [User Realtime] Cleaning up existing subscription')
-      subscriptionRef.current.unsubscribe()
+      try {
+        subscriptionRef.current.unsubscribe()
+      } catch (error) {
+        console.error('👤 [User Realtime] Error cleaning up subscription:', error)
+      }
       subscriptionRef.current = null
+    }
+
+    // Clear any existing retry timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
     }
 
     console.log('👤 [User Realtime] Setting up subscription for user:', user.id)
@@ -53,15 +74,29 @@ export function useUserRealtime({
           filter: `user_id=eq.${user.id}`,
         },
         async (payload) => {
-          console.log('👤 [User Realtime] Booking updated:', payload)
-          const oldBooking = payload.old as Booking
-          const newBooking = payload.new as Booking
+          try {
+            console.log('👤 [User Realtime] Booking updated:', payload)
 
-          // Check if status changed
-          const statusChanged = oldBooking.status !== newBooking.status
-          
-          if (statusChanged) {
-            console.log(`👤 [User Realtime] Your booking status changed: ${oldBooking.status} → ${newBooking.status}`)
+            // Validate payload data
+            if (!payload || !payload.old || !payload.new) {
+              console.error('👤 [User Realtime] Invalid payload received:', payload)
+              return
+            }
+
+            const oldBooking = payload.old as Booking
+            const newBooking = payload.new as Booking
+
+            // Validate booking data
+            if (!oldBooking.id || !newBooking.id || oldBooking.id !== newBooking.id) {
+              console.error('👤 [User Realtime] Invalid booking data:', { oldBooking, newBooking })
+              return
+            }
+
+            // Check if status changed
+            const statusChanged = oldBooking.status !== newBooking.status
+
+            if (statusChanged) {
+              console.log(`👤 [User Realtime] Your booking status changed: ${oldBooking.status} → ${newBooking.status} for booking ${newBooking.id}`)
 
             // Get room details for better messaging
             try {
@@ -102,11 +137,12 @@ export function useUserRealtime({
 
               // Call the status change callback
               if (onBookingStatusChange) {
+                console.log(`👤 [User Realtime] Calling onBookingStatusChange callback for booking ${newBooking.id}`)
                 onBookingStatusChange(newBooking, oldBooking.status, newBooking.status)
               }
 
             } catch (error) {
-              console.error('Error fetching room details for status change:', error)
+              console.error('👤 [User Realtime] Error fetching room details for status change:', error)
               
               // Still show generic notification
               if (showToasts) {
@@ -125,6 +161,12 @@ export function useUserRealtime({
                   })
                 }
               }
+
+              // Call the status change callback even with generic notification
+              if (onBookingStatusChange) {
+                console.log(`👤 [User Realtime] Calling onBookingStatusChange callback (fallback) for booking ${newBooking.id}`)
+                onBookingStatusChange(newBooking, oldBooking.status, newBooking.status)
+              }
             }
           }
 
@@ -142,9 +184,22 @@ export function useUserRealtime({
 
           // Trigger general update callback
           if (onBookingUpdate) {
+            console.log(`👤 [User Realtime] Calling onBookingUpdate callback`)
             setTimeout(() => {
               onBookingUpdate()
             }, 500)
+          }
+
+          } catch (error) {
+            console.error('👤 [User Realtime] Error processing booking update:', error)
+
+            // Still try to trigger the general update callback on error
+            if (onBookingUpdate) {
+              console.log(`👤 [User Realtime] Calling onBookingUpdate callback (error fallback)`)
+              setTimeout(() => {
+                onBookingUpdate()
+              }, 1000)
+            }
           }
         }
       )
@@ -157,19 +212,29 @@ export function useUserRealtime({
           filter: `email=eq.${user.email}`,
         },
         (payload) => {
-          console.log('👤 [User Realtime] New meeting invitation:', payload)
-          const invitation = payload.new as MeetingInvitation
+          try {
+            console.log('👤 [User Realtime] New meeting invitation:', payload)
 
-          if (showToasts) {
-            toast({
-              title: "📧 New Meeting Invitation",
-              description: `You've been invited to: ${invitation.event_title}`,
-              duration: 6000,
-            })
-          }
+            if (!payload || !payload.new) {
+              console.error('👤 [User Realtime] Invalid meeting invitation payload:', payload)
+              return
+            }
 
-          if (onMeetingInvitationUpdate) {
-            onMeetingInvitationUpdate(invitation)
+            const invitation = payload.new as MeetingInvitation
+
+            if (showToasts && invitation.event_title) {
+              toast({
+                title: "📧 New Meeting Invitation",
+                description: `You've been invited to: ${invitation.event_title}`,
+                duration: 6000,
+              })
+            }
+
+            if (onMeetingInvitationUpdate) {
+              onMeetingInvitationUpdate(invitation)
+            }
+          } catch (error) {
+            console.error('👤 [User Realtime] Error processing meeting invitation:', error)
           }
         }
       )
@@ -182,11 +247,21 @@ export function useUserRealtime({
           filter: `email=eq.${user.email}`,
         },
         (payload) => {
-          console.log('👤 [User Realtime] Meeting invitation updated:', payload)
-          const invitation = payload.new as MeetingInvitation
+          try {
+            console.log('👤 [User Realtime] Meeting invitation updated:', payload)
 
-          if (onMeetingInvitationUpdate) {
-            onMeetingInvitationUpdate(invitation)
+            if (!payload || !payload.new) {
+              console.error('👤 [User Realtime] Invalid meeting invitation update payload:', payload)
+              return
+            }
+
+            const invitation = payload.new as MeetingInvitation
+
+            if (onMeetingInvitationUpdate) {
+              onMeetingInvitationUpdate(invitation)
+            }
+          } catch (error) {
+            console.error('👤 [User Realtime] Error processing meeting invitation update:', error)
           }
         }
       )
@@ -199,21 +274,67 @@ export function useUserRealtime({
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('👤 [User Realtime] New notification:', payload)
-          // This is handled by the notifications context, but we can still trigger callbacks
-          if (onNotificationReceived) {
-            onNotificationReceived(payload.new)
+          try {
+            console.log('👤 [User Realtime] New notification:', payload)
+
+            if (!payload || !payload.new) {
+              console.error('👤 [User Realtime] Invalid notification payload:', payload)
+              return
+            }
+
+            // This is handled by the notifications context, but we can still trigger callbacks
+            if (onNotificationReceived) {
+              onNotificationReceived(payload.new)
+            }
+          } catch (error) {
+            console.error('👤 [User Realtime] Error processing notification:', error)
           }
         }
       )
-      .subscribe((status) => {
-        console.log('👤 [User Realtime] Subscription status:', status)
+      .subscribe((status, err) => {
+        console.log('👤 [User Realtime] Subscription status:', status, err ? { error: err } : '')
+
         if (status === 'SUBSCRIBED') {
           console.log('✅ [User Realtime] Successfully subscribed to user updates')
+          isConnectedRef.current = true
+
+          // Clear any retry timeout since we're now connected
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current)
+            retryTimeoutRef.current = null
+          }
+
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ [User Realtime] Error subscribing to user updates')
+          console.error('❌ [User Realtime] Error subscribing to user updates:', err)
+          isConnectedRef.current = false
+
+          // Implement retry logic for connection errors
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current)
+          }
+
+          retryTimeoutRef.current = setTimeout(() => {
+            console.log('🔄 [User Realtime] Retrying subscription after error...')
+            setupRealtimeSubscription()
+          }, 5000) // Retry after 5 seconds
+
         } else if (status === 'CLOSED') {
           console.log('🔌 [User Realtime] Subscription closed')
+          isConnectedRef.current = false
+
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏰ [User Realtime] Subscription timed out')
+          isConnectedRef.current = false
+
+          // Retry on timeout
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current)
+          }
+
+          retryTimeoutRef.current = setTimeout(() => {
+            console.log('🔄 [User Realtime] Retrying subscription after timeout...')
+            setupRealtimeSubscription()
+          }, 3000) // Retry after 3 seconds
         }
       })
 
@@ -227,9 +348,21 @@ export function useUserRealtime({
     return () => {
       if (subscriptionRef.current) {
         console.log('👤 [User Realtime] Cleaning up subscription on unmount')
-        subscriptionRef.current.unsubscribe()
+        try {
+          subscriptionRef.current.unsubscribe()
+        } catch (error) {
+          console.error('👤 [User Realtime] Error during cleanup:', error)
+        }
         subscriptionRef.current = null
       }
+
+      // Clear retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
+
+      isConnectedRef.current = false
     }
   }, [setupRealtimeSubscription])
 
@@ -237,10 +370,25 @@ export function useUserRealtime({
   const cleanup = useCallback(() => {
     if (subscriptionRef.current) {
       console.log('👤 [User Realtime] Manual cleanup requested')
-      subscriptionRef.current.unsubscribe()
+      try {
+        subscriptionRef.current.unsubscribe()
+      } catch (error) {
+        console.error('👤 [User Realtime] Error during manual cleanup:', error)
+      }
       subscriptionRef.current = null
     }
+
+    // Clear retry timeout
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+
+    isConnectedRef.current = false
   }, [])
 
-  return { cleanup }
+  return {
+    cleanup,
+    isConnected: isConnectedRef.current
+  }
 }

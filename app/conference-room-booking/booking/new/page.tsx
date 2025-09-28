@@ -251,12 +251,45 @@ const ReviewAndPayment = ({
 
   const calculateCost = () => {
     if (!formData.startTime || !formData.endTime || !room.hourly_rate) return 0
-    
+
     const start = new Date(`2000-01-01T${formData.startTime}:00`)
     const end = new Date(`2000-01-01T${formData.endTime}:00`)
     const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-    
-    return Math.ceil(durationHours) * room.hourly_rate
+
+    // Use proportional pricing instead of rounding up
+    return durationHours * room.hourly_rate
+  }
+
+  const getDurationDisplay = () => {
+    if (!formData.startTime || !formData.endTime) return "0 minutes"
+
+    const start = new Date(`2000-01-01T${formData.startTime}:00`)
+    const end = new Date(`2000-01-01T${formData.endTime}:00`)
+    const durationMs = end.getTime() - start.getTime()
+    const totalMinutes = Math.round(durationMs / (1000 * 60))
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (hours === 0) {
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`
+    } else if (minutes === 0) {
+      return `${hours} hour${hours !== 1 ? 's' : ''}`
+    } else {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`
+    }
+  }
+
+  const getDurationHours = () => {
+    if (!formData.startTime || !formData.endTime) return "0 hours"
+
+    const start = new Date(`2000-01-01T${formData.startTime}:00`)
+    const end = new Date(`2000-01-01T${formData.endTime}:00`)
+    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+
+    // Round to 2 decimal places for display
+    const roundedHours = Math.round(durationHours * 100) / 100
+
+    return `${roundedHours} hour${roundedHours !== 1 ? 's' : ''}`
   }
 
   const totalCost = calculateCost()
@@ -468,7 +501,7 @@ const ReviewAndPayment = ({
               </div>
               <div className="flex justify-between text-sm">
                 <span>Duration:</span>
-                <span>{Math.ceil((new Date(`2000-01-01T${formData.endTime}:00`).getTime() - new Date(`2000-01-01T${formData.startTime}:00`).getTime()) / (1000 * 60 * 60))} hours</span>
+                <span>{getDurationHours()}</span>
               </div>
               <div className="border-t pt-2">
                 <div className="flex justify-between text-lg font-bold">

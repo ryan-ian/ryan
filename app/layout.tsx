@@ -1,18 +1,20 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import { EnhancedThemeProvider } from '@/components/enhanced-theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/contexts/auth-context'
 import { NotificationsProvider } from '@/contexts/notifications-context'
 import { RoleThemeProvider } from '@/contexts/theme-context'
+import { RealtimeProvider } from '@/contexts/realtime-context'
 import { DisplaysStyleHandler } from '@/components/displays-style-handler'
 import { MainWrapper } from '@/components/main-wrapper'
 import { EventSystemProtector } from '@/components/ui/event-system-protector'
+import { RealtimeNotifications } from '@/components/realtime-notifications'
 import ReactQueryProvider from '@/lib/react-query-provider'
 // Email service will initialize automatically when needed
 
-const inter = Inter({ subsets: ['latin'] })
+// Font configuration: Using system fonts for reliable builds
+// Google Fonts can be re-enabled when network connectivity is stable
 
 export const metadata: Metadata = {
   title: 'Conference Hub',
@@ -32,20 +34,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <EnhancedThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ReactQueryProvider>
             <AuthProvider>
-              <RoleThemeProvider>
-                <NotificationsProvider>
-                  <EventSystemProtector />
-                  <DisplaysStyleHandler />
-                  <MainWrapper>
-                    {children}
-                  </MainWrapper>
-                  <Toaster />
-                </NotificationsProvider>
-              </RoleThemeProvider>
+              <RealtimeProvider>
+                <RoleThemeProvider>
+                  <NotificationsProvider>
+                    <EventSystemProtector />
+                    <DisplaysStyleHandler />
+                    <MainWrapper>
+                      {children}
+                    </MainWrapper>
+                    <RealtimeNotifications />
+                    <Toaster />
+                  </NotificationsProvider>
+                </RoleThemeProvider>
+              </RealtimeProvider>
             </AuthProvider>
           </ReactQueryProvider>
         </EnhancedThemeProvider>

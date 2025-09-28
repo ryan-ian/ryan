@@ -71,14 +71,14 @@ export function formatCurrency(amount: number | string, currency: string = 'GHS'
  * @param startTime Start time of booking
  * @param endTime End time of booking
 
- * @param roundUp Whether to round up partial hours (default: true)
+ * @param roundUp Whether to round up partial hours (default: false for proportional pricing)
  * @returns Object with total cost, duration, and breakdown
  */
 export function calculateBookingCost(
   hourlyRate: number,
   startTime: Date,
   endTime: Date,
-  roundUp: boolean = true
+  roundUp: boolean = false
 ): {
   totalCost: number
   durationHours: number
@@ -88,18 +88,20 @@ export function calculateBookingCost(
   // Calculate duration in milliseconds
   const durationMs = endTime.getTime() - startTime.getTime()
   const durationHours = durationMs / (1000 * 60 * 60)
-  
+
   let actualHours = durationHours
-  
-  // Round up partial hours if specified
+
+  // Round up partial hours if specified (legacy behavior)
   if (roundUp && actualHours !== Math.floor(actualHours)) {
     actualHours = Math.ceil(actualHours)
   }
-  
+
   const totalCost = hourlyRate * actualHours
-  
-  const breakdown = `${formatCurrency(hourlyRate)}/hr × ${actualHours} hours`
-  
+
+  // Format hours for display (round to 2 decimal places)
+  const displayHours = Math.round(actualHours * 100) / 100
+  const breakdown = `${formatCurrency(hourlyRate)}/hr × ${displayHours} hours`
+
   return {
     totalCost,
     durationHours,

@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { supabase, createAdminClient } from "@/lib/supabase"
 import { paystackAPI } from "@/lib/paystack-api"
 import { sendBookingRequestSubmittedEmail, sendBookingCreationNotificationToManager } from "@/lib/email-service"
-import { createPendingApprovalNotificationsForAdmins, createFacilityManagerBookingNotification } from "@/lib/notifications"
+// REMOVED: Duplicate notification imports
+// Booking notifications are now handled automatically by Supabase database triggers
 import { getRoomById, getUserById } from "@/lib/supabase-data"
 
 export async function POST(request: NextRequest) {
@@ -249,26 +250,14 @@ export async function POST(request: NextRequest) {
               booking.start_time,
               booking.end_time
             )
-            await createFacilityManagerBookingNotification(
-              facilityManager.id,
-              booking.id,
-              userDetails.name || 'Unknown User',
-              booking.title,
-              room.name,
-              booking.start_time,
-              booking.end_time
-            )
+            // NOTE: Facility manager notification is now handled automatically by Supabase database trigger
+            // when booking is inserted with 'pending' status
           } else {
             console.warn(`⚠️ [PAYMENT VERIFY] Cannot send facility manager email - manager not found or missing email/name for room ${room.id}`)
           }
 
-          // Create admin notifications
-          await createPendingApprovalNotificationsForAdmins(
-            booking.id,
-            userDetails.name || 'Unknown User',
-            booking.title,
-            room.name
-          )
+          // NOTE: Admin notifications are now handled automatically by Supabase database trigger
+          // when booking is inserted with 'pending' status
 
         } catch (notificationError) {
           console.error("⚠️ Error sending notifications:", notificationError)

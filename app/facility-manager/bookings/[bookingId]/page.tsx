@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
 import {
@@ -19,13 +19,11 @@ import {
   AlertCircle,
   Download,
   ArrowLeft,
-  ExternalLink,
   UserPlus,
   Eye,
   Loader2,
   TrendingUp,
   FileText,
-  Bell,
   QrCode
 } from "lucide-react"
 
@@ -41,7 +39,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
 import type { BookingWithDetails, MeetingInvitation } from "@/types"
-import { getBookingById } from "@/lib/supabase-data"
+import {
+  getBookingByIdWithDetails,
+  calculateAverageCheckInTime,
+  calculateRoomUtilization
+} from "@/lib/supabase-data"
 
 interface BookingAnalytics {
   totalInvited: number
@@ -59,7 +61,6 @@ interface BookingAnalytics {
 
 export default function BookingDetailsPage() {
   const params = useParams()
-  const router = useRouter()
   const { user } = useAuth()
   const { toast } = useToast()
   
@@ -81,22 +82,22 @@ export default function BookingDetailsPage() {
   const loadBookingDetails = async () => {
     try {
       setIsLoading(true)
-      
-      // Load booking details
-      const bookingData = await getBookingById(bookingId)
+
+      // Load booking details with comprehensive data
+      const bookingData = await getBookingByIdWithDetails(bookingId)
       if (!bookingData) {
         setError("Booking not found")
         return
       }
-      
+
       setBooking(bookingData)
-      
-      // Load meeting invitations
-      await loadMeetingInvitations(bookingId)
-      
-      // Calculate analytics
-      calculateAnalytics(bookingData, meetingInvitations)
-      
+
+      // Load meeting invitations and get the data directly
+      const invitationsData = await loadMeetingInvitationsAndReturn(bookingId)
+
+      // Calculate analytics with real data using the fresh invitations data
+      await calculateAnalyticsWithRealData(bookingData, invitationsData)
+
     } catch (err) {
       console.error("Error loading booking details:", err)
       setError("Failed to load booking details")
@@ -105,7 +106,7 @@ export default function BookingDetailsPage() {
     }
   }
 
-  const loadMeetingInvitations = async (bookingId: string) => {
+  const loadMeetingInvitations = async (bookingId: string): Promise<MeetingInvitation[]> => {
     try {
       const token = localStorage.getItem("auth-token")
       const response = await fetch(`/api/meeting-invitations?bookingId=${bookingId}`, {
@@ -113,30 +114,47 @@ export default function BookingDetailsPage() {
           Authorization: `Bearer ${token}`
         }
       })
-      
+
       if (response.ok) {
         const invitations = await response.json()
         setMeetingInvitations(invitations)
+        return invitations
       }
+      return []
     } catch (error) {
       console.error("Error loading meeting invitations:", error)
+      return []
     }
   }
 
-  const calculateAnalytics = (booking: BookingWithDetails, invitations: MeetingInvitation[]) => {
+  const loadMeetingInvitationsAndReturn = async (bookingId: string): Promise<MeetingInvitation[]> => {
+    return await loadMeetingInvitations(bookingId)
+  }
+
+  const calculateAnalyticsWithRealData = async (booking: BookingWithDetails, invitations: MeetingInvitation[]) => {
     const totalInvited = invitations.length
     const totalAccepted = invitations.filter(inv => inv.status === 'accepted').length
     const totalDeclined = invitations.filter(inv => inv.status === 'declined').length
     const totalAttended = invitations.filter(inv => inv.attendance_status === 'present').length
-    
+
     const attendanceRate = totalInvited > 0 ? (totalAttended / totalInvited) * 100 : 0
     const checkInRate = totalAccepted > 0 ? (totalAttended / totalAccepted) * 100 : 0
-    
+
     // Calculate duration in hours
     const startTime = new Date(booking.start_time)
     const endTime = new Date(booking.end_time)
     const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
-    
+
+    // Calculate real average check-in time
+    const averageCheckInTime = await calculateAverageCheckInTime(booking.id)
+
+    // Calculate real room utilization
+    const roomUtilization = await calculateRoomUtilization(booking.room_id)
+
+    // Get real payment data
+    const totalAmount = booking.payments?.amount || booking.total_cost || 0
+    const paymentStatus = booking.payments?.status || booking.payment_status || 'pending'
+
     const analyticsData: BookingAnalytics = {
       totalInvited,
       totalAccepted,
@@ -144,13 +162,13 @@ export default function BookingDetailsPage() {
       totalAttended,
       attendanceRate,
       checkInRate,
-      averageCheckInTime: "2:05 PM", // TODO: Calculate from actual check-in times
-      paymentStatus: booking.payment_status || 'pending',
-      totalAmount: (booking as any).total_cost || 0,
+      averageCheckInTime: averageCheckInTime || "No check-ins yet",
+      paymentStatus,
+      totalAmount,
       duration,
-      roomUtilization: 85 // TODO: Calculate from actual usage
+      roomUtilization
     }
-    
+
     setAnalytics(analyticsData)
   }
 
@@ -277,7 +295,7 @@ export default function BookingDetailsPage() {
 
       {/* Quick Stats Cards */}
       {analytics && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Invited</CardTitle>
@@ -306,7 +324,9 @@ export default function BookingDetailsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">GH₵{analytics.totalAmount.toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                {booking.payments?.currency || booking.rooms?.currency || 'GHS'} {analytics.totalAmount.toFixed(2)}
+              </div>
               <p className="text-xs text-muted-foreground">Payment {analytics.paymentStatus}</p>
             </CardContent>
           </Card>
@@ -319,6 +339,17 @@ export default function BookingDetailsPage() {
             <CardContent>
               <div className="text-2xl font-bold">{analytics.duration.toFixed(1)}h</div>
               <p className="text-xs text-muted-foreground">Meeting length</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Room Utilization</CardTitle>
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics.roomUtilization}%</div>
+              <p className="text-xs text-muted-foreground">Past 30 days</p>
             </CardContent>
           </Card>
         </div>
@@ -355,10 +386,21 @@ export default function BookingDetailsPage() {
                     <span>{booking.rooms.location}</span>
                   </div>
                 )}
+                {booking.rooms?.facilities && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Building className="h-4 w-4" />
+                    <span>Facility: {booking.rooms.facilities.name}</span>
+                  </div>
+                )}
                 {booking.rooms?.capacity && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
                     <span>Capacity: {booking.rooms.capacity} people</span>
+                  </div>
+                )}
+                {booking.rooms?.hourly_rate && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Rate: {booking.rooms.currency || 'GHS'} {booking.rooms.hourly_rate}/hour</span>
                   </div>
                 )}
               </CardContent>
@@ -380,6 +422,18 @@ export default function BookingDetailsPage() {
                   <Mail className="h-4 w-4" />
                   <span>{booking.users?.email || "No email available"}</span>
                 </div>
+                {booking.users?.organization && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Building className="h-4 w-4" />
+                    <span>{booking.users.organization}</span>
+                  </div>
+                )}
+                {booking.users?.position && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    <span>{booking.users.position}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -409,6 +463,45 @@ export default function BookingDetailsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Check-in Status */}
+          {booking.check_in_required && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Check-in Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Status</div>
+                    <div className="font-medium">
+                      {booking.checked_in_at ? (
+                        <span className="text-green-600">Checked In</span>
+                      ) : (
+                        <span className="text-orange-600">Not Checked In</span>
+                      )}
+                    </div>
+                  </div>
+                  {booking.checked_in_at && (
+                    <div>
+                      <div className="text-sm text-muted-foreground">Check-in Time</div>
+                      <div className="font-medium">
+                        {format(new Date(booking.checked_in_at), "h:mm a")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {booking.auto_release_at && !booking.checked_in_at && (
+                  <div className="text-sm text-muted-foreground">
+                    Auto-release scheduled: {format(new Date(booking.auto_release_at), "h:mm a")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Description */}
           {booking.description && (
@@ -547,12 +640,12 @@ export default function BookingDetailsPage() {
                 <div>
                   <div className="text-sm text-muted-foreground">Total Amount</div>
                   <div className="text-3xl font-bold text-green-600">
-                    GH₵{analytics?.totalAmount.toFixed(2) || "0.00"}
+                    {booking.payments?.currency || booking.rooms?.currency || 'GHS'} {analytics?.totalAmount.toFixed(2) || "0.00"}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Payment Status</div>
-                  <Badge 
+                  <Badge
                     variant={analytics?.paymentStatus === 'paid' ? 'default' : 'secondary'}
                     className="mt-2"
                   >
@@ -560,22 +653,32 @@ export default function BookingDetailsPage() {
                   </Badge>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment Method:</span>
-                  <span>{booking.payment_method || "N/A"}</span>
+                  <span>{booking.payments?.payment_method || booking.payment_method || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Transaction Reference:</span>
-                  <span className="font-mono text-sm">{booking.payment_reference || booking.paystack_reference || "N/A"}</span>
+                  <span className="font-mono text-sm">{booking.payments?.paystack_reference || booking.payment_reference || booking.paystack_reference || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment Date:</span>
-                  <span>{booking.payment_date ? format(new Date(booking.payment_date), "MMM d, yyyy 'at' h:mm a") : "N/A"}</span>
+                  <span>{
+                    (booking.payments?.paid_at || booking.payment_date)
+                      ? format(new Date(booking.payments?.paid_at || booking.payment_date!), "MMM d, yyyy 'at' h:mm a")
+                      : "N/A"
+                  }</span>
                 </div>
+                {booking.payments?.created_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment Created:</span>
+                    <span>{format(new Date(booking.payments.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

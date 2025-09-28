@@ -294,11 +294,30 @@ export interface BookingWithDetails extends Booking {
     name: string
     location: string
     capacity: number
+    hourly_rate?: number
+    currency?: string
+    facilities?: {
+      id: string
+      name: string
+      location: string
+    }
   }
   users: {
     id: string
     name: string
     email: string
+    organization?: string
+    position?: string
+  }
+  payments?: {
+    id: string
+    amount: number
+    currency: string
+    status: string
+    paystack_reference?: string
+    payment_method?: string
+    paid_at?: string
+    created_at: string
   }
 }
 

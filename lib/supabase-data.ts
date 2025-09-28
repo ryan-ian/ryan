@@ -1,7 +1,40 @@
 import { supabase, createAdminClient } from './supabase'
 import * as types from '@/types'
-import { createBookingConfirmationNotification, createBookingRejectionNotification } from '@/lib/notifications'
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendUserBookingCancellationEmail, ensureEmailReady } from '@/lib/email-service'
+// REMOVED: Duplicate notification imports
+// Booking notifications are now handled automatically by Supabase database triggers
+
+// Helper function to send emails via API (server-side only)
+async function sendEmailViaAPI(emailType: string, emailData: any): Promise<boolean> {
+  // Only attempt to send emails on server-side
+  if (typeof window !== 'undefined') {
+    console.log('📧 Skipping email send on client-side')
+    return false
+  }
+
+  try {
+    const response = await fetch('/api/emails/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: emailType,
+        data: emailData
+      })
+    })
+
+    if (response.ok) {
+      console.log(`📧 Email sent successfully via API: ${emailType}`)
+      return true
+    } else {
+      console.error(`❌ Failed to send email via API: ${emailType}`, response.status)
+      return false
+    }
+  } catch (error) {
+    console.error(`❌ Error sending email via API: ${emailType}`, error)
+    return false
+  }
+}
 
 // Users
 export async function getUsers(): Promise<types.User[]> {
@@ -915,6 +948,64 @@ export async function getBookingById(id: string): Promise<types.Booking | null> 
   }
 }
 
+/**
+ * Get booking by ID with comprehensive details including room, user, facility, payment, and meeting invitation data
+ */
+export async function getBookingByIdWithDetails(id: string): Promise<types.BookingWithDetails | null> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        rooms:room_id(
+          id,
+          name,
+          location,
+          capacity,
+          hourly_rate,
+          currency,
+          facilities!left(id, name, location)
+        ),
+        users:user_id(id, name, email, organization, position),
+        payments:payment_id(
+          id,
+          amount,
+          currency,
+          status,
+          paystack_reference,
+          payment_method,
+          paid_at,
+          created_at
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      console.error(`Error fetching booking with details ${id}:`, error)
+      throw error
+    }
+
+    if (!data) {
+      return null
+    }
+
+    // Get meeting invitation count
+    const invitationCount = await getInvitationCountForBooking(id)
+
+    // Add invitation count to the booking data
+    const bookingWithDetails = {
+      ...data,
+      invitation_count: invitationCount
+    } as types.BookingWithDetails
+
+    return bookingWithDetails
+  } catch (error) {
+    console.error('Exception in getBookingByIdWithDetails:', error)
+    throw error
+  }
+}
+
 export async function createBooking(bookingData: Omit<types.Booking, 'id' | 'created_at' | 'updated_at'>): Promise<types.Booking> {
   try {
     // Ensure all required fields are present
@@ -1039,68 +1130,47 @@ export async function updateBooking(id: string, bookingData: Partial<types.Booki
           console.log(`📧 Sending booking confirmation email to ${user.email} for booking ${id}`)
           console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
 
-          // Ensure email service is ready before sending
-          const emailReady = await ensureEmailReady()
-          if (!emailReady) {
-            console.error('❌ Email service not ready, cannot send confirmation email')
-          } else {
-            const emailResult = await sendBookingConfirmationEmail(
-              user.email,
-              user.name,
-              currentBooking.title,
-              room.name,
-              currentBooking.start_time,
-              currentBooking.end_time
-            )
+          // Send confirmation email via API
+          const emailResult = await sendEmailViaAPI('booking-confirmation', {
+            email: user.email,
+            name: user.name,
+            title: currentBooking.title,
+            roomName: room.name,
+            startTime: currentBooking.start_time,
+            endTime: currentBooking.end_time
+          })
 
-            if (emailResult) {
-              console.log(`✅ Booking confirmation email sent successfully to ${user.email}`)
-            } else {
-              console.log(`❌ Booking confirmation email failed to send to ${user.email}`)
-            }
+          if (emailResult) {
+            console.log(`✅ Booking confirmation email sent successfully to ${user.email}`)
+          } else {
+            console.log(`❌ Booking confirmation email failed to send to ${user.email}`)
           }
 
-          // Also create in-app notification
-          await createBookingConfirmationNotification(
-            currentBooking.user_id,
-            id,
-            currentBooking.title,
-            room.name
-          )
+          // NOTE: In-app notification is now handled automatically by Supabase database trigger
+          // when booking status changes to 'confirmed'
         } else if (bookingData.status === 'cancelled' && user.email && user.name) {
             // This is a manager rejection
             console.log(`📧 Sending booking rejection email to ${user.email} for booking ${id}`)
             console.log(`📧 Booking details: ${currentBooking.title} in ${room.name}`)
             console.log(`📧 Rejection reason: ${bookingData.rejection_reason || 'No reason provided'}`)
 
-            // Ensure email service is ready before sending
-            const emailReady = await ensureEmailReady()
-            if (!emailReady) {
-              console.error('❌ Email service not ready, cannot send rejection email')
-            } else {
-              const emailResult = await sendBookingRejectionEmail(
-                user.email,
-                user.name,
-                currentBooking.title,
-                room.name,
-                bookingData.rejection_reason || 'No reason provided'
-              )
+            // Send rejection email via API
+            const emailResult = await sendEmailViaAPI('booking-rejection', {
+              email: user.email,
+              name: user.name,
+              title: currentBooking.title,
+              roomName: room.name,
+              rejectionReason: bookingData.rejection_reason || 'No reason provided'
+            })
 
-              if (emailResult) {
-                console.log(`✅ Booking rejection email sent successfully to ${user.email}`)
-              } else {
-                console.log(`❌ Booking rejection email failed to send to ${user.email}`)
-              }
+            if (emailResult) {
+              console.log(`✅ Booking rejection email sent successfully to ${user.email}`)
+            } else {
+              console.log(`❌ Booking rejection email failed to send to ${user.email}`)
             }
 
-            // Also create in-app notification for manager rejections
-            await createBookingRejectionNotification(
-              currentBooking.user_id,
-              id,
-              currentBooking.title,
-              room.name,
-              bookingData.rejection_reason
-            )
+            // NOTE: In-app notification is now handled automatically by Supabase database trigger
+            // when booking status changes to 'cancelled'
         } else if (bookingData.status === 'confirmed' || bookingData.status === 'cancelled') {
           console.warn(`⚠️ Could not send ${bookingData.status === 'confirmed' ? 'confirmation' : 'rejection'} email - user not found or missing email/name`)
           console.warn(`   - User email: ${user?.email || 'MISSING'}`)
@@ -2369,34 +2439,24 @@ export async function updateBookingStatus(
 
       if (user) {
         if (status === 'confirmed') {
-          // Create confirmation notification
-          await createBookingConfirmationNotification(
-            booking.user_id,
-            bookingId,
-            booking.title,
-            booking.rooms.name
-          );
+          // NOTE: Confirmation notification is now handled automatically by Supabase database trigger
+          // when booking status changes to 'confirmed'
 
           // Send email notification
           if (user.email) {
             try {
               console.log(`📧 Sending confirmation email to ${user.email} via updateBookingStatus`);
 
-              // Ensure email service is ready before sending
-              const emailReady = await ensureEmailReady()
-              if (!emailReady) {
-                console.error('❌ Email service not ready, cannot send confirmation email')
-              } else {
-                const emailSent = await sendBookingConfirmationEmail(
-                  user.email,
-                  user.name,
-                  booking.title,
-                  booking.rooms.name,
-                  booking.start_time,
-                  booking.end_time
-                );
-                console.log(`📧 Confirmation email result: ${emailSent}`);
-              }
+              // Send confirmation email via API
+              const emailSent = await sendEmailViaAPI('booking-confirmation', {
+                email: user.email,
+                name: user.name,
+                title: booking.title,
+                roomName: booking.rooms.name,
+                startTime: booking.start_time,
+                endTime: booking.end_time
+              })
+              console.log(`📧 Confirmation email result: ${emailSent}`)
             } catch (emailError) {
               console.error('❌ Failed to send confirmation email in updateBookingStatus:', emailError);
             }
@@ -2404,34 +2464,23 @@ export async function updateBookingStatus(
             console.log(`❌ No email address for user ${user.name} (ID: ${user.id})`);
           }
         } else if (status === 'cancelled') {
-          // Create rejection notification
-          await createBookingRejectionNotification(
-            booking.user_id,
-            bookingId,
-            booking.title,
-            booking.rooms.name,
-            rejectionReason
-          );
+          // NOTE: Rejection notification is now handled automatically by Supabase database trigger
+          // when booking status changes to 'cancelled'
 
           // Send email notification
           if (user.email) {
             try {
               console.log(`📧 Sending rejection email to ${user.email} via updateBookingStatus`);
 
-              // Ensure email service is ready before sending
-              const emailReady = await ensureEmailReady()
-              if (!emailReady) {
-                console.error('❌ Email service not ready, cannot send rejection email')
-              } else {
-                const emailSent = await sendBookingRejectionEmail(
-                  user.email,
-                  user.name,
-                  booking.title,
-                  booking.rooms.name,
-                  rejectionReason || 'No reason provided'
-                );
-                console.log(`📧 Rejection email result: ${emailSent}`);
-              }
+              // Send rejection email via API
+              const emailSent = await sendEmailViaAPI('booking-rejection', {
+                email: user.email,
+                name: user.name,
+                title: booking.title,
+                roomName: booking.rooms.name,
+                rejectionReason: rejectionReason || 'No reason provided'
+              })
+              console.log(`📧 Rejection email result: ${emailSent}`)
             } catch (emailError) {
               console.error('❌ Failed to send rejection email in updateBookingStatus:', emailError);
             }
@@ -2957,6 +3006,92 @@ export async function getInvitationCountForBooking(bookingId: string): Promise<n
   } catch (error) {
     console.error('Exception in getInvitationCountForBooking:', error)
     throw error
+  }
+}
+
+/**
+ * Calculate average check-in time for a booking based on meeting invitations
+ */
+export async function calculateAverageCheckInTime(bookingId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_invitations')
+      .select('attended_at')
+      .eq('booking_id', bookingId)
+      .not('attended_at', 'is', null)
+
+    if (error) {
+      console.error('Error fetching check-in times:', error)
+      throw error
+    }
+
+    if (!data || data.length === 0) {
+      return null
+    }
+
+    // Calculate average check-in time
+    const checkInTimes = data.map(inv => new Date(inv.attended_at!))
+    const totalMinutes = checkInTimes.reduce((sum, time) => {
+      return sum + (time.getHours() * 60 + time.getMinutes())
+    }, 0)
+
+    const averageMinutes = Math.round(totalMinutes / checkInTimes.length)
+    const hours = Math.floor(averageMinutes / 60)
+    const minutes = averageMinutes % 60
+
+    // Format as 12-hour time
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    const displayMinutes = minutes.toString().padStart(2, '0')
+
+    return `${displayHours}:${displayMinutes} ${period}`
+  } catch (error) {
+    console.error('Exception in calculateAverageCheckInTime:', error)
+    return null
+  }
+}
+
+/**
+ * Calculate room utilization rate for a specific room over the past 30 days
+ */
+export async function calculateRoomUtilization(roomId: string): Promise<number> {
+  try {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    // Get total hours booked in the past 30 days
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time')
+      .eq('room_id', roomId)
+      .eq('status', 'confirmed')
+      .gte('start_time', thirtyDaysAgo.toISOString())
+
+    if (error) {
+      console.error('Error fetching bookings for utilization:', error)
+      throw error
+    }
+
+    if (!bookings || bookings.length === 0) {
+      return 0
+    }
+
+    // Calculate total booked hours
+    const totalBookedHours = bookings.reduce((sum, booking) => {
+      const start = new Date(booking.start_time)
+      const end = new Date(booking.end_time)
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+      return sum + hours
+    }, 0)
+
+    // Assume 8 hours per day, 5 days per week for available hours
+    const availableHours = 30 * 8 * (5/7) // Approximately 171 hours per month
+    const utilizationRate = (totalBookedHours / availableHours) * 100
+
+    return Math.min(Math.round(utilizationRate), 100) // Cap at 100%
+  } catch (error) {
+    console.error('Exception in calculateRoomUtilization:', error)
+    return 0
   }
 }
 

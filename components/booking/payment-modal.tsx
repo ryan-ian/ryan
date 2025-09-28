@@ -51,15 +51,50 @@ export function PaymentModal({
   const [errorMessage, setErrorMessage] = useState('')
   const [paymentData, setPaymentData] = useState<any>(null)
 
-  // Calculate payment amount
+  // Calculate payment amount with proportional pricing
   const calculateAmount = () => {
     if (!room.hourly_rate || !bookingData.start_time || !bookingData.end_time) return 0
-    
+
     const start = new Date(bookingData.start_time)
     const end = new Date(bookingData.end_time)
-    const durationHours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60))
-    
+    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+
+    // Use proportional pricing instead of rounding up
     return durationHours * room.hourly_rate
+  }
+
+  // Get formatted duration for display
+  const getDurationDisplay = () => {
+    if (!bookingData.start_time || !bookingData.end_time) return "0 minutes"
+
+    const start = new Date(bookingData.start_time)
+    const end = new Date(bookingData.end_time)
+    const durationMs = end.getTime() - start.getTime()
+    const totalMinutes = Math.round(durationMs / (1000 * 60))
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (hours === 0) {
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`
+    } else if (minutes === 0) {
+      return `${hours} hour${hours !== 1 ? 's' : ''}`
+    } else {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`
+    }
+  }
+
+  // Get duration in decimal hours for payment calculation display
+  const getDurationHours = () => {
+    if (!bookingData.start_time || !bookingData.end_time) return "0 hours"
+
+    const start = new Date(bookingData.start_time)
+    const end = new Date(bookingData.end_time)
+    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+
+    // Round to 2 decimal places for display
+    const roundedHours = Math.round(durationHours * 100) / 100
+
+    return `${roundedHours} hour${roundedHours !== 1 ? 's' : ''}`
   }
 
   const amount = calculateAmount()
@@ -228,7 +263,7 @@ export function PaymentModal({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Duration:</span>
-                    <span>{Math.ceil((new Date(bookingData.end_time).getTime() - new Date(bookingData.start_time).getTime()) / (1000 * 60 * 60))} hours</span>
+                    <span>{getDurationHours()}</span>
                   </div>
                   <div className="border-t pt-3">
                     <div className="flex justify-between items-center text-lg font-bold">

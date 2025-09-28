@@ -27,6 +27,8 @@ import type { BookingWithDetails } from "@/types"
 import { format } from "date-fns"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { RealtimeStatusFull } from "@/components/realtime-status"
+import { RealtimeDebugPanel } from "@/components/realtime-debug-panel"
 
 function DashboardSkeleton() {
   return (
@@ -137,22 +139,66 @@ export default function FacilityManagerDashboard() {
   const handleNewBooking = useCallback((booking: BookingWithDetails) => {
     console.log('🏢 New booking request received:', booking)
     if (booking.status === 'pending') {
+      // Add the new booking to the pending list immediately
+      setPendingBookings(prev => [booking, ...prev])
+
+      // Show "new" badge indicator
       setNewRequestsCount(prev => prev + 1)
-      // Add visual indicator that will fade after a few seconds
+
+      // Show browser notification if permission granted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('New Booking Request', {
+          body: `${booking.users?.name} has requested ${booking.rooms?.name}`,
+          icon: '/favicon.ico'
+        })
+      }
+
+      // Auto-hide the "new" badge after 10 seconds
       setTimeout(() => {
         setNewRequestsCount(prev => Math.max(0, prev - 1))
-      }, 5000)
+      }, 10000)
     }
   }, [])
 
   // Handle booking status changes in real-time
   const handleBookingStatusChange = useCallback((
-    booking: BookingWithDetails, 
-    oldStatus: string, 
+    booking: BookingWithDetails,
+    oldStatus: string,
     newStatus: string
   ) => {
     console.log(`🏢 Booking status changed: ${oldStatus} → ${newStatus}`)
-    // The refreshDashboardData will be called automatically
+
+    // Update pending bookings list immediately
+    if (oldStatus === 'pending' && newStatus !== 'pending') {
+      // Remove from pending list when status changes from pending
+      setPendingBookings(prev => prev.filter(b => b.id !== booking.id))
+    } else if (newStatus === 'pending' && oldStatus !== 'pending') {
+      // Add to pending list if status changed to pending (rare case)
+      setPendingBookings(prev => [booking, ...prev])
+    } else if (oldStatus === 'pending' && newStatus === 'pending') {
+      // Update existing pending booking
+      setPendingBookings(prev => prev.map(b => b.id === booking.id ? booking : b))
+    }
+
+    // Update today's bookings if it's a confirmed booking for today
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const bookingDate = new Date(booking.start_time)
+
+    if (bookingDate >= today && bookingDate < tomorrow) {
+      if (newStatus === 'confirmed') {
+        // Add to today's bookings if confirmed for today
+        setTodaysBookings(prev => {
+          const exists = prev.some(b => b.id === booking.id)
+          return exists ? prev.map(b => b.id === booking.id ? booking : b) : [booking, ...prev]
+        })
+      } else if (oldStatus === 'confirmed' && newStatus !== 'confirmed') {
+        // Remove from today's bookings if no longer confirmed
+        setTodaysBookings(prev => prev.filter(b => b.id !== booking.id))
+      }
+    }
   }, [])
 
   // Set up real-time subscription
@@ -162,6 +208,13 @@ export default function FacilityManagerDashboard() {
     onBookingUpdate: refreshDashboardData,
     enabled: !!user,
   })
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -254,8 +307,25 @@ export default function FacilityManagerDashboard() {
         throw new Error('Server returned invalid response')
       }
       console.log(`✅ [Dashboard] Successfully updated booking:`, responseData)
-      
-      setPendingBookings(pendingBookings.filter(b => b.id !== selectedBookingId))
+
+      // Update pending bookings list immediately
+      setPendingBookings(prev => prev.filter(b => b.id !== selectedBookingId))
+
+      // If confirmed, add to today's bookings if it's for today
+      if (status === "confirmed") {
+        const booking = pendingBookings.find(b => b.id === selectedBookingId)
+        if (booking) {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const tomorrow = new Date(today)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          const bookingDate = new Date(booking.start_time)
+
+          if (bookingDate >= today && bookingDate < tomorrow) {
+            setTodaysBookings(prev => [{ ...booking, status: 'confirmed' }, ...prev])
+          }
+        }
+      }
       
       toast({
         title: `Booking ${status === "confirmed" ? "Approved" : "Rejected"}`,
@@ -302,6 +372,9 @@ export default function FacilityManagerDashboard() {
           <p className="text-brand-navy-700 dark:text-brand-navy-300">
             Here's a summary of your facility's activity.
           </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <RealtimeStatusFull className="text-sm" />
         </div>
       </div>
       
@@ -553,6 +626,11 @@ export default function FacilityManagerDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Debug Panel - Remove in production */}
+      <div className="mt-8">
+        <RealtimeDebugPanel />
+      </div>
     </div>
   )
-} 
+}

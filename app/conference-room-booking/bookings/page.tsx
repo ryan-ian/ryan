@@ -18,6 +18,7 @@ import { FiltersToolbar } from "@/components/bookings/filters-toolbar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useUserRealtime } from "@/hooks/use-user-realtime"
+import { RealtimeStatusCompact } from "@/components/realtime-status"
 
 export default function BookingsPage() {
   const { user } = useAuth()
@@ -51,15 +52,31 @@ export default function BookingsPage() {
   // Handle real-time booking status changes
   const handleBookingStatusChange = useCallback((booking: Booking, oldStatus: string, newStatus: string) => {
     console.log(`👤 [User Bookings] Real-time status change: ${oldStatus} → ${newStatus} for booking ${booking.id}`)
-    
+
+    // Immediately update the booking in local state for instant UI response
+    setBookings(prevBookings =>
+      prevBookings.map(b =>
+        b.id === booking.id ? { ...b, ...booking } : b
+      )
+    )
+
+    // Also update filtered bookings if they're being displayed
+    setFilteredBookings(prevFiltered =>
+      prevFiltered.map(b =>
+        b.id === booking.id ? { ...b, ...booking } : b
+      )
+    )
+
     // Add visual indicator for status changes
     setStatusUpdateCount(prev => prev + 1)
     setTimeout(() => {
       setStatusUpdateCount(prev => Math.max(0, prev - 1))
     }, 3000)
-    
-    // Force refresh to show updated data
-    forceRefresh()
+
+    // Also force refresh after a short delay to ensure data consistency
+    setTimeout(() => {
+      forceRefresh()
+    }, 1000)
   }, [])
 
   // Handle real-time booking updates
@@ -630,6 +647,7 @@ export default function BookingsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <RealtimeStatusCompact />
           <div className="inline-flex rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 overflow-hidden">
             <button
               className={`px-3 py-2 text-sm flex items-center gap-2 transition-colors ${viewMode === "list" ? "bg-brand-navy-900 text-white" : "bg-transparent text-brand-navy-700 dark:text-brand-navy-300"}`}

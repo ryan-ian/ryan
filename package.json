@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "build:safe": "node scripts/build-with-font-fallback.js",
+    "build:fallback": "NEXT_FONT_GOOGLE_MOCKED=true next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",

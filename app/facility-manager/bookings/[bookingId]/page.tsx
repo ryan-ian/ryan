@@ -24,7 +24,8 @@ import {
   Loader2,
   TrendingUp,
   FileText,
-  QrCode
+  QrCode,
+  X
 } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
@@ -41,22 +42,20 @@ import { cn } from "@/lib/utils"
 import type { BookingWithDetails, MeetingInvitation } from "@/types"
 import {
   getBookingByIdWithDetails,
-  calculateAverageCheckInTime,
-  calculateRoomUtilization
+  calculateAverageCheckInTime
 } from "@/lib/supabase-data"
+import { generateBookingReport } from "@/lib/pdf-utils"
 
 interface BookingAnalytics {
   totalInvited: number
   totalAccepted: number
   totalDeclined: number
   totalAttended: number
-  attendanceRate: number
   checkInRate: number
   averageCheckInTime: string
   paymentStatus: string
   totalAmount: number
   duration: number
-  roomUtilization: number
 }
 
 export default function BookingDetailsPage() {
@@ -108,21 +107,32 @@ export default function BookingDetailsPage() {
 
   const loadMeetingInvitations = async (bookingId: string): Promise<MeetingInvitation[]> => {
     try {
-      const token = localStorage.getItem("auth-token")
-      const response = await fetch(`/api/meeting-invitations?bookingId=${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      // Use the authenticatedFetch utility which handles token refresh automatically
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
+
+      const response = await authenticatedFetch(`/api/meeting-invitations?bookingId=${bookingId}`)
 
       if (response.ok) {
         const invitations = await response.json()
         setMeetingInvitations(invitations)
         return invitations
+      } else {
+        const errorText = await response.text()
+        console.error("Failed to load meeting invitations:", response.status, errorText)
+
+        // If it's a 401, the token might be invalid
+        if (response.status === 401) {
+          console.log("Received 401, token may be expired or invalid")
+        }
       }
       return []
     } catch (error) {
       console.error("Error loading meeting invitations:", error)
+
+      // If authenticatedFetch fails due to no token, log it
+      if (error instanceof Error && error.message.includes("No valid authentication token")) {
+        console.error("Authentication token issue:", error.message)
+      }
       return []
     }
   }
@@ -137,7 +147,6 @@ export default function BookingDetailsPage() {
     const totalDeclined = invitations.filter(inv => inv.status === 'declined').length
     const totalAttended = invitations.filter(inv => inv.attendance_status === 'present').length
 
-    const attendanceRate = totalInvited > 0 ? (totalAttended / totalInvited) * 100 : 0
     const checkInRate = totalAccepted > 0 ? (totalAttended / totalAccepted) * 100 : 0
 
     // Calculate duration in hours
@@ -148,9 +157,6 @@ export default function BookingDetailsPage() {
     // Calculate real average check-in time
     const averageCheckInTime = await calculateAverageCheckInTime(booking.id)
 
-    // Calculate real room utilization
-    const roomUtilization = await calculateRoomUtilization(booking.room_id)
-
     // Get real payment data
     const totalAmount = booking.payments?.amount || booking.total_cost || 0
     const paymentStatus = booking.payments?.status || booking.payment_status || 'pending'
@@ -160,13 +166,11 @@ export default function BookingDetailsPage() {
       totalAccepted,
       totalDeclined,
       totalAttended,
-      attendanceRate,
       checkInRate,
       averageCheckInTime: averageCheckInTime || "No check-ins yet",
       paymentStatus,
       totalAmount,
-      duration,
-      roomUtilization
+      duration
     }
 
     setAnalytics(analyticsData)
@@ -209,12 +213,76 @@ export default function BookingDetailsPage() {
     })
   }
 
-  const exportReport = () => {
-    // TODO: Implement PDF export
-    toast({
-      title: "Export Report",
-      description: "Generating PDF report...",
-    })
+  const exportReport = async () => {
+    if (!booking || !analytics) {
+      toast({
+        title: "Error",
+        description: "Booking data not available for export.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      toast({
+        title: "Generating Report",
+        description: "Creating PDF report...",
+      })
+
+      // Prepare data for PDF generation
+      const pdfData = {
+        booking: {
+          id: booking.id,
+          room_name: booking.rooms?.name || "Unknown Room",
+          start_time: booking.start_time,
+          end_time: booking.end_time,
+          duration: analytics.duration * 60, // Convert hours to minutes
+          organizer_name: booking.users?.name || "Unknown User",
+          organizer_email: booking.users?.email || "Unknown Email",
+          purpose: booking.title || "No title provided",
+          status: booking.status,
+          created_at: booking.created_at,
+          actual_start_time: booking.actual_start_time,
+          actual_end_time: booking.actual_end_time,
+          total_amount: analytics.totalAmount,
+          payment_status: analytics.paymentStatus,
+        },
+        invitations: meetingInvitations.map(invitation => ({
+          id: invitation.id,
+          invitee_name: invitation.invitee_name,
+          invitee_email: invitation.invitee_email,
+          invitation_status: invitation.invitation_status,
+          attendance_status: invitation.attendance_status,
+          check_in_time: invitation.check_in_time,
+          check_out_time: invitation.check_out_time,
+        })),
+        analytics: {
+          totalInvited: analytics.totalInvited,
+          totalAccepted: analytics.totalAccepted,
+          totalDeclined: analytics.totalDeclined,
+          totalAttended: analytics.totalAttended,
+          checkInRate: analytics.checkInRate,
+          averageCheckInTime: analytics.averageCheckInTime,
+          paymentStatus: analytics.paymentStatus,
+          totalAmount: analytics.totalAmount,
+          duration: analytics.duration,
+        }
+      }
+
+      await generateBookingReport(pdfData)
+
+      toast({
+        title: "Report Generated",
+        description: "PDF report has been downloaded successfully.",
+      })
+    } catch (error) {
+      console.error('Error generating PDF report:', error)
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate PDF report. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   if (isLoading) {
@@ -309,17 +377,6 @@ export default function BookingDetailsPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics.attendanceRate.toFixed(1)}%</div>
-              <Progress value={analytics.attendanceRate} className="mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -342,27 +399,17 @@ export default function BookingDetailsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Room Utilization</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics.roomUtilization}%</div>
-              <p className="text-xs text-muted-foreground">Past 30 days</p>
-            </CardContent>
-          </Card>
+
         </div>
       )}
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -535,37 +582,35 @@ export default function BookingDetailsPage() {
               {meetingInvitations.length > 0 ? (
                 <div className="space-y-4">
                   {/* Summary Stats */}
-                  <div className="grid gap-4 md:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">{analytics?.totalInvited || 0}</div>
                       <div className="text-sm text-muted-foreground">Total Invited</div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-green-600">{analytics?.totalAccepted || 0}</div>
-                      <div className="text-sm text-muted-foreground">Accepted</div>
+                      <div className="text-sm text-muted-foreground">Accepted RSVP</div>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-orange-600">{analytics?.totalAttended || 0}</div>
-                      <div className="text-sm text-muted-foreground">Attended</div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">{analytics?.attendanceRate.toFixed(1) || 0}%</div>
-                      <div className="text-sm text-muted-foreground">Attendance Rate</div>
+                      <div className="text-sm text-muted-foreground">Actually Attended</div>
                     </div>
                   </div>
 
-                  {/* Attendance Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>RSVP Status</TableHead>
-                        <TableHead>Attendance</TableHead>
-                        <TableHead>Check-in Time</TableHead>
-                        <TableHead>Method</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                  {/* Invitation & Attendance Table */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">Complete Invitation List</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Invitee</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>RSVP Status</TableHead>
+                          <TableHead>Attendance Status</TableHead>
+                          <TableHead>Check-in Time</TableHead>
+                          <TableHead>Check-in Method</TableHead>
+                        </TableRow>
+                      </TableHeader>
                     <TableBody>
                       {meetingInvitations.map((invitation) => (
                         <TableRow key={invitation.id}>
@@ -584,11 +629,19 @@ export default function BookingDetailsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={invitation.attendance_status === 'present' ? 'default' : 'secondary'}
-                            >
-                              {invitation.attendance_status === 'present' ? 'Present' : 'Not Present'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              {invitation.attendance_status === 'present' ? (
+                                <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Present
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-200">
+                                  <X className="h-3 w-3 mr-1" />
+                                  Absent
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {invitation.attended_at ? 
@@ -614,6 +667,7 @@ export default function BookingDetailsPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -749,48 +803,7 @@ export default function BookingDetailsPage() {
           </Card>
         </TabsContent>
 
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Reports & Analytics
-              </CardTitle>
-              <CardDescription>
-                Generate detailed reports and export data
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <Download className="h-6 w-6" />
-                  <span>Export PDF Report</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2">
-                  <FileText className="h-6 w-6" />
-                  <span>Export CSV Data</span>
-                </Button>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-3">
-                <h4 className="font-medium">Quick Insights</h4>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="p-3 border rounded-lg">
-                    <div className="text-sm text-muted-foreground">Room Utilization</div>
-                    <div className="text-xl font-bold">{analytics?.roomUtilization || 0}%</div>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <div className="text-sm text-muted-foreground">Average Check-in Time</div>
-                    <div className="text-xl font-bold">{analytics?.averageCheckInTime || "N/A"}</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
     </div>
   )

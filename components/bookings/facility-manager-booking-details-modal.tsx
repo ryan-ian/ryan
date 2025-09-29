@@ -81,20 +81,30 @@ export function FacilityManagerBookingDetailsModal({
   const loadMeetingInvitations = async (bookingId: string) => {
     setLoadingInvitations(true)
     try {
-      const token = localStorage.getItem("auth-token")
-      const response = await fetch(`/api/meeting-invitations?bookingId=${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      // Use the authenticatedFetch utility which handles token refresh automatically
+      const { authenticatedFetch } = await import('@/lib/auth-utils')
+
+      const response = await authenticatedFetch(`/api/meeting-invitations?bookingId=${bookingId}`)
+
       if (response.ok) {
         const invitations = await response.json()
         setMeetingInvitations(invitations)
       } else {
-        console.error("Failed to load meeting invitations:", response.status)
+        const errorText = await response.text()
+        console.error("Failed to load meeting invitations:", response.status, errorText)
+
+        // If it's a 401, the token might be invalid - try to refresh
+        if (response.status === 401) {
+          console.log("Received 401, token may be expired or invalid")
+        }
       }
     } catch (error) {
       console.error("Error loading meeting invitations:", error)
+
+      // If authenticatedFetch fails due to no token, log it
+      if (error instanceof Error && error.message.includes("No valid authentication token")) {
+        console.error("Authentication token issue:", error.message)
+      }
     } finally {
       setLoadingInvitations(false)
     }

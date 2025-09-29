@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import NextLink from "next/link"
-import { Building, MapPin, Users, Check, Edit, Trash2, DollarSign } from "lucide-react"
+import { Building, MapPin, Users, Check, Edit, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ResourceIcon } from "@/components/ui/resource-icon"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn, slugify, formatCurrency, getPricingTier, getPricingTierColor } from "@/lib/utils"
+import { cn, slugify, formatCurrency } from "@/lib/utils"
 import { BookingCreationModal } from "@/app/conference-room-booking/bookings/booking-creation-modal"
 import { storeRoomData } from "@/lib/booking-session"
 import type { Room, Resource } from "@/types"
@@ -80,6 +80,7 @@ export function RoomCard({
   const cardHref = generateHref();
 
   const handleActionClick = (e: React.MouseEvent, action?: () => void) => {
+    e.preventDefault() // Prevent default link behavior
     e.stopPropagation() // Prevent card click from firing
     action?.()
   }
@@ -97,19 +98,7 @@ export function RoomCard({
     }
   }
 
-  const handleCardClick = () => {
-    if (selectable && onSelect) {
-      onSelect()
-    }
-  }
 
-  const handleBookNow = (e: React.MouseEvent) => {
-    if (onBookRoom && room.status === "available") {
-      e.preventDefault()
-      e.stopPropagation()
-      setIsBookingModalOpen(true)
-    }
-  }
 
   // Check if room is bookable
   const isBookable = room.status === "available"
@@ -122,28 +111,26 @@ export function RoomCard({
 
   // Look up facility name using facility_id from facilities prop
   let facilityName = "Unknown facility"
-  let facilityDetails = null
   
   // First check if room has direct facility_name
   if (room.facility_name) {
     facilityName = room.facility_name;
-    facilityDetails = { 
-      id: room.facility_id, 
-      name: room.facility_name, 
-      location: room.facility?.location || 'Unknown Location'
-    };
   }
   // Then check if room has a facility object with a name
   else if (room.facility && room.facility.name) {
     facilityName = room.facility.name
-    facilityDetails = room.facility
-  } 
+  }
   // Otherwise, try to look it up from facilities prop
   else if (facilities && room.facility_id) {
     const found = facilities.find(f => f.id === room.facility_id)
     if (found) {
       facilityName = found.name
-      facilityDetails = found
+    }
+  }
+
+  const handleCardNavigation = () => {
+    if (cardHref) {
+      window.location.href = cardHref
     }
   }
 
@@ -152,20 +139,14 @@ export function RoomCard({
       className: cn(
         "overflow-hidden bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 hover:shadow-xl transition-all duration-300 flex flex-col group",
         selectable && "cursor-pointer",
+        cardHref && "cursor-pointer",
         selected && "border-brand-teal-500 ring-2 ring-brand-teal-500/30",
         !isBookable && "opacity-80",
         className
       ),
-      onClick: selectable ? onSelect : undefined,
+      onClick: selectable ? onSelect : cardHref ? handleCardNavigation : undefined,
     }
 
-    if (cardHref) {
-      return (
-        <NextLink href={cardHref} className="no-underline">
-          <Card {...cardProps}>{children}</Card>
-        </NextLink>
-      )
-    }
     return <Card {...cardProps}>{children}</Card>
   }
   
@@ -215,20 +196,7 @@ export function RoomCard({
             )}
           </div>
 
-          {(onEdit || onDelete) && (
-            <div className="absolute top-2 left-2 flex gap-1">
-              {onEdit && (
-                <Button variant="secondary" size="icon" className="h-8 w-8" onClick={(e) => handleActionClick(e, onEdit)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button variant="destructive" size="icon" className="h-8 w-8" onClick={(e) => handleActionClick(e, onDelete)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          )}
+
         </div>
         
         <div className={cn("flex-grow flex flex-col", compact ? "p-4" : "p-6")}>
@@ -271,63 +239,96 @@ export function RoomCard({
           
           {children ? (
             <CardFooter className="p-0 pt-4">{children}</CardFooter>
-          ) : showBookButton && (
-            <div className={cn(compact ? "mt-4" : "mt-6")}> 
-              {isAdminView ? (
-                // Admin/manager: preserve existing behavior
-                actionHref && !onBookRoom ? (
-                  <Button asChild className="w-full" disabled={!isBookable}>
-                    <NextLink href={actionHref}>
-                      {actionLabel}
-                    </NextLink>
-                  </Button>
-                ) : onAction ? (
-                  <Button onClick={(e) => handleActionClick(e, onAction)} className="w-full" disabled={!isBookable}>
-                    {actionLabel}
-                  </Button>
-                ) : onBookRoom ? (
-                  <Button onClick={(e) => handleActionClick(e, () => setIsBookingModalOpen(true))} className="w-full" disabled={!isBookable}>
-                    {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                  </Button>
-                ) : (
-                  <Button asChild className="w-full" disabled={!isBookable}>
-                    <NextLink href={cardHref || `/conference-room-booking/bookings/new?roomId=${room.id}`}>
+          ) : (
+            <div className="space-y-3">
+              {/* Main action button */}
+              {showBookButton && (
+                <div className={cn(compact ? "mt-4" : "mt-6")}>
+                  {isAdminView ? (
+                    // Admin/manager: preserve existing behavior
+                    actionHref && !onBookRoom ? (
+                      <Button asChild className="w-full" disabled={!isBookable}>
+                        <NextLink href={actionHref}>
+                          {actionLabel}
+                        </NextLink>
+                      </Button>
+                    ) : onAction ? (
+                      <Button onClick={(e) => handleActionClick(e, onAction)} className="w-full" disabled={!isBookable}>
+                        {actionLabel}
+                      </Button>
+                    ) : onBookRoom ? (
+                      <Button onClick={(e) => handleActionClick(e, () => setIsBookingModalOpen(true))} className="w-full" disabled={!isBookable}>
+                        {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
+                      </Button>
+                    ) : (
+                      <Button asChild className="w-full" disabled={!isBookable}>
+                        <NextLink href={cardHref || `/conference-room-booking/bookings/new?roomId=${room.id}`}>
+                          {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
+                        </NextLink>
+                      </Button>
+                    )
+                  ) : (
+                    // User: Store room data and redirect to new booking page
+                    <Button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+
+                        if (isBookable) {
+                          // Store room data in session storage for instant loading
+                          const stored = storeRoomData(room, 'room_card')
+                          if (stored) {
+                            console.log('Room data stored successfully for:', room.name)
+                          } else {
+                            console.warn('Failed to store room data, will fallback to API')
+                          }
+
+                          // Navigate to booking page
+                          window.location.href = `/conference-room-booking/booking/new?roomId=${room.id}`
+                        }
+                      }}
+                      className={cn(
+                        "w-full transition-all duration-200",
+                        isBookable
+                          ? "bg-brand-teal-500 hover:bg-brand-teal-600 text-white hover:shadow-lg transform hover:scale-[1.02]"
+                          : room.status === "maintenance"
+                            ? "bg-warning text-warning-foreground hover:bg-warning/90"
+                            : "bg-destructive/80 text-destructive-foreground hover:bg-destructive/70"
+                      )}
+                      disabled={!isBookable}
+                    >
                       {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                    </NextLink>
-                  </Button>
-                )
-              ) : (
-                // User: Store room data and redirect to new booking page
-                <Button 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    
-                    if (isBookable) {
-                      // Store room data in session storage for instant loading
-                      const stored = storeRoomData(room, 'room_card')
-                      if (stored) {
-                        console.log('Room data stored successfully for:', room.name)
-                      } else {
-                        console.warn('Failed to store room data, will fallback to API')
-                      }
-                      
-                      // Navigate to booking page
-                      window.location.href = `/conference-room-booking/booking/new?roomId=${room.id}`
-                    }
-                  }}
-                  className={cn(
-                    "w-full transition-all duration-200",
-                    isBookable 
-                      ? "bg-brand-teal-500 hover:bg-brand-teal-600 text-white hover:shadow-lg transform hover:scale-[1.02]" 
-                      : room.status === "maintenance"
-                        ? "bg-warning text-warning-foreground hover:bg-warning/90"
-                        : "bg-destructive/80 text-destructive-foreground hover:bg-destructive/70"
+                    </Button>
                   )}
-                  disabled={!isBookable}
-                >
-                  {isBookable ? actionLabel : room.status === "maintenance" ? "Under Maintenance" : "Currently Occupied"}
-                </Button>
+                </div>
+              )}
+
+              {/* Edit and Delete buttons for admin view */}
+              {(onEdit || onDelete) && isAdminView && (
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                      onClick={(e) => handleActionClick(e, onEdit)}
+                    >
+                      <Edit className="h-3.5 w-3.5 mr-1.5" />
+                      Edit
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9 text-xs font-medium text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+                      onClick={(e) => handleActionClick(e, onDelete)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -340,7 +341,6 @@ export function RoomCard({
           onClose={() => setIsBookingModalOpen(false)}
           room={room}
           onSubmit={handleBookingSubmit}
-          restoreStateId={restoreBookingState}
         />
       )}
     </>

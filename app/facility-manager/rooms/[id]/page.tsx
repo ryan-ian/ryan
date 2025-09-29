@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { RoomAvailabilitySettings } from "@/components/facility-manager/room-availability-settings"
 import { RoomBlackoutManagement } from "@/components/facility-manager/room-blackout-management"
 import { RoomCalendarView } from "@/components/facility-manager/room-calendar-view"
+import { formatCurrency } from "@/lib/utils"
 
 export default function RoomDetailsPage() {
   const { id: roomId } = useParams()
@@ -223,6 +224,26 @@ export default function RoomDetailsPage() {
                       <Users className="h-4 w-4" />
                       {room.capacity} people
                     </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Hourly Rate</span>
+                    <div className="flex items-center gap-2">
+                      {room.hourly_rate !== undefined && room.hourly_rate !== null ? (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800"
+                        >
+                          <span className="text-sm font-semibold">
+                            {Number(room.hourly_rate) === 0 ? "Free" : formatCurrency(room.hourly_rate, room.currency || 'GHS')}
+                          </span>
+                          {Number(room.hourly_rate) > 0 && <span className="text-xs opacity-75">/hour</span>}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-muted-foreground">
+                          Not set
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { createClient } from '@supabase/supabase-js'
 import {
-  getMeetingInvitations,
   createMeetingInvitations,
   createMeetingInvitationsWithNames,
   checkInvitationCapacity,
@@ -43,13 +43,60 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
-    // Check if user owns the booking or is admin
-    if (booking.user_id !== user.id && user.user_metadata?.role !== 'admin') {
+    // Get user's role from the database (not from user_metadata)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError) {
+      console.error("Error fetching user role:", userError)
+      return NextResponse.json({ error: "Failed to verify user permissions" }, { status: 500 })
+    }
+
+    const userRole = (userData as { role: string })?.role || 'user'
+
+    // Check if user has access to this booking
+    // Allow access if:
+    // 1. User owns the booking
+    // 2. User is admin
+    // 3. User is facility manager (will be further validated by RLS policies)
+    const hasAccess = booking.user_id === user.id ||
+                     userRole === 'admin' ||
+                     userRole === 'facility_manager'
+
+    if (!hasAccess) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    const invitations = await getMeetingInvitations(bookingId)
-    return NextResponse.json(invitations)
+    // Create a user-specific Supabase client with the user's token
+    // This ensures RLS policies are applied correctly for the authenticated user
+    const userSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    // Set the user's session on this client
+    await userSupabase.auth.setSession({
+      access_token: token,
+      refresh_token: '', // Not needed for this operation
+    })
+
+    // Query meeting invitations with the user-specific client
+    // This will apply RLS policies based on the authenticated user
+    const { data: invitations, error: invitationsError } = await userSupabase
+      .from('meeting_invitations')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('invited_at', { ascending: false })
+
+    if (invitationsError) {
+      console.error('Error fetching meeting invitations:', invitationsError)
+      return NextResponse.json({ error: "Failed to fetch meeting invitations" }, { status: 500 })
+    }
+
+    return NextResponse.json(invitations || [])
 
   } catch (error) {
     console.error("Error fetching meeting invitations:", error)
@@ -99,8 +146,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
-    // Check if user owns the booking or is admin
-    if (booking.user_id !== user.id && user.user_metadata?.role !== 'admin') {
+    // Get user's role from the database (not from user_metadata)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError) {
+      console.error("Error fetching user role:", userError)
+      return NextResponse.json({ error: "Failed to verify user permissions" }, { status: 500 })
+    }
+
+    const userRole = (userData as { role: string })?.role || 'user'
+
+    // Check if user has access to this booking
+    // Allow access if:
+    // 1. User owns the booking
+    // 2. User is admin
+    // 3. User is facility manager (will be further validated by RLS policies)
+    const hasAccess = booking.user_id === user.id ||
+                     userRole === 'admin' ||
+                     userRole === 'facility_manager'
+
+    if (!hasAccess) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 

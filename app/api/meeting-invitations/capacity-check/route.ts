@@ -31,8 +31,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
-    // Check if user owns the booking or is admin
-    if (booking.user_id !== user.id && user.user_metadata?.role !== 'admin') {
+    // Get user's role from the database (not from user_metadata)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError) {
+      console.error("Error fetching user role:", userError)
+      return NextResponse.json({ error: "Failed to verify user permissions" }, { status: 500 })
+    }
+
+    const userRole = (userData as { role: string })?.role || 'user'
+
+    // Check if user has access to this booking
+    // Allow access if:
+    // 1. User owns the booking
+    // 2. User is admin
+    // 3. User is facility manager (will be further validated by RLS policies)
+    const hasAccess = booking.user_id === user.id ||
+                     userRole === 'admin' ||
+                     userRole === 'facility_manager'
+
+    if (!hasAccess) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 

@@ -147,7 +147,8 @@ export default function BookingDetailsPage() {
     const totalDeclined = invitations.filter(inv => inv.status === 'declined').length
     const totalAttended = invitations.filter(inv => inv.attendance_status === 'present').length
 
-    const checkInRate = totalAccepted > 0 ? (totalAttended / totalAccepted) * 100 : 0
+    // Calculate check-in rate based on total invited (not just accepted)
+    const checkInRate = totalInvited > 0 ? (totalAttended / totalInvited) * 100 : 0
 
     // Calculate duration in hours
     const startTime = new Date(booking.start_time)
@@ -249,12 +250,12 @@ export default function BookingDetailsPage() {
         },
         invitations: meetingInvitations.map(invitation => ({
           id: invitation.id,
-          invitee_name: invitation.invitee_name,
+          invitee_name: invitation.invitee_name || invitation.invitee_email.split('@')[0],
           invitee_email: invitation.invitee_email,
-          invitation_status: invitation.invitation_status,
+          invitation_status: invitation.status, // Use 'status' field from MeetingInvitation
           attendance_status: invitation.attendance_status,
-          check_in_time: invitation.check_in_time,
-          check_out_time: invitation.check_out_time,
+          check_in_time: invitation.attended_at, // Use 'attended_at' as check_in_time
+          check_out_time: undefined, // No check_out_time in current schema
         })),
         analytics: {
           totalInvited: analytics.totalInvited,

@@ -114,7 +114,7 @@ export function UnifiedSidebar({ className, isCollapsed = false, onToggleCollaps
                   {currentRole === 'facility_manager' && "Facility"}
                   {currentRole === 'user' && "User"}
                 </h2>
-                <p className="text-sm text-muted-foreground">Conference Hub</p>
+                {/* <p className="text-sm text-muted-foreground">Conference Hub</p> */}
               </div>
               {!isMobile && (
                 <Button

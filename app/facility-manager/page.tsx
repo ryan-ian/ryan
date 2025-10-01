@@ -373,9 +373,9 @@ export default function FacilityManagerDashboard() {
             Here's a summary of your facility's activity.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <RealtimeStatusFull className="text-sm" />
-        </div>
+        </div> */}
       </div>
       
       {/* Quick Stats */}
@@ -416,7 +416,7 @@ export default function FacilityManagerDashboard() {
         <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
           <div className="h-1 bg-green-500 w-full" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Today's Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Today's Meetings</CardTitle>
             <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-2">
               <BookCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
             </div>

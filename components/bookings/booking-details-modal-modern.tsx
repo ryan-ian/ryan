@@ -28,14 +28,14 @@ import {
   Mail,
   UserPlus
 } from "lucide-react"
-import type { Booking, Room, MeetingInvitation } from "@/types"
+import type { Booking, BookingWithDetails, Room, MeetingInvitation } from "@/types"
 import { MeetingInvitationModal } from "./meeting-invitation-modal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 interface BookingDetailsModalModernProps {
-  booking: Booking | null
+  booking: BookingWithDetails | null
   room: Room | null
   isOpen: boolean
   onClose: () => void
@@ -49,7 +49,7 @@ export function BookingDetailsModalModern({
   onClose,
   onCancel,
 }: BookingDetailsModalModernProps) {
-  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null)
+  const [currentBooking, setCurrentBooking] = useState<BookingWithDetails | null>(null)
   const [meetingInvitations, setMeetingInvitations] = useState<MeetingInvitation[]>([])
   const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false)
   const [loadingInvitations, setLoadingInvitations] = useState(false)
@@ -166,292 +166,210 @@ export function BookingDetailsModalModern({
       if (!open) onClose()
     }}>
       <DialogContent className={cn(
-        "sm:max-w-2xl max-w-[95vw] max-h-[90vh] overflow-y-auto",
-        "rounded-xl border backdrop-blur-md",
-        "border-brand-navy-200 dark:border-brand-navy-700",
-        "bg-white/95 dark:bg-brand-navy-800/95"
+        "sm:max-w-xl max-w-[95vw] max-h-[85vh]",
+        "rounded-lg border-0 shadow-xl",
+        "bg-white dark:bg-gray-800",
+        "p-0 overflow-hidden"
       )}>
-        <DialogHeader className="space-y-3">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <DialogTitle className="text-xl font-semibold text-brand-navy-900 dark:text-brand-navy-50">
-                {currentBooking.title || "Meeting"}
+        <DialogHeader className="px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Booking Details
               </DialogTitle>
-              <Badge className={cn("flex items-center gap-1.5", statusConfig.className)}>
-                <StatusIcon className="h-3 w-3" />
-                {statusConfig.text}
-              </Badge>
+              <DialogDescription className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {statusConfig.description}
+              </DialogDescription>
             </div>
-            <DialogDescription className="text-brand-navy-600 dark:text-brand-navy-400">
-              Booking details and information
-            </DialogDescription>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
-          {/* Status Alert */}
-          {statusConfig.description && (
-            <Alert className={cn(
-              "border-brand-navy-200 dark:border-brand-navy-700",
-              currentBooking.status === "confirmed" && "border-success/50 bg-success/5",
-              currentBooking.status === "pending" && "border-warning/50 bg-warning/5",
-              currentBooking.status === "cancelled" && "border-destructive/50 bg-destructive/5"
-            )}>
-              <StatusIcon className="h-4 w-4" />
-              <AlertDescription className="text-brand-navy-700 dark:text-brand-navy-300">
-                {statusConfig.description}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Rejection Reason - Prominently displayed for cancelled bookings */}
-          {currentBooking.status === "cancelled" && currentBooking.rejection_reason && (
-            <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
-              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-              <AlertTitle className="text-red-800 dark:text-red-200 font-semibold">
-                Booking Rejected
-              </AlertTitle>
-              <AlertDescription className="text-red-700 dark:text-red-300 mt-2">
-                <div className="font-medium">Reason for rejection:</div>
-                <div className="mt-1 p-3 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-200 dark:border-red-800">
-                  "{currentBooking.rejection_reason}"
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Room Information */}
-          <Card className="border-brand-navy-200 dark:border-brand-navy-700 bg-brand-navy-50/50 dark:bg-brand-navy-900/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy-100 to-brand-navy-50 dark:from-brand-navy-700 dark:to-brand-navy-800">
-                  <Building className="h-5 w-5 text-brand-navy-600 dark:text-brand-navy-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-brand-navy-900 dark:text-brand-navy-50">
-                    {room?.name || "Unknown Room"}
-                  </h3>
-                  <div className="flex items-center gap-4 text-sm text-brand-navy-600 dark:text-brand-navy-400 mt-1">
-                    {room?.location && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        <span>{room.location}</span>
-                      </div>
-                    )}
-                    {room?.capacity && (
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        <span>Up to {room.capacity} people</span>
-                      </div>
-                    )}
+        {/* Main Content */}
+        <div className="px-4 pb-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Left Column */}
+            <div className="space-y-4">
+              {/* Venue & Schedule */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 text-sm">Venue & Schedule</h3>
+                
+                {/* Venue */}
+                <div className="flex items-center gap-2 mb-3">
+                  <Building className="h-3 w-3 text-gray-500" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                      {room?.name || "Unknown Room"}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {room?.capacity} people capacity
+                    </p>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Booking Details */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Date & Time */}
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-              <CardContent className="p-4 space-y-3">
+                
+                {/* Schedule */}
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Date & Time</span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium">
-                    {new Date(currentBooking.start_time).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                  <div className="flex items-center gap-1 text-sm text-brand-navy-600 dark:text-brand-navy-400">
-                    <Clock className="h-3 w-3" />
-                    <span>
+                  <Calendar className="h-3 w-3 text-gray-500" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                      {new Date(currentBooking.start_time).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(currentBooking.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       {" - "}
                       {new Date(currentBooking.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Organizer */}
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-              <CardContent className="p-4 space-y-3">
+              {/* Organizer */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 text-sm">Organizer</h3>
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Organizer</span>
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                    {currentBooking.users?.name ? currentBooking.users.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                      {currentBooking.users?.name || "Unknown User"}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {currentBooking.users?.email || "No email available"}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium">
-                    {currentBooking.users?.name || "Unknown User"}
-                  </p>
-                  <p className="text-sm text-brand-navy-600 dark:text-brand-navy-400">
-                    {currentBooking.users?.email || "No email available"}
-                  </p>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              {/* Attendees */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                    Attendees ({meetingInvitations.length + 1})
+                  </h3>
+                  {currentBooking.status === 'confirmed' && new Date(currentBooking.end_time) > new Date() && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsInvitationModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 text-xs px-2 py-1 h-6"
+                    >
+                      <UserPlus className="h-3 w-3 mr-1" />
+                      Invite
+                    </Button>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+
+                {loadingInvitations ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Loading attendees...
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+                    {/* Organizer as attendee */}
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-600 rounded-lg">
+                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                        {currentBooking.users?.name ? currentBooking.users.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-gray-100 text-xs truncate">
+                          {currentBooking.users?.name || "Unknown User"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {currentBooking.users?.email || "No email available"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Meeting Invitations */}
+                    {meetingInvitations.map((invitation) => (
+                      <div key={invitation.id} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-600 rounded-lg">
+                        <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                          {invitation.invitee_name ? invitation.invitee_name.charAt(0).toUpperCase() : invitation.invitee_email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 text-xs truncate">
+                            {invitation.invitee_name || invitation.invitee_email}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {invitation.invitee_email}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {meetingInvitations.length === 0 && (
+                      <div className="text-center py-3">
+                        <UserPlus className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                        <p className="text-xs text-gray-500">
+                          No additional attendees yet
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Description */}
           {currentBooking.description && (
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Description</span>
-                </div>
-                <p className="text-brand-navy-900 dark:text-brand-navy-50 leading-relaxed">
-                  {currentBooking.description}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mt-4">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 text-sm">Description</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {currentBooking.description}
+              </p>
+            </div>
           )}
 
-          {/* Meeting Invitations - Only show for confirmed bookings */}
-          {currentBooking.status === 'confirmed' && new Date(currentBooking.end_time) > new Date() && (
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">
-                      Meeting Invitations
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsInvitationModalOpen(true)}
-                    className="text-brand-teal-600 border-brand-teal-200 hover:bg-brand-teal-50"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Invite Members
-                  </Button>
-                </div>
-
-                {loadingInvitations ? (
-                  <div className="flex items-center gap-2 text-sm text-brand-navy-500 dark:text-brand-navy-400">
-                    <div className="w-4 h-4 border-2 border-brand-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                    Loading invitations...
-                  </div>
-                ) : meetingInvitations.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-300">
-                        Meeting Attendees ({meetingInvitations.length})
-                      </p>
-                    </div>
-                    
-                    {/* Attendees List */}
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {meetingInvitations.map((invitation) => (
-                        <div key={invitation.id} className="flex items-center justify-between p-2 bg-brand-navy-50 dark:bg-brand-navy-800 rounded-lg">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="flex-shrink-0">
-                              <div className="w-8 h-8 bg-brand-teal-100 dark:bg-brand-teal-800 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-brand-teal-600 dark:text-brand-teal-300" />
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                {invitation.invitee_name ? (
-                                  <>
-                                    <p className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-100 truncate">
-                                      {invitation.invitee_name}
-                                    </p>
-                                    <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400 truncate">
-                                      {invitation.invitee_email}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 truncate">
-                                    {invitation.invitee_email}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            <Badge 
-                              variant={invitation.status === 'accepted' ? 'default' : invitation.status === 'declined' ? 'destructive' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {invitation.status === 'pending' ? 'Invited' : 
-                               invitation.status === 'accepted' ? 'Accepted' : 
-                               invitation.status === 'declined' ? 'Declined' : invitation.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Summary */}
-                    <div className="pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div className="text-center">
-                          <div className="font-medium text-blue-600 dark:text-blue-400">{getInvitationStats().pending}</div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Pending</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium text-green-600 dark:text-green-400">{getInvitationStats().accepted}</div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Accepted</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium text-red-600 dark:text-red-400">{getInvitationStats().declined}</div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Declined</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <UserPlus className="w-8 h-8 text-brand-navy-300 dark:text-brand-navy-600 mx-auto mb-2" />
-                    <p className="text-sm text-brand-navy-500 dark:text-brand-navy-400">
-                      No invitations sent yet
-                    </p>
-                    <p className="text-xs text-brand-navy-400 dark:text-brand-navy-500 mt-1">
-                      Click "Invite Members" to add attendees
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Rejection Reason */}
+          {currentBooking.status === "cancelled" && currentBooking.rejection_reason && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle className="h-3 w-3 text-red-600" />
+                <h3 className="font-semibold text-red-800 dark:text-red-200 text-sm">Booking Rejected</h3>
+              </div>
+              <p className="text-xs text-red-700 dark:text-red-300">
+                <span className="font-medium">Reason:</span> {currentBooking.rejection_reason}
+              </p>
+            </div>
           )}
-
-          {/* Booking ID */}
-          <div className="text-center">
-            <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
-              Booking ID: <span className="font-mono bg-brand-navy-100 dark:bg-brand-navy-700 px-2 py-1 rounded">{currentBooking.id}</span>
-            </p>
-          </div>
         </div>
 
-        <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-2">
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           {(currentBooking.status === "pending" || currentBooking.status === "confirmed") && (
             <Button
               variant="destructive"
               onClick={() => onCancel(currentBooking.id, currentBooking.status as "pending" | "confirmed")}
               disabled={!canCancel}
               title={!canCancel ? reason : `Delete this ${currentBooking.status} booking`}
+              className="w-full sm:w-auto text-xs h-8"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-3 w-3 mr-1" />
               {canCancel ? "Delete Booking" : "Cannot Delete"}
             </Button>
           )}
-        </DialogFooter>
+        </div>
       </DialogContent>
 
       {/* Meeting Invitation Modal */}
       <MeetingInvitationModal
         booking={currentBooking}
         room={room}
+        organizer={{
+          id: currentBooking.user_id,
+          name: currentBooking.users?.name || "Unknown User",
+          email: currentBooking.users?.email || "No email available"
+        }}
         isOpen={isInvitationModalOpen}
         onClose={() => setIsInvitationModalOpen(false)}
         onInvitationsSent={handleInvitationsSent}

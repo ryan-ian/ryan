@@ -59,36 +59,36 @@ export function FiltersToolbar({
 
   return (
     <div className={cn("w-full flex flex-col gap-4", className)}>
-      {/* Main toolbar - matching Browse Rooms layout */}
+      {/* Main toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-        {/* Search - matching Browse Rooms styling */}
+        {/* Search */}
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search by name, location, or facility..."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 pr-4 bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 focus-visible:ring-brand-teal-500 h-11 w-full"
+            className="pl-10 pr-4 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-11 w-full"
           />
           {searchValue && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onSearchChange("")}
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-9 w-9 text-brand-navy-500 hover:text-brand-navy-700 dark:text-brand-navy-400 dark:hover:text-brand-navy-200"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-9 w-9 text-gray-500 hover:text-gray-700"
             >
               <X className="h-4 w-4" />
             </Button>
           )}
         </div>
 
-        {/* Filters Toggle Button - matching Browse Rooms pattern */}
+        {/* Filters Toggle Button */}
         <Button
           variant="outline"
           onClick={onToggleFilters}
           className={cn(
-            "gap-2 bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 h-11 px-4 transition-all duration-200",
-            hasActiveFilters && "border-brand-teal-500 dark:border-brand-teal-500"
+            "gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-11 px-4 transition-all duration-200",
+            hasActiveFilters && "border-blue-500 dark:border-blue-500"
           )}
         >
           <Filter className="h-4 w-4" />
@@ -101,13 +101,35 @@ export function FiltersToolbar({
           {hasActiveFilters && (
             <Badge
               variant="secondary"
-              className="ml-1 bg-brand-teal-100 dark:bg-brand-teal-900/30 text-brand-teal-700 dark:text-brand-teal-300 text-xs px-1.5 py-0.5"
+              className="ml-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-1.5 py-0.5"
             >
               {activeFilters.length}
             </Badge>
           )}
         </Button>
       </div>
+
+      {/* Active Filters */}
+      {activeFilters.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Filter:</span>
+          {activeFilters.map((filter) => (
+            <Badge
+              key={filter.key}
+              variant="secondary"
+              className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            >
+              {filter.label}
+              <button
+                onClick={() => onClearFilter(filter.key)}
+                className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* Collapsible Filter Controls Section */}
       <Collapsible open={showFilters}>

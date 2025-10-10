@@ -88,7 +88,7 @@ export default function SignupPage() {
   return (
     <div className="h-screen flex bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
       {/* Left Side - Hero Section with Image and Branding */}
-      <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Background Image with Blur Effect */}
         <div className="absolute inset-0">
           <Image
@@ -151,7 +151,7 @@ export default function SignupPage() {
               </div>
 
               {/* Enhanced Social Proof */}
-              <div className="pt-10 border-t border-white/20 dark:border-white/25">
+              {/* <div className="pt-10 border-t border-white/20 dark:border-white/25">
                 <p className="text-base text-white/70 mb-6 font-medium dark:text-white/80">Trusted by teams at</p>
                 <div className="flex items-center gap-8 text-white/60 dark:text-white/70">
                   <span className="text-base font-semibold">Fortune 500 Companies</span>
@@ -160,17 +160,17 @@ export default function SignupPage() {
                   <span className="text-white/40 dark:text-white/50">•</span>
                   <span className="text-base font-semibold">Universities</span>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Side - Enhanced Signup Form */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center p-6 lg:p-12 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 h-full overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex  justify-center p-6 lg:p-12 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-y-auto">
         <div className="w-full max-w-lg">
           {/* Mobile Header - Only visible on small screens */}
-          <div className="lg:hidden text-center mb-6">
+          {/* <div className="lg:hidden text-center mb-6">
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg dark:shadow-teal-500/25">
                 <Users className="h-8 w-8 text-white" />
@@ -180,7 +180,7 @@ export default function SignupPage() {
                 <p className="text-teal-600 text-base font-medium dark:text-teal-400">Smart Room Booking</p>
               </div>
             </div>
-            {/* Enhanced Mobile benefits */}
+            
             <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-slate-50 border border-teal-200/50 dark:from-slate-800/50 dark:to-slate-700/50 dark:border-slate-600/50">
               <p className="text-base text-slate-700 font-medium mb-4 dark:text-slate-300">
                 Join thousands of teams already using Conference Hub to:
@@ -200,29 +200,29 @@ export default function SignupPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
-          <Card className="border-0 bg-white/90 backdrop-blur-xl shadow-2xl shadow-slate-200/50 rounded-3xl animate-slide-up dark:bg-slate-800/90 dark:shadow-slate-900/50">
-            <CardHeader className="text-center pb-4 pt-6">
-              <div className="flex items-center justify-center gap-3 mb-4">
+          <Card className=" bg-white/90 backdrop-blur-xl shadow-2xl shadow-slate-200/50 rounded-3xl animate-slide-up dark:bg-slate-800/90 dark:shadow-slate-900/50">
+            <CardHeader className="text-center pb-4 pt-4">
+              {/* <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 dark:shadow-teal-500/25 dark:hover:shadow-teal-500/40">
                   <UserPlus className="h-6 w-6 text-white" />
                 </div>
-              </div>
+              </div> */}
               <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight dark:text-slate-100">Join Conference Hub</CardTitle>
               <CardDescription className="text-slate-600 text-base font-medium dark:text-slate-300">Create your account to start booking conference rooms</CardDescription>
             </CardHeader>
-          <CardContent className="pb-6 px-8">
+          <CardContent className="pb-4 px-3 md:px-6">
             {/* OAuth Buttons */}
-            <div className="space-y-4">
-              <GoogleOAuthButton text="Sign up with Google" />
+            <div className=" flex gap-2">
+              <GoogleOAuthButton text="Google" />
               <MicrosoftSignInButton variant="outline" className="text-slate-700 dark:text-slate-300">
-                Sign up with Microsoft
+                Microsoft
               </MicrosoftSignInButton>
             </div>
             
             {/* Divider */}
-            <div className="relative my-6">
+            <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-slate-200 dark:border-slate-600" />
               </div>
@@ -233,8 +233,8 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="name" className="text-slate-700 font-semibold text-base dark:text-slate-200">Full Name</Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -250,7 +250,7 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="email" className="text-slate-700 font-semibold text-base dark:text-slate-200">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -267,7 +267,7 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="organization" className="text-slate-700 font-semibold text-base dark:text-slate-200">Organization</Label>
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 z-10 dark:text-slate-500" />
@@ -284,7 +284,7 @@ export default function SignupPage() {
                 </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="position" className="text-slate-700 font-semibold text-base dark:text-slate-200">Position</Label>
                 <div className="relative">
                   <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -300,7 +300,7 @@ export default function SignupPage() {
             </div>
               </div>
               
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="password" className="text-slate-700 font-semibold text-base dark:text-slate-200">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -317,7 +317,7 @@ export default function SignupPage() {
             </div>
               </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="confirmPassword" className="text-slate-700 font-semibold text-base dark:text-slate-200">Confirm Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -351,23 +351,27 @@ export default function SignupPage() {
             </Button>
           </form>
             
-            <div className="mt-6 pt-6 border-t border-slate-200 text-center space-y-4 dark:border-slate-600">
+            <div className="mt-2 pt-2 border-t border-slate-200 text-center space-y-4 dark:border-slate-600">
               <div>
-                <p className="text-sm text-slate-600 mb-2 font-medium dark:text-slate-400">Already have an account?</p>
-                <Link
-                  href="/login"
-                  className="inline-block text-teal-600 hover:text-teal-700 font-semibold text-base transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
-                >
+                <p className="text-sm text-slate-600 mb-2 font-medium dark:text-slate-400">Already have an account? 
+                  <span>
+                  <Link
+                    href="/login"
+                    className="inline-block pl-2 text-teal-600 hover:text-teal-700 font-semibold text-sm transition-all duration-300 hover:scale-105 dark:text-teal-400 dark:hover:text-teal-300"
+                  >
                   Sign In
-                </Link>
+                  </Link>
+                  </span>
+                </p>
+                
               </div>
-              <Link
+              {/* <Link
                 href="/"
                 className="inline-flex items-center text-slate-500 hover:text-slate-700 transition-colors gap-2 text-base font-medium dark:text-slate-400 dark:hover:text-slate-200"
               >
                 <ArrowLeft className="h-5 w-5" />
                 <span>Back to Home</span>
-              </Link>
+              </Link> */}
             </div>
           </CardContent>
         </Card>

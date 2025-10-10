@@ -40,16 +40,21 @@ export function MicrosoftSignInButton({
       onClick={handleMicrosoftSignIn}
       disabled={disabled || loading}
       variant={variant}
-      className={`w-full ${className}`}
+      className={`w-full h-12 text-base font-medium border-2 border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-200 dark:border-slate-700 dark:hover:border-slate-600 ${className}`}
     >
       {loading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <div className="flex items-center space-x-3">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-slate-700 dark:text-slate-300">Connecting...</span>
+        </div>
       ) : (
-        <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z"/>
-        </svg>
+        <div className="flex items-center space-x-3">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z"/>
+          </svg>
+          <span className="text-slate-700 dark:text-slate-300">{children || "Microsoft"}</span>
+        </div>
       )}
-      {children || "Sign in with Microsoft"}
     </Button>
   )
 }

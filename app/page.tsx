@@ -28,7 +28,7 @@ export default function HomePage() {
       <section className="relative pb-24 overflow-hidden bg-gradient-to-br from-brand-navy-50 via-brand-navy-100 to-brand-teal-50 dark:from-brand-navy-900 dark:via-brand-navy-800 dark:to-brand-teal-900 transition-colors duration-500">
         <div className="absolute inset-0 animate-gradient-slow bg-gradient-to-br from-brand-navy-100 via-brand-teal-100 to-brand-navy-50 dark:from-brand-navy-800 dark:via-brand-teal-900 dark:to-brand-navy-900 opacity-80"></div>
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
-        <div className="container mx-auto px-4 pt-28 pb-32 relative z-10">
+        <div className="container mx-auto px-4 pt-2 pb-32 relative z-10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <div className="inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow">

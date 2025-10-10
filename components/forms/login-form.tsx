@@ -112,10 +112,10 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* OAuth Buttons */}
-      <div className="space-y-4">
-        <GoogleOAuthButton text="Sign in with Google" />
+      <div className="flex gap-2">
+        <GoogleOAuthButton text="Google" />
         <MicrosoftSignInButton />
       </div>
       
@@ -131,8 +131,8 @@ export function LoginForm() {
         </div>
       </div>
 
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
         <Label htmlFor="email" className="text-slate-700 font-semibold text-base dark:text-slate-200">Email</Label>
         <div className="relative">
           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
@@ -147,7 +147,7 @@ export function LoginForm() {
           />
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2">
         <Label htmlFor="password" className="text-slate-700 font-semibold text-base dark:text-slate-200">Password</Label>
         <div className="relative">
           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500 z-10" />

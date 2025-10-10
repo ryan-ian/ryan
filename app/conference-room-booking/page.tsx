@@ -497,8 +497,8 @@ export default function ConferenceRoomBookingPage() {
           </div>
         </div>
       ) : (
-      <div className="p-6 space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="p-6 space-y-4">
+        <header className="flex gap-4">
           <div>
               <h1 className="text-3xl font-bold tracking-tight text-brand-navy-900 dark:text-brand-navy-50">Browse Rooms</h1>
               <p className="text-brand-navy-700 dark:text-brand-navy-300">Find and book the perfect space for your meeting</p>

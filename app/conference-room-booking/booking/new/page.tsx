@@ -41,9 +41,8 @@ import { TimeSlotSelector } from "@/components/booking/time-slot-selector"
 // Step indicator component
 const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
   const steps = [
-    { number: 1, title: "Room", description: "Selected Room" },
-    { number: 2, title: "Details", description: "Booking Form" },
-    { number: 3, title: "Payment", description: "Review & Pay" }
+    { number: 1, title: "Details", description: "Booking Form" },
+    { number: 2, title: "Payment", description: "Review & Pay" }
   ]
 
   return (
@@ -89,24 +88,14 @@ const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; total
   )
 }
 
-// Room display component
-const RoomDisplay = ({ room, loadingSource }: { room: Room; loadingSource: 'session' | 'api' | 'error' }) => {
+// Compact room summary card component
+const RoomSummaryCard = ({ room, loadingSource }: { room: Room; loadingSource: 'session' | 'api' | 'error' }) => {
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Loading source indicator */}
-      {loadingSource === 'session' && (
-        <div className="flex items-center justify-center animate-in slide-in-from-top duration-300 delay-150">
-          <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
-            <Check className="h-3 w-3 mr-1" />
-            Instantly loaded from your selection
-          </div>
-        </div>
-      )}
-      
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-lg animate-in slide-in-from-bottom duration-500 delay-100">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 shadow-md">
+    <div className="space-y-3 animate-in fade-in duration-500">
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0 shadow-sm">
               {room.image ? (
                 <img
                   src={room.image}
@@ -115,29 +104,26 @@ const RoomDisplay = ({ room, loadingSource }: { room: Room; loadingSource: 'sess
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
-                  <Building className="h-8 w-8 text-muted-foreground" />
+                  <Building className="h-6 w-6 text-muted-foreground" />
                 </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-bold text-foreground mb-1">{room.name}</h2>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+              <h3 className="text-lg font-semibold text-foreground mb-1">{room.name}</h3>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
                 <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
+                  <MapPin className="h-3 w-3" />
                   <span>{room.location}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
+                  <Users className="h-3 w-3" />
                   <span>{room.capacity} people</span>
                 </div>
               </div>
-              {room.description && (
-                <p className="text-sm text-muted-foreground mb-3">{room.description}</p>
-              )}
               {room.hourly_rate && room.hourly_rate > 0 && (
-                <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-1 shadow-sm">
-                  <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                <div className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-2 py-1">
+                  <CreditCard className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-300">
                     {room.currency || 'GHS'} {room.hourly_rate}/hour
                   </span>
                 </div>
@@ -168,9 +154,20 @@ const BookingForm = ({
   onChange: (data: Partial<BookingFormData>) => void
   room: Room 
 }) => {
-  // Remove booked slots state as it's now handled by TimeSlotSelector
-  // const [bookedTimeSlots, setBookedTimeSlots] = useState<string[]>([])
-  // const [isLoadingSlots, setIsLoadingSlots] = useState(false)
+  // Calculate live cost as user selects times
+  const calculateLiveCost = () => {
+    if (!formData.startTime || !formData.endTime || !room.hourly_rate) return 0
+
+    const start = new Date(`2000-01-01T${formData.startTime}:00`)
+    const end = new Date(`2000-01-01T${formData.endTime}:00`)
+    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+
+    return durationHours * room.hourly_rate
+  }
+
+  const liveCost = calculateLiveCost()
+  const durationHours = formData.startTime && formData.endTime ? 
+    (new Date(`2000-01-01T${formData.endTime}:00`).getTime() - new Date(`2000-01-01T${formData.startTime}:00`).getTime()) / (1000 * 60 * 60) : 0
 
   return (
     <div className="space-y-6">
@@ -226,6 +223,26 @@ const BookingForm = ({
               roomId={room.id}
             />
           </div>
+          
+          {/* Live Cost Calculator */}
+          {formData.startTime && formData.endTime && room.hourly_rate && room.hourly_rate > 0 && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">Estimated Cost</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-green-700 dark:text-green-300">
+                    {room.currency || 'GHS'} {liveCost.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-green-600 dark:text-green-400">
+                    {durationHours.toFixed(1)} hours × {room.currency || 'GHS'} {room.hourly_rate}/hour
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -705,12 +722,12 @@ function BookingPageContent() {
 
   const validateStep = () => {
     switch (currentStep) {
-      case 1:
+      case 0:
         return formData.title.trim().length >= 2 &&
                formData.date !== null &&
                formData.startTime !== "" &&
                formData.endTime !== ""
-      case 2:
+      case 1:
         return true // Review step, no additional validation needed
       default:
         return true
@@ -891,16 +908,20 @@ function BookingPageContent() {
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-        return <RoomDisplay room={room} loadingSource={loadingSource} />
-      case 1:
         return (
-          <BookingForm 
-            formData={formData}
-            onChange={updateFormData}
-            room={room}
-          />
+          <div className="space-y-6">
+            {/* Room Summary Card */}
+            <RoomSummaryCard room={room} loadingSource={loadingSource} />
+            
+            {/* Booking Form */}
+            <BookingForm 
+              formData={formData}
+              onChange={updateFormData}
+              room={room}
+            />
+          </div>
         )
-      case 2:
+      case 1:
         return (
           <ReviewAndPayment 
             formData={formData}
@@ -918,31 +939,9 @@ function BookingPageContent() {
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
         <div className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Book a Room</h1>
-            <p className="text-muted-foreground">Complete your booking in just a few steps</p>
-          </div>
-
-          {/* Step Indicator */}
-          <StepIndicator currentStep={currentStep} totalSteps={3} />
-
           {/* Main Content */}
           <div className="max-w-4xl mx-auto">
             <Card className="shadow-lg border-0">
-              <CardHeader className="text-center border-b bg-muted/30">
-                <CardTitle className="text-xl">
-                  {currentStep === 0 && "Confirm Room Selection"}
-                  {currentStep === 1 && "Booking Details"}  
-                  {currentStep === 2 && "Review & Payment"}
-                </CardTitle>
-                <CardDescription>
-                  {currentStep === 0 && "Verify this is the room you want to book"}
-                  {currentStep === 1 && "Enter your meeting details and select date/time"}
-                  {currentStep === 2 && "Review your booking and complete payment"}
-                </CardDescription>
-              </CardHeader>
-              
               <CardContent className="p-8">
                 {renderStepContent()}
               </CardContent>
@@ -959,7 +958,7 @@ function BookingPageContent() {
                   Previous
                 </Button>
 
-                {currentStep < 2 ? (
+                {currentStep < 1 ? (
                   <Button 
                     onClick={nextStep}
                     className="flex items-center gap-2"

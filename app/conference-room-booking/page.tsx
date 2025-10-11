@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 import { Building, Users, MapPin, Search, Filter, Calendar, Clock, ChevronDown, ChevronUp, X, SlidersHorizontal } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,6 +19,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { eventBus, EVENTS } from "@/lib/events"
 import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 import {
   Popover,
   PopoverContent,
@@ -38,6 +40,7 @@ export default function ConferenceRoomBookingPage() {
   const [capacityFilter, setCapacityFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [facilityFilter, setFacilityFilter] = useState("any")
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [showResourceFilters, setShowResourceFilters] = useState(false)
   const [userBookings, setUserBookings] = useState<any[]>([])
@@ -93,6 +96,21 @@ export default function ConferenceRoomBookingPage() {
       }
       
       setAvailableFacilities(uniqueFacilities);
+      
+      // Calculate price range from available rooms
+      const roomPrices = rooms
+        .map(room => room.hourly_rate || 0)
+        .filter(price => price > 0);
+      
+      if (roomPrices.length > 0) {
+        const minPrice = Math.min(...roomPrices);
+        const maxPrice = Math.max(...roomPrices);
+        // Round to nearest 10 for better UX
+        const roundedMin = Math.floor(minPrice / 10) * 10;
+        const roundedMax = Math.ceil(maxPrice / 10) * 10;
+        setPriceRange([roundedMin, roundedMax]);
+        console.log(`Price range calculated: ${formatCurrency(roundedMin)} - ${formatCurrency(roundedMax)}`);
+      }
     }
   }, [rooms]);
   
@@ -104,9 +122,23 @@ export default function ConferenceRoomBookingPage() {
     if (statusFilter !== "any") count++;
     if (facilityFilter !== "any") count++;
     if (selectedResources.length > 0) count += 1;
+    // Check if price range is different from the calculated range (indicating user has filtered)
+    if (priceRange[0] !== 0 || priceRange[1] !== 1000) {
+      // Get the actual min/max from rooms to compare
+      const roomPrices = rooms
+        .map(room => room.hourly_rate || 0)
+        .filter(price => price > 0);
+      if (roomPrices.length > 0) {
+        const actualMin = Math.floor(Math.min(...roomPrices) / 10) * 10;
+        const actualMax = Math.ceil(Math.max(...roomPrices) / 10) * 10;
+        if (priceRange[0] !== actualMin || priceRange[1] !== actualMax) {
+          count++;
+        }
+      }
+    }
 
     setActiveFiltersCount(count);
-  }, [searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources]);
+  }, [searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources, priceRange, rooms]);
 
   // Handle booking state restoration after payment redirect
   useEffect(() => {
@@ -154,7 +186,7 @@ export default function ConferenceRoomBookingPage() {
   // Add back the filterRooms effect
   useEffect(() => {
     filterRooms()
-  }, [rooms, searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources])
+  }, [rooms, searchTerm, capacityFilter, statusFilter, facilityFilter, selectedResources, priceRange])
 
   const fetchRooms = async () => {
     try {
@@ -262,6 +294,15 @@ export default function ConferenceRoomBookingPage() {
         (room.facility && room.facility.id === facilityFilter)
       );
       console.log(`After facility filter: ${filtered.length} rooms`);
+    }
+
+    // Price filter
+    if (priceRange[0] !== 0 || priceRange[1] !== 1000) {
+      filtered = filtered.filter((room) => {
+        const roomPrice = room.hourly_rate || 0;
+        return roomPrice >= priceRange[0] && roomPrice <= priceRange[1];
+      });
+      console.log(`After price filter (${formatCurrency(priceRange[0])}-${formatCurrency(priceRange[1])}): ${filtered.length} rooms`);
     }
 
     // Resource filter - check if room has ALL selected resources
@@ -633,6 +674,55 @@ export default function ConferenceRoomBookingPage() {
                         )}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Price Filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Price Range (per hour)</label>
+                      {(priceRange[0] !== 0 || priceRange[1] !== 1000) && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-xs text-brand-teal-600 dark:text-brand-teal-400 hover:bg-brand-teal-50 dark:hover:bg-brand-teal-900/20"
+                          onClick={() => {
+                            // Reset to full range
+                            const roomPrices = rooms
+                              .map(room => room.hourly_rate || 0)
+                              .filter(price => price > 0);
+                            if (roomPrices.length > 0) {
+                              const minPrice = Math.min(...roomPrices);
+                              const maxPrice = Math.max(...roomPrices);
+                              const roundedMin = Math.floor(minPrice / 10) * 10;
+                              const roundedMax = Math.ceil(maxPrice / 10) * 10;
+                              setPriceRange([roundedMin, roundedMax]);
+                            } else {
+                              setPriceRange([0, 1000]);
+                            }
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <Slider
+                        value={priceRange}
+                        onValueChange={(value) => {
+                          if (value.length === 2) {
+                            setPriceRange([value[0], value[1]]);
+                          }
+                        }}
+                        min={0}
+                        max={1000}
+                        step={10}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-brand-navy-600 dark:text-brand-navy-400">
+                        <span>{formatCurrency(priceRange[0])}</span>
+                        <span>{formatCurrency(priceRange[1])}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Resource Filters */}

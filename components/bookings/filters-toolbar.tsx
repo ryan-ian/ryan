@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, X, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -34,7 +34,7 @@ interface FiltersToolbarProps {
   onClearFilter: (key: string) => void
   onClearAll: () => void
   showFilters: boolean
-  onToggleFilters: () => void
+  onToggleFilters: (open: boolean) => void
   className?: string
 }
 
@@ -82,62 +82,37 @@ export function FiltersToolbar({
           )}
         </div>
 
-        {/* Filters Toggle Button */}
-        <Button
-          variant="outline"
-          onClick={onToggleFilters}
-          className={cn(
-            "gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-11 px-4 transition-all duration-200",
-            hasActiveFilters && "border-blue-500 dark:border-blue-500"
-          )}
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {showFilters ? (
-            <ChevronUp className="h-4 w-4 transition-transform duration-200" />
-          ) : (
-            <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-          )}
-          {hasActiveFilters && (
-            <Badge
-              variant="secondary"
-              className="ml-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-1.5 py-0.5"
+        {/* Filters Popover */}
+        <Popover open={showFilters} onOpenChange={onToggleFilters}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "gap-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-11 px-4 transition-all duration-200",
+                hasActiveFilters && "border-brand-teal-500 dark:border-brand-teal-500"
+              )}
             >
-              {activeFilters.length}
-            </Badge>
-          )}
-        </Button>
-      </div>
-
-      {/* Active Filters */}
-      {activeFilters.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Filter:</span>
-          {activeFilters.map((filter) => (
-            <Badge
-              key={filter.key}
-              variant="secondary"
-              className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            >
-              {filter.label}
-              <button
-                onClick={() => onClearFilter(filter.key)}
-                className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Collapsible Filter Controls Section */}
-      <Collapsible open={showFilters}>
-        <CollapsibleContent className="overflow-hidden transition-all duration-200 ease-in-out data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-          <div className="pt-4 border-t border-brand-navy-200 dark:border-brand-navy-700">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <Filter className="h-4 w-4" />
+              Filters
+              {showFilters ? (
+                <ChevronUp className="h-4 w-4 transition-transform duration-200" />
+              ) : (
+                <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+              )}
+              {hasActiveFilters && (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 bg-brand-teal-100 dark:bg-brand-teal-900/30 text-brand-teal-700 dark:text-brand-teal-300 text-xs px-1.5 py-0.5"
+                >
+                  {activeFilters.length}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4 space-y-3 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 gap-3">
               {/* Status Filter */}
-              <div className="w-full sm:w-auto sm:min-w-[140px]">
+              <div className="w-full">
                 <Select value={statusFilter} onValueChange={onStatusChange}>
                   <SelectTrigger className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 focus:ring-brand-teal-500 h-10">
                     <SelectValue placeholder="All statuses" />
@@ -152,7 +127,7 @@ export function FiltersToolbar({
               </div>
 
               {/* Room Filter */}
-              <div className="w-full sm:w-auto sm:min-w-[160px]">
+              <div className="w-full">
                 <Select value={roomFilter} onValueChange={onRoomChange}>
                   <SelectTrigger className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 focus:ring-brand-teal-500 h-10">
                     <SelectValue placeholder="All rooms" />
@@ -168,8 +143,8 @@ export function FiltersToolbar({
                 </Select>
               </div>
 
-              {/* Enhanced Date Filter */}
-              <div className="w-full sm:w-auto sm:min-w-[160px]">
+              {/* Date Filter */}
+              <div className="w-full">
                 <Select value={dateFilter} onValueChange={onDateChange}>
                   <SelectTrigger className="bg-white dark:bg-brand-navy-800 border-brand-navy-200 dark:border-brand-navy-700 focus:ring-brand-teal-500 h-10">
                     <SelectValue placeholder="All dates" />
@@ -187,22 +162,34 @@ export function FiltersToolbar({
                 </Select>
               </div>
 
-              {/* Clear All Button */}
-              {hasActiveFilters && (
+              {/* Footer Buttons */}
+              <div className="pt-1 flex items-center justify-between gap-2">
                 <Button
                   variant="outline"
-                  size="default"
+                  size="sm"
                   onClick={onClearAll}
-                  className="w-full sm:w-auto border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 h-10"
+                  className="border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800"
                 >
-                  <X className="h-4 w-4 mr-2" aria-hidden="true" />
+                  <X className="h-4 w-4 mr-1" aria-hidden="true" />
                   Clear All
                 </Button>
-              )}
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onToggleFilters(false)}
+                  className="bg-brand-teal-600 hover:bg-brand-teal-700 text-white"
+                >
+                  Apply
+                </Button>
+              </div>
             </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Active Filters section intentionally removed (we show only one chip row below) */}
+
+      {/* Popover replaces collapsible; no additional section needed here */}
 
       {/* Active Filter Badges - matching Browse Rooms horizontal scrolling style */}
       {hasActiveFilters && (

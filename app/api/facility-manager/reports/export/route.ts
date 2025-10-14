@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { 
   getFacilityDashboardMetrics, 
-  getRevenueAnalytics, 
-  getMeetingAnalytics,
+  getUtilizationAnalytics, 
+  getAttendanceAnalytics,
   getDateRanges,
   type DateRange
 } from "@/lib/facility-analytics"
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
     const facilityInfo = facilityData || { name: 'Unknown Facility', location: '', description: '' }
 
     // Get analytics data
-    const [dashboardMetrics, revenueAnalytics, meetingAnalytics] = await Promise.all([
+    const [dashboardMetrics, utilizationAnalytics, attendanceAnalytics] = await Promise.all([
       getFacilityDashboardMetrics(user.id, dateRange),
-      getRevenueAnalytics(user.id, dateRange),
-      getMeetingAnalytics(user.id, dateRange)
+      getUtilizationAnalytics(user.id, dateRange),
+      getAttendanceAnalytics(user.id, dateRange)
     ])
 
     // Generate PDF
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
       dateRange,
       reportType: reportType || 'comprehensive',
       dashboardMetrics,
-      revenueAnalytics,
-      meetingAnalytics
+      utilizationAnalytics,
+      attendanceAnalytics
     })
 
     // Return PDF as response
@@ -158,12 +158,18 @@ function generateReportHTML(data: any): string {
     dateRange,
     reportType,
     dashboardMetrics,
-    revenueAnalytics,
-    meetingAnalytics
+    utilizationAnalytics,
+    attendanceAnalytics
   } = data
 
-  const formatCurrency = (amount: number) => `GH₵ ${amount.toFixed(2)}`
   const formatPercentage = (value: number) => `${value.toFixed(1)}%`
+  const formatHours = (hours: number) => `${hours.toFixed(1)}h`
+  const formatTime = (hour: number) => {
+    if (hour === 0) return "12 AM"
+    if (hour < 12) return `${hour} AM`
+    if (hour === 12) return "12 PM"
+    return `${hour - 12} PM`
+  }
   const formatDate = (date: Date) => date.toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
@@ -410,64 +416,89 @@ function generateReportHTML(data: any): string {
         <h2>Executive Summary</h2>
         <div class="metrics-grid">
             <div class="metric-card">
-                <div class="metric-title">Total Revenue</div>
-                <div class="metric-value">${formatCurrency(dashboardMetrics.totalRevenue.current)}</div>
-                <div class="metric-change ${dashboardMetrics.totalRevenue.changePercent >= 0 ? '' : 'negative'}">
-                    ${dashboardMetrics.totalRevenue.changePercent >= 0 ? '+' : ''}${dashboardMetrics.totalRevenue.changePercent.toFixed(1)}% from previous period
+                <div class="metric-title">Room Utilization Rate</div>
+                <div class="metric-value">${formatPercentage(dashboardMetrics.roomUtilizationRate.current)}</div>
+                <div class="metric-change ${dashboardMetrics.roomUtilizationRate.changePercent >= 0 ? '' : 'negative'}">
+                    ${dashboardMetrics.roomUtilizationRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.roomUtilizationRate.changePercent.toFixed(1)}% from previous period
                 </div>
             </div>
             <div class="metric-card">
-                <div class="metric-title">Active Bookings</div>
-                <div class="metric-value">${dashboardMetrics.activeBookings.current}</div>
-                <div class="metric-change ${dashboardMetrics.activeBookings.changePercent >= 0 ? '' : 'negative'}">
-                    ${dashboardMetrics.activeBookings.changePercent >= 0 ? '+' : ''}${dashboardMetrics.activeBookings.changePercent.toFixed(1)}% from previous period
+                <div class="metric-title">Total Bookings</div>
+                <div class="metric-value">${dashboardMetrics.totalBookings.current}</div>
+                <div class="metric-change ${dashboardMetrics.totalBookings.changePercent >= 0 ? '' : 'negative'}">
+                    ${dashboardMetrics.totalBookings.changePercent >= 0 ? '+' : ''}${dashboardMetrics.totalBookings.changePercent.toFixed(1)}% from previous period
                 </div>
             </div>
             <div class="metric-card">
-                <div class="metric-title">Room Utilization</div>
-                <div class="metric-value">${formatPercentage(dashboardMetrics.roomUtilization.current)}</div>
-                <div class="metric-change ${dashboardMetrics.roomUtilization.changePercent >= 0 ? '' : 'negative'}">
-                    ${dashboardMetrics.roomUtilization.changePercent >= 0 ? '+' : ''}${dashboardMetrics.roomUtilization.changePercent.toFixed(1)}% from previous period
+                <div class="metric-title">Attendance Rate</div>
+                <div class="metric-value">${formatPercentage(dashboardMetrics.attendanceRate.current)}</div>
+                <div class="metric-change ${dashboardMetrics.attendanceRate.changePercent >= 0 ? '' : 'negative'}">
+                    ${dashboardMetrics.attendanceRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.attendanceRate.changePercent.toFixed(1)}% from previous period
+                </div>
+            </div>
+        </div>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">No-Show Rate</div>
+                <div class="metric-value">${formatPercentage(dashboardMetrics.noShowRate.current)}</div>
+                <div class="metric-change ${dashboardMetrics.noShowRate.changePercent <= 0 ? '' : 'negative'}">
+                    ${dashboardMetrics.noShowRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.noShowRate.changePercent.toFixed(1)}% from previous period
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Peak Hour Usage</div>
+                <div class="metric-value">${formatTime(dashboardMetrics.peakHourUsage.current)}</div>
+                <div class="metric-change">
+                    Most popular booking time
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Avg Meeting Duration</div>
+                <div class="metric-value">${formatHours(dashboardMetrics.averageMeetingDuration.current)}</div>
+                <div class="metric-change ${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '' : 'negative'}">
+                    ${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '+' : ''}${dashboardMetrics.averageMeetingDuration.changePercent.toFixed(1)}% from previous period
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Revenue Analysis -->
+    <!-- Room Utilization Analysis -->
     <div class="section">
-        <h2>Financial Performance</h2>
+        <h2>Room Utilization Performance</h2>
         <div class="revenue-breakdown">
             <div>
-                <h3>Revenue Overview</h3>
+                <h3>Utilization Overview</h3>
                 <div class="stat-box">
-                    <div class="stat-number">${formatCurrency(revenueAnalytics.totalRevenue)}</div>
-                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-number">${formatPercentage(utilizationAnalytics.overallUtilization)}</div>
+                    <div class="stat-label">Overall Utilization</div>
                 </div>
                 <div class="stat-box" style="margin-top: 10px;">
-                    <div class="stat-number">${formatCurrency(revenueAnalytics.averageBookingValue)}</div>
-                    <div class="stat-label">Average Booking Value</div>
+                    <div class="stat-number">${formatHours(utilizationAnalytics.averageBookingDuration)}</div>
+                    <div class="stat-label">Average Booking Duration</div>
                 </div>
                 <div class="stat-box" style="margin-top: 10px;">
-                    <div class="stat-number">${formatPercentage(revenueAnalytics.collectionEfficiency)}</div>
-                    <div class="stat-label">Collection Efficiency</div>
+                    <div class="stat-number">${formatTime(utilizationAnalytics.peakUtilizationHour)}</div>
+                    <div class="stat-label">Peak Utilization Hour</div>
                 </div>
             </div>
             <div>
-                <h3>Top Performing Rooms</h3>
+                <h3>Room Utilization Breakdown</h3>
                 <table class="table">
                     <thead>
                         <tr>
                             <th>Room Name</th>
-                            <th>Revenue</th>
+                            <th>Utilization Rate</th>
                             <th>Bookings</th>
+                            <th>Hours Used</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${revenueAnalytics.revenueByRoom.slice(0, 5).map(room => `
+                        ${utilizationAnalytics.utilizationByRoom.slice(0, 5).map(room => `
                             <tr>
                                 <td>${room.roomName}</td>
-                                <td>${formatCurrency(room.revenue)}</td>
+                                <td>${formatPercentage(room.utilizationRate)}</td>
                                 <td>${room.bookingCount}</td>
+                                <td>${formatHours(room.bookedHours)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -478,75 +509,73 @@ function generateReportHTML(data: any): string {
 
     <div class="page-break"></div>
 
-    <!-- Meeting Performance -->
+    <!-- Attendance Performance -->
     <div class="section">
-        <h2>Meeting & Guest Analytics</h2>
+        <h2>Attendance & No-Show Analysis</h2>
         <div class="meeting-stats">
             <div class="stat-box">
-                <div class="stat-number">${meetingAnalytics.totalMeetings}</div>
+                <div class="stat-number">${attendanceAnalytics.totalMeetings}</div>
                 <div class="stat-label">Total Meetings</div>
             </div>
             <div class="stat-box">
-                <div class="stat-number">${formatPercentage(meetingAnalytics.checkInRate)}</div>
+                <div class="stat-number">${formatPercentage(attendanceAnalytics.checkInRate)}</div>
                 <div class="stat-label">Check-in Rate</div>
             </div>
             <div class="stat-box">
-                <div class="stat-number">${formatPercentage(meetingAnalytics.punctualityRate)}</div>
+                <div class="stat-number">${formatPercentage(attendanceAnalytics.noShowRate)}</div>
+                <div class="stat-label">No-Show Rate</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">${formatPercentage(attendanceAnalytics.punctualityRate)}</div>
                 <div class="stat-label">Punctuality Rate</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-number">${meetingAnalytics.averageDuration.toFixed(0)} min</div>
-                <div class="stat-label">Average Duration</div>
-            </div>
         </div>
 
-        <h3 style="margin-top: 30px;">Guest Engagement Statistics</h3>
+        <h3 style="margin-top: 30px;">Check-in Performance Breakdown</h3>
         <div class="meeting-stats">
-            <div class="stat-box">
-                <div class="stat-number">${meetingAnalytics.guestInvitationStats.totalInvitations}</div>
-                <div class="stat-label">Total Invitations</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number">${formatPercentage(meetingAnalytics.guestInvitationStats.acceptanceRate)}</div>
-                <div class="stat-label">Acceptance Rate</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number">${formatPercentage(meetingAnalytics.guestInvitationStats.responseRate)}</div>
-                <div class="stat-label">Response Rate</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number">${(meetingAnalytics.guestInvitationStats.averageResponseTime / 24).toFixed(1)} days</div>
-                <div class="stat-label">Avg Response Time</div>
-            </div>
+            ${attendanceAnalytics.checkInPerformance.map(perf => `
+                <div class="stat-box">
+                    <div class="stat-number">${perf.count}</div>
+                    <div class="stat-label">${perf.status.replace('-', ' ').toUpperCase()} (${formatPercentage(perf.percentage)})</div>
+                </div>
+            `).join('')}
         </div>
-    </div>
 
-    <!-- Payment Methods -->
-    ${revenueAnalytics.paymentMethodDistribution.length > 0 ? `
-    <div class="section">
-        <h2>Payment Method Analysis</h2>
+        <h3 style="margin-top: 30px;">Peak Booking Times</h3>
         <table class="table">
             <thead>
                 <tr>
-                    <th>Payment Method</th>
-                    <th>Total Amount</th>
-                    <th>Transaction Count</th>
-                    <th>Average Value</th>
+                    <th>Time</th>
+                    <th>Bookings</th>
+                    <th>Check-in Rate</th>
                 </tr>
             </thead>
             <tbody>
-                ${revenueAnalytics.paymentMethodDistribution.map(method => `
+                ${attendanceAnalytics.popularMeetingTimes.slice(0, 8).map(time => `
                     <tr>
-                        <td>${method.method}</td>
-                        <td>${formatCurrency(method.amount)}</td>
-                        <td>${method.count}</td>
-                        <td>${formatCurrency(method.amount / method.count)}</td>
+                        <td>${formatTime(time.hour)}</td>
+                        <td>${time.count}</td>
+                        <td>${formatPercentage(time.checkInRate)}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
     </div>
-    ` : ''}
+
+    <!-- Operational Insights -->
+    <div class="section">
+        <h2>Operational Insights & Recommendations</h2>
+        <div style="background: #f8fafc; padding: 20px; border-radius: 8px;">
+            <h3>Key Findings</h3>
+            <ul style="margin-left: 20px; line-height: 1.8;">
+                <li><strong>Utilization:</strong> Overall facility utilization is ${formatPercentage(utilizationAnalytics.overallUtilization)}</li>
+                <li><strong>Attendance:</strong> ${formatPercentage(attendanceAnalytics.checkInRate)} of bookings result in successful check-ins</li>
+                <li><strong>No-Shows:</strong> ${formatPercentage(attendanceAnalytics.noShowRate)} of confirmed bookings are no-shows</li>
+                <li><strong>Peak Usage:</strong> Most bookings occur at ${formatTime(utilizationAnalytics.peakUtilizationHour)}</li>
+                <li><strong>Meeting Duration:</strong> Average meeting length is ${formatHours(utilizationAnalytics.averageBookingDuration)}</li>
+            </ul>
+        </div>
+    </div>
 
     <!-- Footer -->
     <div class="footer">

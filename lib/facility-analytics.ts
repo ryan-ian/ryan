@@ -8,42 +8,85 @@ export interface DateRange {
 }
 
 export interface KPIMetrics {
-  totalRevenue: {
+  roomUtilizationRate: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
-  activeBookings: {
+  totalBookings: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
-  roomUtilization: {
+  attendanceRate: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
-  meetingCompletionRate: {
+  noShowRate: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
-  averageGuestCount: {
+  peakHourUsage: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
-  paymentCollectionRate: {
+  averageMeetingDuration: {
     current: number
     previous: number
     change: number
     changePercent: number
   }
+}
+
+export interface UtilizationAnalytics {
+  overallUtilization: number
+  utilizationByRoom: Array<{
+    roomId: string
+    roomName: string
+    totalHours: number
+    bookedHours: number
+    utilizationRate: number
+    bookingCount: number
+  }>
+  utilizationTimeline: Array<{
+    date: string
+    utilization: number
+    bookings: number
+  }>
+  peakUtilizationHour: number
+  averageBookingDuration: number
+}
+
+export interface AttendanceAnalytics {
+  totalMeetings: number
+  checkInRate: number
+  noShowRate: number
+  punctualityRate: number
+  averageDuration: number
+  checkInPerformance: Array<{
+    status: 'on-time' | 'grace-period' | 'late' | 'no-show'
+    count: number
+    percentage: number
+  }>
+  attendanceTrends: Array<{
+    date: string
+    checkIns: number
+    noShows: number
+    total: number
+  }>
+  popularMeetingTimes: Array<{
+    hour: number
+    count: number
+    checkInRate: number
+  }>
 }
 
 export interface RevenueAnalytics {
@@ -141,13 +184,13 @@ export async function getFacilityRooms(managerId: string): Promise<string[]> {
   try {
     console.log(`🔍 [Analytics] Looking for facilities managed by user: ${managerId}`)
     
+    // First try to get facilities managed by this user
     const { data: facilities, error: facilityError } = await supabase
       .from('facilities')
       .select('id, name')
       .eq('manager_id', managerId)
-    console.log("in the get rooms function")
-    console.log(managerId)
-    console.log(facilities)
+    
+    console.log(`🏢 [Analytics] Manager facilities query result:`, { facilities, error: facilityError })
 
     if (facilityError) {
       console.error('Error querying facilities:', facilityError)
@@ -158,6 +201,45 @@ export async function getFacilityRooms(managerId: string): Promise<string[]> {
 
     if (!facilities || facilities.length === 0) {
       console.log('⚠️ [Analytics] No facilities found for this manager')
+      
+      // Check if user is admin and should see all facilities
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', managerId)
+        .single()
+      
+      if (userProfile?.role === 'admin') {
+        console.log('🔑 [Analytics] User is admin, fetching all facilities')
+        const { data: allFacilities, error: allFacilityError } = await supabase
+          .from('facilities')
+          .select('id, name')
+        
+        if (allFacilityError) {
+          console.error('Error querying all facilities for admin:', allFacilityError)
+          return []
+        }
+        
+        if (!allFacilities || allFacilities.length === 0) {
+          console.log('⚠️ [Analytics] No facilities found in system')
+          return []
+        }
+        
+        const allFacilityIds = allFacilities.map(f => f.id)
+        const { data: allRooms, error: allRoomError } = await supabase
+          .from('rooms')
+          .select('id, name')
+          .in('facility_id', allFacilityIds)
+
+        if (allRoomError) {
+          console.error('Error querying all rooms for admin:', allRoomError)
+          return []
+        }
+
+        console.log(`🏠 [Analytics] Admin found ${allRooms?.length || 0} total rooms`)
+        return allRooms?.map(r => r.id) || []
+      }
+      
       return []
     }
 
@@ -190,9 +272,12 @@ export async function getFacilityDashboardMetrics(
   dateRange: DateRange
 ): Promise<KPIMetrics> {
   try {
+    console.log(`📊 [Dashboard Metrics] Starting for manager: ${managerId}`)
     const roomIds = await getFacilityRooms(managerId)
+    console.log(`📊 [Dashboard Metrics] Found room IDs:`, roomIds)
     
     if (roomIds.length === 0) {
+      console.log(`⚠️ [Dashboard Metrics] No rooms found, returning empty metrics`)
       return getEmptyKPIMetrics()
     }
 
@@ -203,36 +288,138 @@ export async function getFacilityDashboardMetrics(
 
     // Get current and previous period metrics in parallel
     const [
-      currentRevenue,
-      previousRevenue,
       currentBookings,
       previousBookings,
       currentUtilization,
       previousUtilization,
-      currentMeetingStats,
-      previousMeetingStats
+      currentAttendanceStats,
+      previousAttendanceStats,
+      currentPeakHour,
+      previousPeakHour
     ] = await Promise.all([
-      getRevenueForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
-      getRevenueForPeriod(roomIds, previousStartDate, previousEndDate),
       getBookingsForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
       getBookingsForPeriod(roomIds, previousStartDate, previousEndDate),
       getRoomUtilizationForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
       getRoomUtilizationForPeriod(roomIds, previousStartDate, previousEndDate),
-      getMeetingStatsForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
-      getMeetingStatsForPeriod(roomIds, previousStartDate, previousEndDate)
+      getAttendanceStatsForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
+      getAttendanceStatsForPeriod(roomIds, previousStartDate, previousEndDate),
+      getPeakHourForPeriod(roomIds, dateRange.startDate, dateRange.endDate),
+      getPeakHourForPeriod(roomIds, previousStartDate, previousEndDate)
     ])
 
-    return {
-      totalRevenue: calculateKPIChange(currentRevenue.totalRevenue, previousRevenue.totalRevenue),
-      activeBookings: calculateKPIChange(currentBookings.confirmed, previousBookings.confirmed),
-      roomUtilization: calculateKPIChange(currentUtilization, previousUtilization),
-      meetingCompletionRate: calculateKPIChange(currentMeetingStats.completionRate, previousMeetingStats.completionRate),
-      averageGuestCount: calculateKPIChange(currentMeetingStats.avgGuestCount, previousMeetingStats.avgGuestCount),
-      paymentCollectionRate: calculateKPIChange(currentRevenue.collectionRate, previousRevenue.collectionRate)
+    const metrics = {
+      roomUtilizationRate: calculateKPIChange(currentUtilization, previousUtilization),
+      totalBookings: calculateKPIChange(currentBookings.confirmed, previousBookings.confirmed),
+      attendanceRate: calculateKPIChange(currentAttendanceStats.checkInRate, previousAttendanceStats.checkInRate),
+      noShowRate: calculateKPIChange(currentAttendanceStats.noShowRate, previousAttendanceStats.noShowRate),
+      peakHourUsage: calculateKPIChange(currentPeakHour, previousPeakHour),
+      averageMeetingDuration: calculateKPIChange(currentAttendanceStats.avgDuration, previousAttendanceStats.avgDuration)
     }
+    console.log(`✅ [Dashboard Metrics] Calculated metrics:`, metrics)
+    return metrics
   } catch (error) {
     console.error('Error getting dashboard metrics:', error)
     return getEmptyKPIMetrics()
+  }
+}
+
+/**
+ * Get utilization analytics for facility
+ */
+export async function getUtilizationAnalytics(
+  managerId: string,
+  dateRange: DateRange
+): Promise<UtilizationAnalytics> {
+  try {
+    console.log(`📊 [Utilization Analytics] Starting for manager: ${managerId}`)
+    const roomIds = await getFacilityRooms(managerId)
+    
+    if (roomIds.length === 0) {
+      console.log(`⚠️ [Utilization Analytics] No rooms found, returning empty analytics`)
+      return getEmptyUtilizationAnalytics()
+    }
+
+    // Get room details
+    const { data: roomsData } = await supabase
+      .from('rooms')
+      .select('id, name')
+      .in('id', roomIds)
+
+    const rooms = roomsData || []
+
+    // Get bookings for the period
+    const { data: bookingsData } = await supabase
+      .from('bookings')
+      .select('room_id, start_time, end_time')
+      .in('room_id', roomIds)
+      .gte('start_time', dateRange.startDate.toISOString())
+      .lte('start_time', dateRange.endDate.toISOString())
+      .eq('status', 'confirmed')
+
+    const bookings = bookingsData || []
+
+    // Calculate utilization by room
+    const utilizationByRoom = rooms.map(room => {
+      const roomBookings = bookings.filter(b => b.room_id === room.id)
+      const bookedHours = roomBookings.reduce((sum, booking) => {
+        const start = new Date(booking.start_time)
+        const end = new Date(booking.end_time)
+        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+        return sum + hours
+      }, 0)
+
+      // Calculate available hours (assuming 10 hours per day)
+      const totalDays = Math.ceil((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24))
+      const totalHours = totalDays * 10
+      const utilizationRate = totalHours > 0 ? (bookedHours / totalHours) * 100 : 0
+
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        totalHours,
+        bookedHours,
+        utilizationRate: Math.min(utilizationRate, 100),
+        bookingCount: roomBookings.length
+      }
+    })
+
+    // Calculate overall utilization
+    const totalBookedHours = utilizationByRoom.reduce((sum, room) => sum + room.bookedHours, 0)
+    const totalAvailableHours = utilizationByRoom.reduce((sum, room) => sum + room.totalHours, 0)
+    const overallUtilization = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0
+
+    // Calculate peak utilization hour
+    const hourCounts: { [hour: number]: number } = {}
+    bookings.forEach(booking => {
+      const hour = new Date(booking.start_time).getHours()
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1
+    })
+    const peakUtilizationHour = Object.entries(hourCounts).reduce((peak, [hour, count]) => 
+      count > (hourCounts[peak] || 0) ? parseInt(hour) : peak, 0
+    )
+
+    // Calculate average booking duration
+    const averageBookingDuration = bookings.length > 0 
+      ? bookings.reduce((sum, booking) => {
+          const start = new Date(booking.start_time)
+          const end = new Date(booking.end_time)
+          return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+        }, 0) / bookings.length
+      : 0
+
+    // Generate utilization timeline (daily)
+    const utilizationTimeline = await getUtilizationTimeline(roomIds, dateRange.startDate, dateRange.endDate)
+
+    return {
+      overallUtilization,
+      utilizationByRoom: utilizationByRoom.sort((a, b) => b.utilizationRate - a.utilizationRate),
+      utilizationTimeline,
+      peakUtilizationHour,
+      averageBookingDuration
+    }
+  } catch (error) {
+    console.error('Error getting utilization analytics:', error)
+    return getEmptyUtilizationAnalytics()
   }
 }
 
@@ -318,6 +505,81 @@ export async function getRevenueAnalytics(
   } catch (error) {
     console.error('Error getting revenue analytics:', error)
     return getEmptyRevenueAnalytics()
+  }
+}
+
+/**
+ * Get attendance analytics for facility
+ */
+export async function getAttendanceAnalytics(
+  managerId: string,
+  dateRange: DateRange
+): Promise<AttendanceAnalytics> {
+  try {
+    console.log(`📊 [Attendance Analytics] Starting for manager: ${managerId}`)
+    const roomIds = await getFacilityRooms(managerId)
+    
+    if (roomIds.length === 0) {
+      console.log(`⚠️ [Attendance Analytics] No rooms found, returning empty analytics`)
+      return getEmptyAttendanceAnalytics()
+    }
+
+    // Get meetings data with check-in information
+    const { data: meetingsData } = await supabase
+      .from('bookings')
+      .select(`
+        id,
+        start_time,
+        end_time,
+        checked_in_at,
+        status
+      `)
+      .in('room_id', roomIds)
+      .gte('start_time', dateRange.startDate.toISOString())
+      .lte('start_time', dateRange.endDate.toISOString())
+      .eq('status', 'confirmed')
+
+    const meetings = meetingsData || []
+
+    // Calculate basic metrics
+    const totalMeetings = meetings.length
+    const checkedInMeetings = meetings.filter(m => m.checked_in_at).length
+    const noShowMeetings = meetings.filter(m => !m.checked_in_at).length
+    
+    const checkInRate = totalMeetings > 0 ? (checkedInMeetings / totalMeetings) * 100 : 0
+    const noShowRate = totalMeetings > 0 ? (noShowMeetings / totalMeetings) * 100 : 0
+
+    // Punctuality analysis
+    const punctualMeetings = meetings.filter(m => 
+      m.checked_in_at && new Date(m.checked_in_at) <= new Date(m.start_time)
+    ).length
+    const punctualityRate = checkedInMeetings > 0 ? (punctualMeetings / checkedInMeetings) * 100 : 0
+
+    // Average duration
+    const averageDuration = calculateAverageDuration(meetings.filter(m => m.checked_in_at))
+
+    // Check-in performance breakdown
+    const checkInPerformance = categorizeCheckInPerformance(meetings)
+
+    // Popular meeting times with check-in rates
+    const popularMeetingTimes = calculatePopularMeetingTimesWithCheckIn(meetings)
+
+    // Attendance trends (daily breakdown)
+    const attendanceTrends = calculateAttendanceTrends(meetings, dateRange)
+
+    return {
+      totalMeetings,
+      checkInRate,
+      noShowRate,
+      punctualityRate,
+      averageDuration,
+      checkInPerformance,
+      attendanceTrends,
+      popularMeetingTimes
+    }
+  } catch (error) {
+    console.error('Error getting attendance analytics:', error)
+    return getEmptyAttendanceAnalytics()
   }
 }
 
@@ -447,12 +709,35 @@ function calculateKPIChange(current: number, previous: number) {
 function getEmptyKPIMetrics(): KPIMetrics {
   const empty = { current: 0, previous: 0, change: 0, changePercent: 0 }
   return {
-    totalRevenue: empty,
-    activeBookings: empty,
-    roomUtilization: empty,
-    meetingCompletionRate: empty,
-    averageGuestCount: empty,
-    paymentCollectionRate: empty
+    roomUtilizationRate: empty,
+    totalBookings: empty,
+    attendanceRate: empty,
+    noShowRate: empty,
+    peakHourUsage: empty,
+    averageMeetingDuration: empty
+  }
+}
+
+function getEmptyUtilizationAnalytics(): UtilizationAnalytics {
+  return {
+    overallUtilization: 0,
+    utilizationByRoom: [],
+    utilizationTimeline: [],
+    peakUtilizationHour: 9,
+    averageBookingDuration: 0
+  }
+}
+
+function getEmptyAttendanceAnalytics(): AttendanceAnalytics {
+  return {
+    totalMeetings: 0,
+    checkInRate: 0,
+    noShowRate: 0,
+    punctualityRate: 0,
+    averageDuration: 0,
+    checkInPerformance: [],
+    attendanceTrends: [],
+    popularMeetingTimes: []
   }
 }
 
@@ -762,6 +1047,156 @@ function calculatePopularMeetingTimes(meetings: any[]) {
   return Object.entries(hourCounts)
     .map(([hour, count]) => ({ hour: parseInt(hour), count }))
     .sort((a, b) => b.count - a.count)
+}
+
+function calculatePopularMeetingTimesWithCheckIn(meetings: any[]) {
+  if (!meetings || meetings.length === 0) return []
+
+  const hourData: { [hour: number]: { total: number, checkedIn: number } } = {}
+
+  meetings.forEach(meeting => {
+    const startTime = new Date(meeting.start_time)
+    const hour = startTime.getHours()
+    
+    if (!hourData[hour]) {
+      hourData[hour] = { total: 0, checkedIn: 0 }
+    }
+    
+    hourData[hour].total++
+    if (meeting.checked_in_at) {
+      hourData[hour].checkedIn++
+    }
+  })
+
+  return Object.entries(hourData)
+    .map(([hour, data]) => ({
+      hour: parseInt(hour),
+      count: data.total,
+      checkInRate: data.total > 0 ? (data.checkedIn / data.total) * 100 : 0
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+function calculateAttendanceTrends(meetings: any[], dateRange: DateRange) {
+  if (!meetings || meetings.length === 0) return []
+
+  const dailyData: { [date: string]: { total: number, checkIns: number, noShows: number } } = {}
+
+  meetings.forEach(meeting => {
+    const date = new Date(meeting.start_time).toISOString().split('T')[0]
+    
+    if (!dailyData[date]) {
+      dailyData[date] = { total: 0, checkIns: 0, noShows: 0 }
+    }
+    
+    dailyData[date].total++
+    if (meeting.checked_in_at) {
+      dailyData[date].checkIns++
+    } else {
+      dailyData[date].noShows++
+    }
+  })
+
+  return Object.entries(dailyData)
+    .map(([date, data]) => ({
+      date,
+      checkIns: data.checkIns,
+      noShows: data.noShows,
+      total: data.total
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+async function getUtilizationTimeline(roomIds: string[], startDate: Date, endDate: Date) {
+  try {
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('start_time, end_time')
+      .in('room_id', roomIds)
+      .gte('start_time', startDate.toISOString())
+      .lte('start_time', endDate.toISOString())
+      .eq('status', 'confirmed')
+
+    // Group by date
+    const timeline = bookings?.reduce((acc: any, booking) => {
+      const date = booking.start_time?.split('T')[0] // Get YYYY-MM-DD
+      if (!acc[date]) {
+        acc[date] = { date, utilization: 0, bookings: 0 }
+      }
+      
+      // Calculate hours for this booking
+      const start = new Date(booking.start_time)
+      const end = new Date(booking.end_time)
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+      
+      acc[date].utilization += hours
+      acc[date].bookings += 1
+      return acc
+    }, {}) || {}
+
+    return Object.values(timeline)
+  } catch (error) {
+    console.error('Error getting utilization timeline:', error)
+    return []
+  }
+}
+
+async function getAttendanceStatsForPeriod(roomIds: string[], startDate: Date, endDate: Date) {
+  try {
+    const { data: meetings } = await supabase
+      .from('bookings')
+      .select('id, checked_in_at, start_time, end_time')
+      .in('room_id', roomIds)
+      .gte('start_time', startDate.toISOString())
+      .lte('start_time', endDate.toISOString())
+      .eq('status', 'confirmed')
+
+    const totalMeetings = meetings?.length || 0
+    const checkedInMeetings = meetings?.filter(m => m.checked_in_at).length || 0
+    const noShowMeetings = totalMeetings - checkedInMeetings
+
+    const checkInRate = totalMeetings > 0 ? (checkedInMeetings / totalMeetings) * 100 : 0
+    const noShowRate = totalMeetings > 0 ? (noShowMeetings / totalMeetings) * 100 : 0
+
+    // Calculate average duration for checked-in meetings
+    const avgDuration = meetings && meetings.length > 0 
+      ? meetings.filter(m => m.checked_in_at).reduce((sum, meeting) => {
+          const start = new Date(meeting.start_time)
+          const end = new Date(meeting.end_time)
+          return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+        }, 0) / Math.max(checkedInMeetings, 1)
+      : 0
+
+    return { checkInRate, noShowRate, avgDuration }
+  } catch (error) {
+    console.error('Error getting attendance stats:', error)
+    return { checkInRate: 0, noShowRate: 0, avgDuration: 0 }
+  }
+}
+
+async function getPeakHourForPeriod(roomIds: string[], startDate: Date, endDate: Date) {
+  try {
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('start_time')
+      .in('room_id', roomIds)
+      .gte('start_time', startDate.toISOString())
+      .lte('start_time', endDate.toISOString())
+      .eq('status', 'confirmed')
+
+    const hourCounts: { [hour: number]: number } = {}
+    bookings?.forEach(booking => {
+      const hour = new Date(booking.start_time).getHours()
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1
+    })
+
+    return Object.entries(hourCounts).reduce((peak, [hour, count]) => 
+      count > (hourCounts[peak] || 0) ? parseInt(hour) : peak, 9
+    )
+  } catch (error) {
+    console.error('Error getting peak hour:', error)
+    return 9 // Default to 9 AM
+  }
 }
 
 async function getRecentBookings(roomIds: string[], limit: number): Promise<ActivityFeedItem[]> {

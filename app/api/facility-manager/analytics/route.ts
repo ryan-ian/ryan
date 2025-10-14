@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { 
   getFacilityDashboardMetrics, 
-  getRevenueAnalytics, 
-  getMeetingAnalytics,
+  getUtilizationAnalytics, 
+  getAttendanceAnalytics,
   getActivityFeed,
   getDateRanges,
   type DateRange
@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User profile not found" }, { status: 403 })
     }
 
-    if (userProfile.role !== 'facility_manager') {
-      console.log(`❌ [Analytics API] User ${userProfile.name} has role ${userProfile.role}, not facility_manager`)
+    if (userProfile.role !== 'facility_manager' && userProfile.role !== 'admin') {
+      console.log(`❌ [Analytics API] User ${userProfile.name} has role ${userProfile.role}, not facility_manager or admin`)
       return NextResponse.json({ error: "Facility manager access required" }, { status: 403 })
     }
 
@@ -100,19 +100,19 @@ export async function GET(request: NextRequest) {
           dateRange
         })
 
-      case "revenue":
-        const revenueAnalytics = await getRevenueAnalytics(user.id, dateRange)
+      case "utilization":
+        const utilizationAnalytics = await getUtilizationAnalytics(user.id, dateRange)
         return NextResponse.json({
           success: true,
-          data: revenueAnalytics,
+          data: utilizationAnalytics,
           dateRange
         })
 
-      case "meetings":
-        const meetingAnalytics = await getMeetingAnalytics(user.id, dateRange)
+      case "attendance":
+        const attendanceAnalytics = await getAttendanceAnalytics(user.id, dateRange)
         return NextResponse.json({
           success: true,
-          data: meetingAnalytics,
+          data: attendanceAnalytics,
           dateRange
         })
 
@@ -126,23 +126,35 @@ export async function GET(request: NextRequest) {
 
       case "all":
         // Get all analytics data in one request for dashboard
-        const [dashboard, revenue, meetings, activity] = await Promise.all([
-          getFacilityDashboardMetrics(user.id, dateRange),
-          getRevenueAnalytics(user.id, dateRange),
-          getMeetingAnalytics(user.id, dateRange),
-          getActivityFeed(user.id, 10)
-        ])
+        console.log(`📊 [Analytics API] Fetching all analytics for user ${user.id}`)
+        
+        try {
+          const [dashboard, utilization, attendance, activity] = await Promise.all([
+            getFacilityDashboardMetrics(user.id, dateRange),
+            getUtilizationAnalytics(user.id, dateRange),
+            getAttendanceAnalytics(user.id, dateRange),
+            getActivityFeed(user.id, 10)
+          ])
 
-        return NextResponse.json({
-          success: true,
-          data: {
-            dashboard,
-            revenue,
-            meetings,
-            activity
-          },
-          dateRange
-        })
+          console.log(`✅ [Analytics API] Successfully fetched all analytics`)
+          
+          return NextResponse.json({
+            success: true,
+            data: {
+              dashboard,
+              utilization,
+              attendance,
+              activity
+            },
+            dateRange
+          })
+        } catch (analyticsError: any) {
+          console.error(`❌ [Analytics API] Error fetching analytics:`, analyticsError)
+          return NextResponse.json({
+            success: false,
+            error: `Analytics error: ${analyticsError.message || 'Unknown error'}`
+          }, { status: 500 })
+        }
 
       default:
         return NextResponse.json(

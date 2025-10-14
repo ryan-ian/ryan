@@ -190,9 +190,9 @@ export default function FacilityManagementPage() {
   if (error) return <div>{error}</div>
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Facility Management</h1>
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Facility Management</h1>
       </div>
 
       {facilities.length === 0 ? (
@@ -210,25 +210,30 @@ export default function FacilityManagementPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-1">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1">
           {facilities.map((facility) => (
-            <Card key={facility.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
+            <Card key={facility.id} className="hover:shadow-md active:shadow-lg active:scale-[0.98] transition-all duration-200">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                       <Building className="h-5 w-5" />
                       {facility.name}
                     </CardTitle>
-                    <CardDescription>{facility.location}</CardDescription>
+                    <CardDescription className="text-sm sm:text-base mt-1">{facility.location}</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(facility)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleEdit(facility)}
+                    className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px] active:scale-[0.98] transition-all duration-150"
+                  >
                     <Pencil className="h-4 w-4 mr-2" /> Edit Facility
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <p className="text-muted-foreground text-sm sm:text-base">
                   {facility.description || "No description provided."}
                 </p>
               </CardContent>

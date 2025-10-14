@@ -44,7 +44,7 @@ import {
   getBookingByIdWithDetails,
   calculateAverageCheckInTime
 } from "@/lib/supabase-data"
-import { generateBookingReport } from "@/lib/pdf-utils"
+// Removed client-side PDF generation - now using server-side API
 
 interface BookingAnalytics {
   totalInvited: number
@@ -215,7 +215,7 @@ export default function BookingDetailsPage() {
   }
 
   const exportReport = async () => {
-    if (!booking || !analytics) {
+    if (!booking) {
       toast({
         title: "Error",
         description: "Booking data not available for export.",
@@ -230,57 +230,49 @@ export default function BookingDetailsPage() {
         description: "Creating PDF report...",
       })
 
-      // Prepare data for PDF generation
-      const pdfData = {
-        booking: {
-          id: booking.id,
-          room_name: booking.rooms?.name || "Unknown Room",
-          start_time: booking.start_time,
-          end_time: booking.end_time,
-          duration: analytics.duration * 60, // Convert hours to minutes
-          organizer_name: booking.users?.name || "Unknown User",
-          organizer_email: booking.users?.email || "Unknown Email",
-          purpose: booking.title || "No title provided",
-          status: booking.status,
-          created_at: booking.created_at,
-          actual_start_time: booking.actual_start_time,
-          actual_end_time: booking.actual_end_time,
-          total_amount: analytics.totalAmount,
-          payment_status: analytics.paymentStatus,
-        },
-        invitations: meetingInvitations.map(invitation => ({
-          id: invitation.id,
-          invitee_name: invitation.invitee_name || invitation.invitee_email.split('@')[0],
-          invitee_email: invitation.invitee_email,
-          invitation_status: invitation.status, // Use 'status' field from MeetingInvitation
-          attendance_status: invitation.attendance_status,
-          check_in_time: invitation.attended_at, // Use 'attended_at' as check_in_time
-          check_out_time: undefined, // No check_out_time in current schema
-        })),
-        analytics: {
-          totalInvited: analytics.totalInvited,
-          totalAccepted: analytics.totalAccepted,
-          totalDeclined: analytics.totalDeclined,
-          totalAttended: analytics.totalAttended,
-          checkInRate: analytics.checkInRate,
-          averageCheckInTime: analytics.averageCheckInTime,
-          paymentStatus: analytics.paymentStatus,
-          totalAmount: analytics.totalAmount,
-          duration: analytics.duration,
-        }
+      const token = localStorage.getItem("auth-token")
+      if (!token) {
+        throw new Error("No authentication token")
       }
 
-      await generateBookingReport(pdfData)
+      const response = await fetch(`/api/facility-manager/bookings/${booking.id}/export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate report')
+      }
+
+      // Download the PDF
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      
+      // Generate filename
+      const safeRoomName = (booking.rooms?.name || 'Unknown_Room').replace(/[^a-zA-Z0-9]/g, '_')
+      const safeDate = new Date(booking.start_time).toISOString().split('T')[0]
+      a.download = `booking-report-${safeRoomName}-${safeDate}-${booking.id.slice(0, 8)}.pdf`
+      
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
 
       toast({
         title: "Report Generated",
         description: "PDF report has been downloaded successfully.",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating PDF report:', error)
       toast({
         title: "Export Failed",
-        description: "Failed to generate PDF report. Please try again.",
+        description: error.message || "Failed to generate PDF report. Please try again.",
         variant: "destructive"
       })
     }

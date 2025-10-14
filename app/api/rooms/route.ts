@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       description: roomData.description || null,
       facility_id: roomData.facility_id, // Include facility_id
       // Include pricing fields
-      hourly_rate: Number(roomData.hourly_rate) || 0,
+      hourly_rate: roomData.hourly_rate !== undefined ? Number(roomData.hourly_rate) : 0,
       currency: roomData.currency || 'GHS',
       // Include audit fields
       created_by: user.id

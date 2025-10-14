@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getAllBookingsByFacilityManager } from "@/lib/supabase-data"
 import { expirePendingBookings } from "@/lib/room-availability"
 import type { BookingWithDetails } from "@/types"
@@ -286,29 +287,32 @@ export default function BookingsManagementPage() {
     return null
   }
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case "confirmed":
-        return "default"
+        return {
+          icon: CheckCircle,
+          className: "bg-success/10 text-success ring-1 ring-success/20",
+          text: "Confirmed"
+        }
       case "pending":
-        return "secondary"
+        return {
+          icon: AlertCircle,
+          className: "bg-warning/10 text-warning ring-1 ring-warning/20",
+          text: "Pending"
+        }
       case "cancelled":
-        return "destructive"
+        return {
+          icon: XCircle,
+          className: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
+          text: "Cancelled"
+        }
       default:
-        return "outline"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return <CheckCircle className="h-3 w-3" />
-      case "pending":
-        return <AlertCircle className="h-3 w-3" />
-      case "cancelled":
-        return <XCircle className="h-3 w-3" />
-      default:
-        return null
+        return {
+          icon: AlertCircle,
+          className: "bg-muted/10 text-muted-foreground ring-1 ring-muted/20",
+          text: status
+        }
     }
   }
 
@@ -740,9 +744,9 @@ export default function BookingsManagementPage() {
                             Tap card for full details
                           </div>
                         </div>
-                        <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1 text-xs">
-                          {getStatusIcon(booking.status)}
-                          <span className="capitalize">{booking.status}</span>
+                        <Badge className={cn("flex w-fit items-center gap-1 text-xs", getStatusConfig(booking.status).className)}>
+                          {React.createElement(getStatusConfig(booking.status).icon, { className: "h-3 w-3" })}
+                          <span>{getStatusConfig(booking.status).text}</span>
                         </Badge>
                       </div>
                     </CardHeader>
@@ -761,68 +765,95 @@ export default function BookingsManagementPage() {
                           <span>{format(new Date(booking.start_time), "h:mm a")} - {format(new Date(booking.end_time), "h:mm a")}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-end gap-1 flex-wrap pt-2 border-t border-border -mx-4 px-4">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openDetailsModal(booking)
-                          }} 
-                          className="h-8 px-2 hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {canReapproveBooking(booking) && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openConfirmDialog(booking.id)
-                            }} 
-                            className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {booking.status === "pending" && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openRejectDialog(booking.id)
-                            }} 
-                            className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {booking.status === "confirmed" && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openCancelDialog(booking.id)
-                            }} 
-                            className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openDeleteDialog(booking.id)
-                          }} 
-                          className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center justify-end gap-0.5 pt-2 border-t border-border -mx-4 px-4">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openDetailsModal(booking)
+                                }} 
+                                className="h-7 w-7 hover:bg-blue-50"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View Details</TooltipContent>
+                          </Tooltip>
+                          {canReapproveBooking(booking) && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openConfirmDialog(booking.id)
+                                  }} 
+                                  className="h-7 w-7 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Approve Booking</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {booking.status === "pending" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openRejectDialog(booking.id)
+                                  }} 
+                                  className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Reject Booking</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {booking.status === "confirmed" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openCancelDialog(booking.id)
+                                  }} 
+                                  className="h-7 w-7 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Cancel Booking</TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openDeleteDialog(booking.id)
+                                }} 
+                                className="h-7 w-7 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Booking</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </CardContent>
                   </Card>
@@ -875,7 +906,7 @@ export default function BookingsManagementPage() {
                           onClick={() => navigateToBookingDetails(booking.id)}
                         >
                           <TableCell className="font-medium">
-                            <div className="truncate max-w-[250px]">{booking.title}</div>
+                            <div className="truncate max-w-[180px]">{booking.title}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -896,9 +927,9 @@ export default function BookingsManagementPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getStatusBadgeVariant(booking.status)} className="flex w-fit items-center gap-1">
-                              {getStatusIcon(booking.status)}
-                              <span className="capitalize">{booking.status}</span>
+                            <Badge className={cn("flex w-fit items-center gap-1", getStatusConfig(booking.status).className)}>
+                              {React.createElement(getStatusConfig(booking.status).icon, { className: "h-3 w-3" })}
+                              <span>{getStatusConfig(booking.status).text}</span>
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -913,68 +944,95 @@ export default function BookingsManagementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1 flex-wrap">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openDetailsModal(booking)
-                                }} 
-                                className="h-8 px-2 hover:bg-blue-50"
-                              >
-                                <Eye className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">View</span>
-                              </Button>
-                              {canReapproveBooking(booking) && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openConfirmDialog(booking.id)
-                                  }} 
-                                  className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
-                                >
-                                  <CheckCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Approve</span>
-                                </Button>
-                              )}
-                              {booking.status === "pending" && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openRejectDialog(booking.id)
-                                  }} 
-                                  className="h-8 px-2 text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
-                                >
-                                  <XCircle className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Reject</span>
-                                </Button>
-                              )}
-                              {booking.status === "confirmed" && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openCancelDialog(booking.id)
-                                  }} 
-                                  className="h-8 px-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950"
-                                >
-                                  <Ban className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Cancel</span>
-                                </Button>
-                              )}
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openDeleteDialog(booking.id)
-                                }} 
-                                className="h-8 px-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-                              >
-                                <Trash2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Delete</span>
-                              </Button>
+                            <div className="flex items-center justify-end gap-0.5">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        openDetailsModal(booking)
+                                      }} 
+                                      className="h-7 w-7 hover:bg-blue-50"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>View Details</TooltipContent>
+                                </Tooltip>
+                                {canReapproveBooking(booking) && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openConfirmDialog(booking.id)
+                                        }} 
+                                        className="h-7 w-7 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+                                      >
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Approve Booking</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {booking.status === "pending" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openRejectDialog(booking.id)
+                                        }} 
+                                        className="h-7 w-7 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Reject Booking</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {booking.status === "confirmed" && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openCancelDialog(booking.id)
+                                        }} 
+                                        className="h-7 w-7 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                                      >
+                                        <Ban className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cancel Booking</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        openDeleteDialog(booking.id)
+                                      }} 
+                                      className="h-7 w-7 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Booking</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
                           </TableCell>
                         </TableRow>

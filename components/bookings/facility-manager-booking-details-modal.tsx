@@ -227,29 +227,24 @@ export function FacilityManagerBookingDetailsModal({
         if (!open) onClose()
       }}>
         <DialogContent className={cn(
-          "sm:max-w-3xl max-w-[95vw] max-h-[90vh] overflow-y-auto",
+          "sm:max-w-2xl max-w-[95vw] max-h-[90vh] overflow-y-auto",
           "rounded-xl border backdrop-blur-md",
           "border-brand-navy-200 dark:border-brand-navy-700",
           "bg-white/95 dark:bg-brand-navy-800/95"
         )}>
-          <DialogHeader className="space-y-3">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <DialogTitle className="text-xl font-semibold text-brand-navy-900 dark:text-brand-navy-50">
-                  {booking.title || "Meeting"}
-                </DialogTitle>
-                <Badge className={cn("flex items-center gap-1.5", statusConfig.className)}>
-                  <StatusIcon className="h-3 w-3" />
-                  {statusConfig.text}
-                </Badge>
-              </div>
-              <DialogDescription className="text-brand-navy-600 dark:text-brand-navy-400">
-                Facility Manager View - Booking details and approval actions
-              </DialogDescription>
+          <DialogHeader className="space-y-2">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-semibold text-brand-navy-900 dark:text-brand-navy-50">
+                {booking.title || "Meeting"}
+              </DialogTitle>
+              <Badge className={cn("flex items-center gap-1.5", statusConfig.className)}>
+                <StatusIcon className="h-3 w-3" />
+                {statusConfig.text}
+              </Badge>
             </div>
           </DialogHeader>
 
-          <div className="space-y-6 py-2">
+          <div className="space-y-4 py-2">
             {/* Status Alert */}
             {statusConfig.description && (
               <Alert className={cn(
@@ -282,238 +277,218 @@ export function FacilityManagerBookingDetailsModal({
             )}
 
             {/* Room Information */}
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700 bg-brand-navy-50/50 dark:bg-brand-navy-900/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy-100 to-brand-navy-50 dark:from-brand-navy-700 dark:to-brand-navy-800">
-                    <Building className="h-5 w-5 text-brand-navy-600 dark:text-brand-navy-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-brand-navy-900 dark:text-brand-navy-50">
-                      {booking.rooms?.name || "Unknown Room"}
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm text-brand-navy-600 dark:text-brand-navy-400 mt-1">
-                      {booking.rooms?.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          <span>{booking.rooms.location}</span>
-                        </div>
-                      )}
-                      {booking.rooms?.capacity && (
-                        <div className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          <span>Up to {booking.rooms.capacity} people</span>
-                        </div>
-                      )}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-brand-navy-50/50 dark:bg-brand-navy-900/50 border border-brand-navy-200 dark:border-brand-navy-700">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy-100 to-brand-navy-50 dark:from-brand-navy-700 dark:to-brand-navy-800">
+                <Building className="h-4 w-4 text-brand-navy-600 dark:text-brand-navy-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-brand-navy-900 dark:text-brand-navy-50">
+                  {booking.rooms?.name || "Unknown Room"}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-brand-navy-600 dark:text-brand-navy-400 mt-1">
+                  {booking.rooms?.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <span>{booking.rooms.location}</span>
                     </div>
-                  </div>
+                  )}
+                  {booking.rooms?.capacity && (
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>Up to {booking.rooms.capacity} people</span>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Booking Details Grid */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {/* Date & Time */}
-              <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Date & Time</span>
+              <div className="p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white/50 dark:bg-brand-navy-800/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Date & Time</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium text-sm">
+                    {new Date(booking.start_time).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                  <div className="flex items-center gap-1 text-sm text-brand-navy-600 dark:text-brand-navy-400">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {new Date(booking.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {" - "}
+                      {new Date(booking.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium">
-                      {new Date(booking.start_time).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                    <div className="flex items-center gap-1 text-sm text-brand-navy-600 dark:text-brand-navy-400">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {new Date(booking.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        {" - "}
-                        {new Date(booking.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Organizer */}
-              <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Organizer</span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium">
-                      {booking.users?.name || "Unknown User"}
-                    </p>
-                    <p className="text-sm text-brand-navy-600 dark:text-brand-navy-400">
-                      {booking.users?.email || "No email available"}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white/50 dark:bg-brand-navy-800/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Organizer</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-brand-navy-900 dark:text-brand-navy-50 font-medium text-sm">
+                    {booking.users?.name || "Unknown User"}
+                  </p>
+                  <p className="text-sm text-brand-navy-600 dark:text-brand-navy-400">
+                    {booking.users?.email || "No email available"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Payment Information */}
             {paymentInfo && (
-              <Card className="border-brand-navy-200 dark:border-brand-navy-700 bg-green-50/50 dark:bg-green-950/20">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Payment Information</span>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-                        GH₵ {paymentInfo.amount.toFixed(2)}
-                      </div>
-                      <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400">
-                        Total Amount Paid
-                      </div>
+              <div className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Payment Information</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xl font-bold text-green-700 dark:text-green-400">
+                      GH₵ {paymentInfo.amount.toFixed(2)}
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-brand-navy-500 dark:text-brand-navy-400">Status:</span>
-                        <Badge variant={paymentInfo.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
-                          {paymentInfo.status}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
-                        Method: {paymentInfo.method}
-                      </div>
-                      <div className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
-                        Ref: {paymentInfo.reference}
-                      </div>
+                    <div className="text-xs text-brand-navy-600 dark:text-brand-navy-400">
+                      Total Amount Paid
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="text-right space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-brand-navy-500 dark:text-brand-navy-400">Status:</span>
+                      <Badge variant={paymentInfo.status === 'paid' ? 'default' : 'secondary'} className="text-xs">
+                        {paymentInfo.status}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
+                      Method: {paymentInfo.method}
+                    </div>
+                    <div className="text-xs text-brand-navy-500 dark:text-brand-navy-400">
+                      Ref: {paymentInfo.reference}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Description */}
             {booking.description && (
-              <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                    <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Description</span>
-                  </div>
-                  <p className="text-brand-navy-900 dark:text-brand-navy-50 leading-relaxed">
-                    {booking.description}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white/50 dark:bg-brand-navy-800/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Description</span>
+                </div>
+                <p className="text-sm text-brand-navy-600 dark:text-brand-navy-400">
+                  {booking.description}
+                </p>
+              </div>
             )}
 
             {/* Meeting Invitations/Attendees */}
-            <Card className="border-brand-navy-200 dark:border-brand-navy-700">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
-                  <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">
-                    Invited Attendees
-                  </span>
-                </div>
+            <div className="p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white/50 dark:bg-brand-navy-800/50">
+              <div className="flex items-center gap-2 mb-2">
+                <UserPlus className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
+                <span className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">
+                  Invited Attendees
+                </span>
+              </div>
 
-                {loadingInvitations ? (
-                  <div className="flex items-center gap-2 text-sm text-brand-navy-500 dark:text-brand-navy-400">
-                    <div className="w-4 h-4 border-2 border-brand-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                    Loading attendees...
+              {loadingInvitations ? (
+                <div className="flex items-center gap-2 text-sm text-brand-navy-500 dark:text-brand-navy-400">
+                  <div className="w-4 h-4 border-2 border-brand-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                  Loading attendees...
+                </div>
+              ) : meetingInvitations.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-300">
+                      Total Attendees: {meetingInvitations.length}
+                    </p>
                   </div>
-                ) : meetingInvitations.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-brand-navy-600 dark:text-brand-navy-300">
-                        Total Attendees: {meetingInvitations.length}
-                      </p>
-                    </div>
-                    
-                    {/* Attendees List */}
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {meetingInvitations.map((invitation) => (
-                        <div key={invitation.id} className="flex items-center justify-between p-2 bg-brand-navy-50 dark:bg-brand-navy-800 rounded-lg">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="flex-shrink-0">
-                              <div className="w-8 h-8 bg-brand-teal-100 dark:bg-brand-teal-800 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-brand-teal-600 dark:text-brand-teal-300" />
-                              </div>
+                  
+                  {/* Attendees List */}
+                  <div className="space-y-1 max-h-20 overflow-y-auto">
+                    {meetingInvitations.map((invitation) => (
+                      <div key={invitation.id} className="flex items-center justify-between p-2 bg-brand-navy-50 dark:bg-brand-navy-800 rounded-lg">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            <div className="w-6 h-6 bg-brand-teal-100 dark:bg-brand-teal-800 rounded-full flex items-center justify-center">
+                              <User className="w-3 h-3 text-brand-teal-600 dark:text-brand-teal-300" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                {invitation.invitee_name ? (
-                                  <>
-                                    <p className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-100 truncate">
-                                      {invitation.invitee_name}
-                                    </p>
-                                    <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400 truncate">
-                                      {invitation.invitee_email}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 truncate">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              {invitation.invitee_name ? (
+                                <>
+                                  <p className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-100 truncate">
+                                    {invitation.invitee_name}
+                                  </p>
+                                  <p className="text-xs text-brand-navy-500 dark:text-brand-navy-400 truncate">
                                     {invitation.invitee_email}
                                   </p>
-                                )}
-                              </div>
+                                </>
+                              ) : (
+                                <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 truncate">
+                                  {invitation.invitee_email}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
-                            <Badge 
-                              variant={invitation.status === 'accepted' ? 'default' : invitation.status === 'declined' ? 'destructive' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {invitation.status === 'pending' ? 'Invited' : 
-                               invitation.status === 'accepted' ? 'Accepted' : 
-                               invitation.status === 'declined' ? 'Declined' : invitation.status}
-                            </Badge>
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                    
-                    {/* Summary */}
-                    <div className="pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div className="text-center">
-                          <div className="font-medium text-blue-600 dark:text-blue-400">
-                            {meetingInvitations.filter(inv => inv.status === 'pending').length}
-                          </div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Pending</div>
+                        <div className="flex-shrink-0 ml-2">
+                          <Badge 
+                            variant={invitation.status === 'accepted' ? 'default' : invitation.status === 'declined' ? 'destructive' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {invitation.status === 'pending' ? 'Invited' : 
+                             invitation.status === 'accepted' ? 'Accepted' : 
+                             invitation.status === 'declined' ? 'Declined' : invitation.status}
+                          </Badge>
                         </div>
-                        <div className="text-center">
-                          <div className="font-medium text-green-600 dark:text-green-400">
-                            {meetingInvitations.filter(inv => inv.status === 'accepted').length}
-                          </div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Accepted</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Summary */}
+                  <div className="pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center">
+                        <div className="font-medium text-blue-600 dark:text-blue-400">
+                          {meetingInvitations.filter(inv => inv.status === 'pending').length}
                         </div>
-                        <div className="text-center">
-                          <div className="font-medium text-red-600 dark:text-red-400">
-                            {meetingInvitations.filter(inv => inv.status === 'declined').length}
-                          </div>
-                          <div className="text-brand-navy-500 dark:text-brand-navy-400">Declined</div>
+                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Pending</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-green-600 dark:text-green-400">
+                          {meetingInvitations.filter(inv => inv.status === 'accepted').length}
                         </div>
+                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Accepted</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-red-600 dark:text-red-400">
+                          {meetingInvitations.filter(inv => inv.status === 'declined').length}
+                        </div>
+                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Declined</div>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <UserPlus className="w-8 h-8 text-brand-navy-300 dark:text-brand-navy-600 mx-auto mb-2" />
-                    <p className="text-sm text-brand-navy-500 dark:text-brand-navy-400">
-                      No attendees invited
-                    </p>
-                    <p className="text-xs text-brand-navy-400 dark:text-brand-navy-500 mt-1">
-                      This is a solo meeting or no invitations were sent
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              ) : (
+                <p className="text-sm text-brand-navy-500 dark:text-brand-navy-400">
+                  No attendees invited yet.
+                </p>
+              )}
+            </div>
 
             {/* Booking ID */}
             <div className="text-center">

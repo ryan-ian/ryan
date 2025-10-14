@@ -96,7 +96,7 @@ export default function RoomDetailsPage() {
       facility_id: room.facility_id,
       room_resources: formData.resources || [],
       // Ensure pricing fields are properly mapped
-      hourly_rate: Number(formData.hourly_rate) || 0,
+      hourly_rate: formData.hourly_rate !== undefined ? Number(formData.hourly_rate) : 0,
       currency: formData.currency || 'GHS'
     }
     delete roomPayload.resources

@@ -365,11 +365,14 @@ export default function FacilityManagerDashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-brand-navy-900 dark:text-brand-navy-50">Welcome, {user?.name.split(" ")[0]}!</h1>
-          <p className="text-brand-navy-700 dark:text-brand-navy-300">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 px-2 sm:px-0">
+      {/* Mobile-optimized header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-brand-navy-900 dark:text-brand-navy-50">
+            Welcome, {user?.name.split(" ")[0]}!
+          </h1>
+          <p className="text-sm sm:text-base text-brand-navy-700 dark:text-brand-navy-300">
             Here's a summary of your facility's activity.
           </p>
         </div>
@@ -378,55 +381,55 @@ export default function FacilityManagerDashboard() {
         </div> */}
       </div>
       
-      {/* Quick Stats */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
-          <div className="h-1 bg-blue-500 w-full" />
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Total Rooms</CardTitle>
-            <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-2">
-              <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{totalRooms}</div>
-            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Managed rooms</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
-          <div className="h-1 bg-amber-500 w-full" />
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Pending Requests</CardTitle>
-            <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full p-2">
-              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{pendingBookings.length}</div>
-              {newRequestsCount > 0 && (
-                <Badge variant="destructive" className="animate-pulse">
-                  +{newRequestsCount} new
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Awaiting your approval</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
-          <div className="h-1 bg-green-500 w-full" />
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50">Today's Meetings</CardTitle>
-            <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-2">
-              <BookCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{todaysBookings.length}</div>
-            <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">Confirmed for today</p>
-          </CardContent>
-        </Card>
-      </div>
+       {/* Quick Stats - Compact mobile design */}
+       <div className="grid gap-2 sm:gap-4 lg:gap-6 grid-cols-3 sm:grid-cols-2 lg:grid-cols-3">
+         <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:shadow-md active:shadow-lg active:scale-[0.98] transition-all duration-200">
+           <div className="h-1 bg-blue-500 w-full" />
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
+             <CardTitle className="text-xs font-medium text-brand-navy-900 dark:text-brand-navy-50">Total Rooms</CardTitle>
+             <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-1.5">
+               <Building className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+             </div>
+           </CardHeader>
+           <CardContent className="pb-2 px-3">
+             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{totalRooms}</div>
+             <p className="text-xs text-brand-navy-700 dark:text-brand-navy-300">Managed</p>
+           </CardContent>
+         </Card>
+         <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:shadow-md active:shadow-lg active:scale-[0.98] transition-all duration-200">
+           <div className="h-1 bg-amber-500 w-full" />
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
+             <CardTitle className="text-xs font-medium text-brand-navy-900 dark:text-brand-navy-50">Pending</CardTitle>
+             <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full p-1.5">
+               <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+             </div>
+           </CardHeader>
+           <CardContent className="pb-2 px-3">
+             <div className="flex items-center gap-1">
+               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{pendingBookings.length}</div>
+               {newRequestsCount > 0 && (
+                 <Badge variant="destructive" className="animate-pulse text-xs px-1 py-0.5 h-4">
+                   +{newRequestsCount}
+                 </Badge>
+               )}
+             </div>
+             <p className="text-xs text-brand-navy-700 dark:text-brand-navy-300">Requests</p>
+           </CardContent>
+         </Card>
+         <Card className="overflow-hidden border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:shadow-md transition-shadow">
+           <div className="h-1 bg-green-500 w-full" />
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
+             <CardTitle className="text-xs font-medium text-brand-navy-900 dark:text-brand-navy-50">Today</CardTitle>
+             <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-1.5">
+               <BookCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+             </div>
+           </CardHeader>
+           <CardContent className="pb-2 px-3">
+             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50">{todaysBookings.length}</div>
+             <p className="text-xs text-brand-navy-700 dark:text-brand-navy-300">Meetings</p>
+           </CardContent>
+         </Card>
+       </div>
       
       {/* Show expired bookings notification if any */}
       {expiredBookingsCount > 0 && (
@@ -443,7 +446,7 @@ export default function FacilityManagerDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         <Card className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800">
           <CardHeader>
             <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50">Pending Booking Requests</CardTitle>
@@ -451,39 +454,53 @@ export default function FacilityManagerDashboard() {
           </CardHeader>
           <CardContent>
             {pendingBookings.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {pendingBookings.map((booking) => (
-                  <div key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-colors">
-                    <div className="flex-1">
-                      <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title}</p>
-                      <div className="text-sm text-brand-navy-700 dark:text-brand-navy-300 flex items-center gap-4 mt-1">
-                        <span className="flex items-center gap-1.5"><Building className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.rooms.name}</span>
-                        <span className="flex items-center gap-1.5"><User className="h-4 w-4 text-amber-600 dark:text-amber-400" /> {booking.users.name}</span>
-                      </div>
-                      {(booking as any).total_cost && (
-                        <div className="mt-2">
-                          <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950">
-                            Amount: GH₵ {((booking as any).total_cost as number).toFixed(2)}
-                          </Badge>
+                  <div key={booking.id} className="p-4 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-all duration-200 active:scale-[0.98] active:bg-gray-100 dark:active:bg-brand-navy-600/50">
+                    {/* Mobile-first stacked layout */}
+                    <div className="space-y-3">
+                      {/* Booking title and details */}
+                      <div className="space-y-2">
+                        <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50 text-base sm:text-lg">{booking.title}</p>
+                        <div className="space-y-1 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
+                          <span className="flex items-center gap-1.5 text-sm text-brand-navy-700 dark:text-brand-navy-300">
+                            <Building className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" /> 
+                            <span className="truncate">{booking.rooms.name}</span>
+                          </span>
+                          <span className="flex items-center gap-1.5 text-sm text-brand-navy-700 dark:text-brand-navy-300">
+                            <User className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" /> 
+                            <span className="truncate">{booking.users.name}</span>
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => openRejectDialog(booking.id, booking.title)}
-                        className="border-destructive/50 text-destructive hover:bg-destructive/10"
-                      >
-                        <X className="mr-1 h-4 w-4" /> Reject
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        onClick={() => openApproveDialog(booking.id, booking.title)} 
-                        className="bg-success hover:bg-success/90 text-success-foreground"
-                      >
-                        <Check className="mr-1 h-4 w-4" /> Approve
-                      </Button>
+                        {(booking as any).total_cost && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950 text-xs sm:text-sm">
+                              Amount: GH₵ {((booking as any).total_cost as number).toFixed(2)}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      
+                       {/* Action buttons - Mobile optimized */}
+                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
+                         <Button 
+                           size="sm" 
+                           onClick={() => openApproveDialog(booking.id, booking.title)} 
+                           className="bg-success hover:bg-success/90 active:bg-success/80 active:scale-[0.98] text-success-foreground flex-1 sm:flex-none min-h-[44px] sm:min-h-[36px] transition-all duration-150"
+                         >
+                           <Check className="mr-2 h-4 w-4" /> 
+                           <span className="text-sm sm:text-sm">Approve</span>
+                         </Button>
+                         <Button 
+                           variant="outline" 
+                           size="sm" 
+                           onClick={() => openRejectDialog(booking.id, booking.title)}
+                           className="border-destructive/50 text-destructive hover:bg-destructive/10 active:bg-destructive/20 active:scale-[0.98] flex-1 sm:flex-none min-h-[44px] sm:min-h-[36px] transition-all duration-150"
+                         >
+                           <X className="mr-2 h-4 w-4" /> 
+                           <span className="text-sm sm:text-sm">Reject</span>
+                         </Button>
+                       </div>
                     </div>
                   </div>
                 ))}
@@ -512,19 +529,22 @@ export default function FacilityManagerDashboard() {
           </CardHeader>
           <CardContent>
             {todaysBookings.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {todaysBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center gap-4 p-3 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-colors">
-                    <div className="flex-shrink-0">
-                      <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div className="flex-grow">
-                      <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50">{booking.title}</p>
-                      <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300">{booking.rooms.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{format(new Date(booking.start_time), 'h:mm a')}</p>
-                      <p className="text-xs text-brand-navy-700 dark:text-brand-navy-300">to {format(new Date(booking.end_time), 'h:mm a')}</p>
+                  <div key={booking.id} className="p-4 rounded-lg border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 transition-all duration-200 active:scale-[0.98] active:bg-gray-100 dark:active:bg-brand-navy-600/50">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <p className="font-semibold text-brand-navy-900 dark:text-brand-navy-50 text-base sm:text-lg mb-1">{booking.title}</p>
+                        <p className="text-sm text-brand-navy-700 dark:text-brand-navy-300 mb-2">{booking.rooms.name}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                          <div className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                            {format(new Date(booking.start_time), 'h:mm a')} - {format(new Date(booking.end_time), 'h:mm a')}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -536,20 +556,20 @@ export default function FacilityManagerDashboard() {
         </Card>
       </div>
 
-      {/* Confirmation Modals */}
+      {/* Confirmation Modals - Mobile optimized */}
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg">
+        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg mx-4 sm:mx-0 max-w-[95vw] sm:max-w-md">
           <div className="h-1 bg-success w-full absolute top-0 left-0 right-0 rounded-t-lg"></div>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50">Approve Booking</AlertDialogTitle>
-            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg sm:text-xl">Approve Booking</AlertDialogTitle>
+            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300 text-sm sm:text-base leading-relaxed">
               Are you sure you want to approve the booking "{selectedBookingTitle}"? This will confirm the room reservation and notify the organizer.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 sm:gap-2">
             <AlertDialogCancel 
               disabled={processingStatus}
-              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50"
+              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 w-full sm:w-auto min-h-[44px] sm:min-h-[36px]"
             >
               Cancel
             </AlertDialogCancel>
@@ -559,7 +579,7 @@ export default function FacilityManagerDashboard() {
                 handleUpdateStatus("confirmed")
               }}
               disabled={processingStatus}
-              className="bg-success hover:bg-success/90 text-success-foreground"
+              className="bg-success hover:bg-success/90 text-success-foreground w-full sm:w-auto min-h-[44px] sm:min-h-[36px]"
             >
               {processingStatus ? (
                 <>
@@ -578,16 +598,16 @@ export default function FacilityManagerDashboard() {
         setRejectDialogOpen(open)
         if (!open) setRejectionReason("") // Reset when closing
       }}>
-        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg">
+        <AlertDialogContent className="border border-brand-navy-200 dark:border-brand-navy-700 bg-white dark:bg-brand-navy-800 rounded-lg mx-4 sm:mx-0 max-w-[95vw] sm:max-w-md">
           <div className="h-1 bg-destructive w-full absolute top-0 left-0 right-0 rounded-t-lg"></div>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50">Reject Booking</AlertDialogTitle>
-            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg sm:text-xl">Reject Booking</AlertDialogTitle>
+            <AlertDialogDescription className="text-brand-navy-700 dark:text-brand-navy-300 text-sm sm:text-base leading-relaxed">
               Are you sure you want to reject the booking "{selectedBookingTitle}"? Please provide a reason for rejection to help the organizer understand.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <label htmlFor="rejection-reason" className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50 mb-2 block">
+          <div className="py-4 space-y-3">
+            <label htmlFor="rejection-reason" className="text-sm font-medium text-brand-navy-900 dark:text-brand-navy-50 block">
               Reason for rejection (optional)
             </label>
             <Textarea
@@ -595,14 +615,14 @@ export default function FacilityManagerDashboard() {
               placeholder="Enter the reason for rejecting this booking..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="min-h-[80px] border-brand-navy-200 dark:border-brand-navy-600 bg-white dark:bg-brand-navy-700 text-brand-navy-900 dark:text-brand-navy-100"
+              className="min-h-[100px] sm:min-h-[80px] border-brand-navy-200 dark:border-brand-navy-600 bg-white dark:bg-brand-navy-700 text-brand-navy-900 dark:text-brand-navy-100 resize-none"
               disabled={processingStatus}
             />
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 sm:gap-2">
             <AlertDialogCancel
               disabled={processingStatus}
-              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50"
+              className="border border-brand-navy-200 dark:border-brand-navy-700 text-brand-navy-700 dark:text-brand-navy-300 hover:bg-gray-50 dark:hover:bg-brand-navy-700/50 w-full sm:w-auto min-h-[44px] sm:min-h-[36px]"
             >
               Cancel
             </AlertDialogCancel>
@@ -612,7 +632,7 @@ export default function FacilityManagerDashboard() {
                 handleUpdateStatus("cancelled")
               }}
               disabled={processingStatus}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground w-full sm:w-auto min-h-[44px] sm:min-h-[36px]"
             >
               {processingStatus ? (
                 <>

@@ -560,7 +560,16 @@ export default function BookingsPage() {
         label: `Filter: ${filterLabels[activeStatFilter as keyof typeof filterLabels] || activeStatFilter}`
       })
     }
-    return filters
+    // Ensure unique by key, preserve order
+    const unique: typeof filters = []
+    const seen = new Set<string>()
+    for (const f of filters) {
+      if (!seen.has(f.key)) {
+        seen.add(f.key)
+        unique.push(f)
+      }
+    }
+    return unique
   }
 
   const handleClearFilter = (key: string) => {
@@ -660,7 +669,7 @@ export default function BookingsPage() {
                 <span className="hidden sm:inline">List</span>
               </button>
             <Button
-              className={`px-3 py-2 text-sm flex items-center gap-2 transition-colors border-l border-gray-200 dark:border-gray-700 ${viewMode === "table" ? "bg-green-600 text-white" : "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"}`}
+              className={`px-3 py-2 text-sm flex items-center gap-2 transition-colors border-l border-gray-200 dark:border-gray-700 ${viewMode === "table" ? "bg-brand-teal-600 text-white" : "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"}`}
               onClick={() => setViewMode("table")}
               aria-pressed={viewMode === "table"}
               aria-label="Table view"
@@ -693,7 +702,7 @@ export default function BookingsPage() {
               )}
             </Button>
             <Link href="/conference-room-booking">
-              <Button className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+              <Button className="flex items-center gap-2 bg-brand-teal-600 hover:bg-brand-teal-700">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Browse Rooms</span>
               </Button>
@@ -727,7 +736,7 @@ export default function BookingsPage() {
           onClearFilter={handleClearFilter}
           onClearAll={handleClearAllFilters}
           showFilters={showFilters}
-          onToggleFilters={() => setShowFilters(!showFilters)}
+          onToggleFilters={(open) => setShowFilters(!!open)}
         />
 
         {/* Results Summary */}
@@ -755,11 +764,6 @@ export default function BookingsPage() {
 
         {viewMode === "table" && (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {filteredBookings.length} of {bookings.length} bookings
-              </p>
-            </div>
             <Table>
               <TableHeader className="bg-gray-50 dark:bg-gray-700">
                 <TableRow>
@@ -832,8 +836,8 @@ export default function BookingsPage() {
                               variant="outline" 
                               size="icon" 
                               aria-label="Invite" 
-                              onClick={() => handleInviteClick(booking)} 
-                              className="h-8 w-8 text-green-600 hover:text-green-900 hover:bg-green-50"
+                              onClick={() => handleInviteMembers(booking)} 
+                              className="h-8 w-8 text-brand-teal-600 hover:text-brand-teal-900 hover:bg-brand-teal-50"
                             >
                               <UserPlus className="h-4 w-4" />
                             </Button>
@@ -873,7 +877,7 @@ export default function BookingsPage() {
                 ? "You haven't made any bookings yet. Start by browsing available rooms and making your first reservation."
                 : "Try adjusting your filters to find more bookings, or browse available rooms to make a new booking."}
             </p>
-            <Button asChild size="lg" className="bg-green-600 hover:bg-green-700">
+            <Button asChild size="lg" className="bg-brand-teal-600 hover:bg-brand-teal-700">
               <Link href="/conference-room-booking">
                 <Plus className="h-4 w-4 mr-2" />
                 Browse Available Rooms

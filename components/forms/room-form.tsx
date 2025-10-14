@@ -27,7 +27,7 @@ const roomFormSchema = z.object({
   resources: z.array(z.string()).optional(),
   image_url: z.string().optional(),
   // Pricing fields
-  hourly_rate: z.coerce.number().min(0, { message: "Hourly rate must be positive." }).max(10000, { message: "Hourly rate cannot exceed ₵10,000/hr." }),
+  hourly_rate: z.coerce.number().min(0, { message: "Hourly rate cannot be negative." }).max(10000, { message: "Hourly rate cannot exceed ₵10,000/hr." }),
   currency: z.string().default("GHS"),
 })
 
@@ -198,7 +198,7 @@ export function RoomForm({ initialData, resources, onSubmit, onCancel, isLoading
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₵</span>
                           <Input 
                             type="number" 
-                            step="0.01"
+                            step="1"
                             min={0}
                             max={10000}
                             className="pl-8" 
@@ -227,8 +227,8 @@ export function RoomForm({ initialData, resources, onSubmit, onCancel, isLoading
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="GHS">Ghana Cedi (₵)</SelectItem>
-                          <SelectItem value="USD">US Dollar ($)</SelectItem>
-                          <SelectItem value="EUR">Euro (€)</SelectItem>
+                          {/* <SelectItem value="USD">US Dollar ($)</SelectItem>
+                          <SelectItem value="EUR">Euro (€)</SelectItem> */}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -243,7 +243,7 @@ export function RoomForm({ initialData, resources, onSubmit, onCancel, isLoading
               {(() => {
                 const hourlyRate = Number(form.watch("hourly_rate")) || 0;
                 
-                return hourlyRate > 0 && (
+                return (
                   <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
                     <p className="text-sm font-medium text-primary">
                       Pricing Preview: {formatCurrency(hourlyRate)} per hour

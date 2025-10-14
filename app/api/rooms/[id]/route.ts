@@ -125,8 +125,16 @@ export async function PATCH(
           .eq('id', id)
           .single()
 
-        const newPrice = Number(body.hourly_rate) || (currentRoom?.hourly_rate || 0)
+        const newPrice = body.hourly_rate !== undefined ? Number(body.hourly_rate) : (currentRoom?.hourly_rate || 0)
         const newCurrency = body.currency || currentRoom?.currency || 'GHS'
+
+        // Debug logging for zero price scenarios
+        if (body.hourly_rate !== undefined) {
+          console.log(`💰 [API] Price update requested: ${body.hourly_rate} -> ${newPrice}`)
+          if (newPrice === 0) {
+            console.log(`🆓 [API] Setting room ${id} to FREE (₵0.00)`)
+          }
+        }
 
         // Create pricing history record first (if price is changing and we have userId)
         if (userId && currentRoom && currentRoom.hourly_rate !== newPrice) {

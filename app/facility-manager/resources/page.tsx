@@ -182,16 +182,19 @@ export default function ResourceManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Resource Management</h1>
-        <Button onClick={handleAddNew}>
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Resource Management</h1>
+        <Button 
+          onClick={handleAddNew}
+          className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px] active:scale-[0.98] transition-all duration-150"
+        >
           <PlusCircle className="mr-2 h-4 w-4" /> Add New Resource
         </Button>
       </div>
 
       {resources.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {resources.map((resource) => (
             <ResourceCard
               key={resource.id}

@@ -41,6 +41,7 @@ export default function ConferenceRoomBookingPage() {
   const [statusFilter, setStatusFilter] = useState("")
   const [facilityFilter, setFacilityFilter] = useState("any")
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
+  const [maxPrice, setMaxPrice] = useState(1000)
   const [selectedResources, setSelectedResources] = useState<string[]>([])
   const [showResourceFilters, setShowResourceFilters] = useState(false)
   const [userBookings, setUserBookings] = useState<any[]>([])
@@ -67,21 +68,21 @@ export default function ConferenceRoomBookingPage() {
       let facilityObjectCount = 0;
       
       rooms.forEach(room => {
-        // If a room has facility_id and facility_name, use them directly
-        if (room.facility_id && room.facility_name) {
-          facilitiesMap.set(room.facility_id, {
-            id: room.facility_id,
-            name: room.facility_name
-          });
-          directFacilityNameCount++;
-        }
-        // Fallback to facility object if available
-        else if (room.facility && room.facility.id && room.facility.name) {
+        // Prioritize facility object (dynamic data from database)
+        if (room.facility && room.facility.id && room.facility.name) {
           facilitiesMap.set(room.facility.id, {
             id: room.facility.id,
             name: room.facility.name
           });
           facilityObjectCount++;
+        }
+        // Fallback to facility_name if facility object is not available
+        else if (room.facility_id && room.facility_name) {
+          facilitiesMap.set(room.facility_id, {
+            id: room.facility_id,
+            name: room.facility_name
+          });
+          directFacilityNameCount++;
         }
       });
       
@@ -108,8 +109,15 @@ export default function ConferenceRoomBookingPage() {
         // Round to nearest 10 for better UX
         const roundedMin = Math.floor(minPrice / 10) * 10;
         const roundedMax = Math.ceil(maxPrice / 10) * 10;
-        setPriceRange([roundedMin, roundedMax]);
+        
+        // Update both the price range and max price
+        setMaxPrice(roundedMax);
+        setPriceRange([0, roundedMax]);
         console.log(`Price range calculated: ${formatCurrency(roundedMin)} - ${formatCurrency(roundedMax)}`);
+      } else {
+        // Default values if no rooms have prices
+        setMaxPrice(1000);
+        setPriceRange([0, 1000]);
       }
     }
   }, [rooms]);
@@ -714,7 +722,7 @@ export default function ConferenceRoomBookingPage() {
                           }
                         }}
                         min={0}
-                        max={1000}
+                        max={maxPrice}
                         step={10}
                         className="w-full"
                       />

@@ -49,7 +49,7 @@ export interface Room {
   description?: string
   resourceDetails?: Resource[]
   facility_id: string
-  facility_name?: string // Add this direct property for easy access
+  facility_name?: string // @deprecated Use room.facility.name instead
   facility: {
     id: string
     name: string

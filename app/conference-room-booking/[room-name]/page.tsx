@@ -267,7 +267,7 @@ export default function RoomDetailPage() {
               {(room.facility || room.facility_name) && (
                 <p className="text-lg text-muted-foreground flex items-center gap-2 mt-2">
                   <Building className="h-5 w-5" />
-                  {room.facility_name || (room.facility && room.facility.name) || "Unknown Facility"}
+                  {(room.facility && room.facility.name) || room.facility_name || "Unknown Facility"}
                 </p>
               )}
             </div>

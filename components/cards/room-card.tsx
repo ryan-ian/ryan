@@ -112,13 +112,13 @@ export function RoomCard({
   // Look up facility name using facility_id from facilities prop
   let facilityName = "Unknown facility"
   
-  // First check if room has direct facility_name
-  if (room.facility_name) {
-    facilityName = room.facility_name;
-  }
-  // Then check if room has a facility object with a name
-  else if (room.facility && room.facility.name) {
+  // First check if room has a facility object with a name (prioritize dynamic data)
+  if (room.facility && room.facility.name) {
     facilityName = room.facility.name
+  }
+  // Then check if room has direct facility_name (fallback for backward compatibility)
+  else if (room.facility_name) {
+    facilityName = room.facility_name;
   }
   // Otherwise, try to look it up from facilities prop
   else if (facilities && room.facility_id) {

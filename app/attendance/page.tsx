@@ -23,7 +23,7 @@ function AttendanceContent() {
   const [attendanceCode, setAttendanceCode] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [sendingCode, setSendingCode] = useState(false)
+  const [sendingCodeForIds, setSendingCodeForIds] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [step, setStep] = useState<'loading' | 'select' | 'code' | 'success'>('loading')
@@ -77,7 +77,7 @@ function AttendanceContent() {
 
   // Send attendance code
   const handleSendCode = async (attendee: types.AttendeeListItem) => {
-    setSendingCode(true)
+    setSendingCodeForIds(prev => new Set(prev).add(attendee.invitation_id))
     setError(null)
 
     try {
@@ -104,7 +104,11 @@ function AttendanceContent() {
       console.error('Error sending code:', error)
       setError(error.message || 'Failed to send attendance code')
     } finally {
-      setSendingCode(false)
+      setSendingCodeForIds(prev => {
+        const next = new Set(prev)
+        next.delete(attendee.invitation_id)
+        return next
+      })
     }
   }
 
@@ -277,10 +281,10 @@ function AttendanceContent() {
                       </div>
                       <Button
                         onClick={() => handleSendCode(attendee)}
-                        disabled={sendingCode || attendee.attendance_status === 'present'}
+                        disabled={sendingCodeForIds.has(attendee.invitation_id) || attendee.attendance_status === 'present'}
                         size="sm"
                       >
-                        {sendingCode ? (
+                        {sendingCodeForIds.has(attendee.invitation_id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : attendee.attendance_status === 'present' ? (
                           'Already marked'
@@ -353,9 +357,9 @@ function AttendanceContent() {
                   variant="link"
                   size="sm"
                   onClick={() => handleSendCode(selectedAttendee)}
-                  disabled={sendingCode}
+                  disabled={sendingCodeForIds.has(selectedAttendee.invitation_id)}
                 >
-                  {sendingCode ? 'Sending...' : 'Resend code'}
+                  {sendingCodeForIds.has(selectedAttendee.invitation_id) ? 'Sending...' : 'Resend code'}
                 </Button>
               </div>
             </CardContent>

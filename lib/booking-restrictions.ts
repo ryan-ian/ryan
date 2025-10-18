@@ -107,3 +107,36 @@ export function validateBookingDate(date: Date | null): string | null {
   
   return null
 }
+
+/**
+ * Check if a date should be disabled based on all restrictions including room availability
+ */
+export function shouldDisableDateWithAvailability(
+  date: Date,
+  availability: any | null,
+  blackouts: any[] = []
+): { disabled: boolean; reason: string } {
+  // First check basic restrictions
+  if (isPastDate(date)) {
+    return { disabled: true, reason: "Past dates are not available for booking" }
+  }
+  
+  if (isSameDay(date)) {
+    return { disabled: true, reason: "Same-day booking requires facility manager approval" }
+  }
+  
+  // Then check room availability restrictions
+  if (availability) {
+    // Import calendar availability functions
+    const { isDateUnavailable, getUnavailableReason } = require('./calendar-availability')
+    
+    if (isDateUnavailable(date, availability, blackouts)) {
+      return { 
+        disabled: true, 
+        reason: getUnavailableReason(date, availability, blackouts) 
+      }
+    }
+  }
+  
+  return { disabled: false, reason: "" }
+}

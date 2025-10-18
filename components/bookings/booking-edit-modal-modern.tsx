@@ -596,12 +596,13 @@ export function BookingEditModalModern({
                     avoidCollisions={true}
                     collisionPadding={8}
                   >
-                    <CustomCalendar
-                      selected={currentSelectedDate || undefined}
-                      onSelect={handleDateSelect}
-                      className="rounded-md"
-                      bookedDates={userBookedDates}
-                    />
+                        <CustomCalendar
+                          selected={currentSelectedDate || undefined}
+                          onSelect={handleDateSelect}
+                          className="rounded-md"
+                          bookedDates={userBookedDates}
+                          roomId={room.id}
+                        />
                   </PopoverContent>
                 </Popover>
               </div>

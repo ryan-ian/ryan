@@ -245,6 +245,7 @@ export function BookingForm({
                           initialFocus
                           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                           className="text-brand-navy-900 dark:text-brand-navy-100"
+                          roomId={selectedRoomId}
                           classNames={{
                             day_selected: "bg-brand-teal-500 text-white hover:bg-brand-teal-600 focus:bg-brand-teal-600",
                             day_today: "border border-brand-teal-500 text-brand-teal-600 dark:text-brand-teal-400",

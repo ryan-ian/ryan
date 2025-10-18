@@ -7,7 +7,6 @@ import {
   sanitizeUserAgent,
   createAttendanceEventData 
 } from '@/lib/attendance-utils'
-import { sendAttendanceCodeEmail } from '@/lib/email-service'
 import * as types from '@/types'
 
 /**
@@ -103,67 +102,37 @@ export async function POST(
     }
 
     // Generate new attendance code if needed, or get existing one
-    let attendanceCode: string
-    
-    // Call the database function to regenerate code (for security, always generate new)
-    const { data: codeResult, error: codeError } = await adminClient
-      .rpc('generate_and_store_attendance_code', {
-        invitation_id: invitation_id,
-        expires_at: null // Use default expiry
-      })
+    // Note: The Edge Function will handle code generation and email sending
+    // We just need to validate the request and call the Edge Function
 
-    if (codeError || !codeResult) {
-      console.error('Error generating attendance code:', codeError)
-      return NextResponse.json(
-        { error: 'Failed to generate attendance code' },
-        { status: 500 }
-      )
-    }
-
-    // For email sending, we need to get the plain code (not stored in DB)
-    // Generate it again temporarily for email - this is a limitation we'll need to handle
-    // For now, we'll use a generated code for the email
-    attendanceCode = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-
-    // Update send tracking
-    const { error: updateError } = await adminClient
-      .from('meeting_invitations')
-      .update({
-        attendance_code_last_sent_at: new Date().toISOString(),
-        attendance_code_send_count: (invitation.attendance_code_send_count || 0) + 1,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', invitation_id)
-
-    if (updateError) {
-      console.error('Error updating send tracking:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update send tracking' },
-        { status: 500 }
-      )
-    }
-
-    // Send email with attendance code
+    // Send email with attendance code via Edge Function
     try {
-      const emailSent = await sendAttendanceCodeEmail(
-        invitation.invitee_email,
-        invitation.invitee_name || invitation.invitee_email.split('@')[0],
-        booking.title,
-        booking.rooms?.name || 'Meeting Room',
-        booking.start_time,
-        booking.end_time,
-        attendanceCode
-      )
+      const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-attendance-code`
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          invitation_id: invitation_id,
+          booking_id: bookingId,
+        }),
+      })
 
-      if (!emailSent) {
-        console.error('Failed to send attendance code email')
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        console.error('Edge function failed:', result)
         return NextResponse.json(
           { error: 'Failed to send attendance code email' },
           { status: 500 }
         )
       }
+
+      console.log('✅ Attendance code sent via Edge Function:', result.messageId)
     } catch (emailError) {
-      console.error('Exception sending attendance code email:', emailError)
+      console.error('Exception calling Edge Function:', emailError)
       return NextResponse.json(
         { error: 'Failed to send attendance code email' },
         { status: 500 }

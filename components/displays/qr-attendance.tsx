@@ -12,9 +12,10 @@ interface QRAttendanceProps {
   bookingId: string
   meetingTitle: string
   className?: string
+  compact?: boolean
 }
 
-export function QRAttendance({ bookingId, meetingTitle, className }: QRAttendanceProps) {
+export function QRAttendance({ bookingId, meetingTitle, className, compact = false }: QRAttendanceProps) {
   const [context, setContext] = useState<types.AttendanceContext | null>(null)
   const [qrImage, setQrImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -130,10 +131,10 @@ export function QRAttendance({ bookingId, meetingTitle, className }: QRAttendanc
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-3">
+      <CardHeader className={compact ? "pb-2" : "pb-3"}>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="h-5 w-5" />
+          <CardTitle className={`flex items-center gap-2 ${compact ? "text-base" : "text-lg"}`}>
+            <Users className={compact ? "h-4 w-4" : "h-5 w-5"} />
             Meeting Attendance
           </CardTitle>
           <Button
@@ -146,12 +147,12 @@ export function QRAttendance({ bookingId, meetingTitle, className }: QRAttendanc
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={compact ? "space-y-3 p-3" : "space-y-4"}>
         {/* Occupancy Display */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className={`flex items-center justify-between ${compact ? "p-2" : "p-3"} bg-gray-50 rounded-lg`}>
           <div>
-            <p className="text-sm font-medium text-gray-700">Current Occupancy</p>
-            <p className="text-2xl font-bold">
+            <p className={`${compact ? "text-xs" : "text-sm"} font-medium text-gray-700`}>Current Occupancy</p>
+            <p className={`${compact ? "text-lg" : "text-2xl"} font-bold`}>
               {context.occupancy.present}/{context.occupancy.capacity}
             </p>
           </div>
@@ -164,6 +165,7 @@ export function QRAttendance({ bookingId, meetingTitle, className }: QRAttendanc
                     ? 'secondary' 
                     : 'default'
               }
+              className={compact ? "text-xs" : ""}
             >
               {context.occupancy.present > context.occupancy.capacity 
                 ? 'Over Capacity' 
@@ -176,37 +178,39 @@ export function QRAttendance({ bookingId, meetingTitle, className }: QRAttendanc
         {/* QR Code Section */}
         {context.showQr && qrImage ? (
           <div className="text-center space-y-3">
-            <div className="flex items-center justify-center gap-2 text-blue-600">
-              <QrCode className="h-5 w-5" />
+            <div className={`flex items-center justify-center gap-2 text-blue-600 ${compact ? "text-sm" : ""}`}>
+              <QrCode className={compact ? "h-4 w-4" : "h-5 w-5"} />
               <span className="font-medium">Scan to Mark Attendance</span>
             </div>
             
-            <div className="bg-white p-4 rounded-lg border-2 border-blue-200 inline-block">
+            <div className={`bg-white ${compact ? "p-2" : "p-4"} rounded-lg border-2 border-blue-200 inline-block`}>
               <Image
                 src={qrImage}
                 alt="Attendance QR Code"
-                width={200}
-                height={200}
+                width={compact ? 128 : 200}
+                height={compact ? 128 : 200}
                 className="mx-auto"
               />
             </div>
             
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>1. Scan the QR code with your phone</p>
-              <p>2. Select your name from the list</p>
-              <p>3. Enter the code sent to your email</p>
-            </div>
+            {!compact && (
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>1. Scan the QR code with your phone</p>
+                <p>2. Select your name from the list</p>
+                <p>3. Enter the code sent to your email</p>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="text-center py-6 text-gray-500">
-            <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="font-medium">Attendance marking not available</p>
-            <p className="text-sm">QR code will appear when the meeting starts</p>
+          <div className={`text-center ${compact ? "py-3" : "py-6"} text-gray-500`}>
+            <Clock className={`${compact ? "h-8 w-8" : "h-12 w-12"} mx-auto mb-3 opacity-50`} />
+            <p className={`${compact ? "text-sm" : "font-medium"}`}>Attendance marking not available</p>
+            {!compact && <p className="text-sm">QR code will appear when the meeting starts</p>}
           </div>
         )}
 
         {/* Accepted Attendees Count */}
-        {context.occupancy.accepted > 0 && (
+        {context.occupancy.accepted > 0 && !compact && (
           <div className="text-center pt-2 border-t">
             <p className="text-sm text-gray-600">
               {context.occupancy.accepted} attendee{context.occupancy.accepted !== 1 ? 's' : ''} expected

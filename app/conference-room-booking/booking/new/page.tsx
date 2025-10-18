@@ -46,14 +46,14 @@ const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; total
   ]
 
   return (
-    <div className="w-full py-6">
-      <div className="flex items-center justify-between max-w-2xl mx-auto">
+    <div className="w-full py-4">
+      <div className="flex items-center justify-between max-w-4xl mx-auto">
         {steps.map((step, index) => (
           <div key={step.number} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
+                  "w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300",
                   index < currentStep
                     ? "bg-primary text-primary-foreground"
                     : index === currentStep
@@ -61,7 +61,7 @@ const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; total
                     : "bg-muted text-muted-foreground"
                 )}
               >
-                {index < currentStep ? <Check className="h-5 w-5" /> : step.number}
+                {index < currentStep ? <Check className="h-5 w-5 md:h-4 md:w-4" /> : step.number}
               </div>
               <div className="mt-2 text-center">
                 <div className={cn(
@@ -88,46 +88,46 @@ const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; total
   )
 }
 
-// Compact room summary card component
+// Clean room summary card component
 const RoomSummaryCard = ({ room, loadingSource }: { room: Room; loadingSource: 'session' | 'api' | 'error' }) => {
   return (
-    <div className="space-y-3 animate-in fade-in duration-500">
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-sm">
+    <div className="animate-in fade-in duration-500">
+      <Card className="border border-border bg-white shadow-sm">
         <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0 shadow-sm">
-              {room.image ? (
-                <img
-                  src={room.image}
-                  alt={room.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
-                  <Building className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-foreground mb-1">{room.name}</h3>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>{room.location}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  <span>{room.capacity} people</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                {room.image ? (
+                  <img
+                    src={room.image}
+                    alt={room.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-muted">
+                    <Building className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-foreground mb-1">{room.name}</h3>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span>{room.location}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>{room.capacity} people</span>
+                  </div>
                 </div>
               </div>
-              {room.hourly_rate && room.hourly_rate > 0 && (
-                <div className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md px-2 py-1">
-                  <CreditCard className="h-3 w-3 text-green-600 dark:text-green-400" />
-                  <span className="text-xs font-semibold text-green-700 dark:text-green-300">
-                    {room.currency || 'GHS'} {room.hourly_rate}/hour
-                  </span>
-                </div>
-              )}
+            </div>
+            
+            {/* Right side - Status */}
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Status</div>
+              <div className="text-sm font-medium text-accent">Available</div>
             </div>
           </div>
         </CardContent>
@@ -170,9 +170,11 @@ const BookingForm = ({
     (new Date(`2000-01-01T${formData.endTime}:00`).getTime() - new Date(`2000-01-01T${formData.startTime}:00`).getTime()) / (1000 * 60 * 60) : 0
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
+    <div className="space-y-4">
+      {/* Main Form Layout - Responsive Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Left Column - Meeting Details */}
+        <div className="md:col-span-1 lg:col-span-1 space-y-3">
           <div>
             <Label htmlFor="title">Meeting Title *</Label>
             <Input
@@ -191,12 +193,13 @@ const BookingForm = ({
               value={formData.description}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange({ description: e.target.value })}
               placeholder="Meeting agenda and details..."
-              className="mt-1 resize-none h-24"
+              className="mt-1 resize-none h-20"
             />
           </div>
         </div>
 
-        <div className="space-y-4">
+        {/* Middle Column - Date Selection */}
+        <div className="md:col-span-1 lg:col-span-1 space-y-3">
           <div>
             <Label>Select Date *</Label>
             <div className="mt-1">
@@ -204,47 +207,51 @@ const BookingForm = ({
                 selected={formData.date}
                 onSelect={(date) => onChange({ date })}
                 className="rounded-md border"
+                roomId={room.id}
               />
             </div>
           </div>
         </div>
-      </div>
 
-      {formData.date && (
-        <div className="space-y-4">
-          <div className="border-t pt-6">
-            <Label>Select Time *</Label>
-            <TimeSlotSelector
-              selectedDate={formData.date}
-              startTime={formData.startTime}
-              endTime={formData.endTime}
-              onStartTimeChange={(time) => onChange({ startTime: time })}
-              onEndTimeChange={(time) => onChange({ endTime: time })}
-              roomId={room.id}
-            />
-          </div>
-          
-          {/* Live Cost Calculator */}
-          {formData.startTime && formData.endTime && room.hourly_rate && room.hourly_rate > 0 && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">Estimated Cost</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-700 dark:text-green-300">
-                    {room.currency || 'GHS'} {liveCost.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-green-600 dark:text-green-400">
-                    {durationHours.toFixed(1)} hours × {room.currency || 'GHS'} {room.hourly_rate}/hour
-                  </div>
-                </div>
+        {/* Right Column - Time Selection & Cost */}
+        <div className="md:col-span-2 lg:col-span-1 space-y-3">
+          {formData.date && (
+            <>
+              <div>
+                <Label>Select Time *</Label>
+                <TimeSlotSelector
+                  selectedDate={formData.date}
+                  startTime={formData.startTime}
+                  endTime={formData.endTime}
+                  onStartTimeChange={(time) => onChange({ startTime: time })}
+                  onEndTimeChange={(time) => onChange({ endTime: time })}
+                  roomId={room.id}
+                />
               </div>
-            </div>
+              
+              {/* Live Cost Calculator */}
+              {formData.startTime && formData.endTime && room.hourly_rate && room.hourly_rate > 0 && (
+                <div className="bg-accent/10 border border-accent/20 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-accent" />
+                      <span className="text-sm font-medium text-accent">Estimated Cost</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-accent">
+                        {room.currency || 'GHS'} {liveCost.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-accent/70">
+                        {durationHours.toFixed(1)} hours × {room.currency || 'GHS'} {room.hourly_rate}/hour
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -909,7 +916,7 @@ function BookingPageContent() {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Room Summary Card */}
             <RoomSummaryCard room={room} loadingSource={loadingSource} />
             
@@ -937,17 +944,17 @@ function BookingPageContent() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-        <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-muted/30">
+        <div className="container mx-auto px-4 py-6">
           {/* Main Content */}
-          <div className="max-w-4xl mx-auto">
-            <Card className="shadow-lg border-0">
-              <CardContent className="p-8">
+          <div className="max-w-6xl mx-auto">
+            <Card className="shadow-sm border border-border bg-white">
+              <CardContent className="p-6">
                 {renderStepContent()}
               </CardContent>
 
               {/* Navigation */}
-              <div className="flex justify-between items-center p-6 border-t bg-muted/30">
+              <div className="flex justify-between items-center p-6 border-t border-border bg-muted/20">
                 <Button 
                   variant="outline"
                   onClick={prevStep}

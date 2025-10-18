@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer'
+import { createTransport, Transporter } from 'nodemailer'
 import { format } from 'date-fns'
 
 // Email configuration
-let transporter: nodemailer.Transporter | null = null
+let transporter: Transporter | null = null
 
 // Initialize email service
 export async function initEmailService(): Promise<boolean> {
@@ -45,18 +45,26 @@ export async function initEmailService(): Promise<boolean> {
       logger: true, // Enable logging
     }
 
-    transporter = nodemailer.createTransport(config)
+    transporter = createTransport(config)
 
-    // Verify the connection with timeout
-    console.log('📧 Verifying SMTP connection...')
-    const verifyPromise = transporter.verify()
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('SMTP verification timeout')), 30000)
-    })
+    // Try to verify the connection but don't fail if it doesn't work
+    // Gmail often requires App Passwords and may close connections during verify()
+    try {
+      console.log('📧 Attempting SMTP verification...')
+      const verifyPromise = transporter.verify()
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('SMTP verification timeout')), 10000) // Reduced timeout
+      })
+      
+      await Promise.race([verifyPromise, timeoutPromise])
+      console.log('✅ SMTP connection verified successfully')
+    } catch (error) {
+      console.warn('⚠️ SMTP verification failed, but will try sending anyway:', error)
+      console.log('💡 Note: Gmail requires App Passwords (not regular passwords)')
+      console.log('💡 Generate one at: https://myaccount.google.com/apppasswords')
+    }
     
-    await Promise.race([verifyPromise, timeoutPromise])
-    
-    console.log('✅ Email service initialized and verified successfully')
+    console.log('✅ Email service initialized (verification may have failed)')
     return true
   } catch (error) {
     console.error('❌ Failed to initialize email service:', error)
@@ -105,6 +113,17 @@ export async function sendEmail(
       console.log(`📎 Attachments: ${attachments.map(a => a.filename).join(', ')}`)
     }
     
+    // Add diagnostic logging
+    console.log('📧 === EMAIL DIAGNOSTICS ===')
+    console.log('Host:', process.env.SMTP_HOST || 'NOT SET')
+    console.log('Port:', process.env.SMTP_PORT || 'NOT SET')
+    console.log('User:', process.env.SMTP_USER || 'NOT SET')
+    console.log('Password configured:', !!process.env.SMTP_PASSWORD)
+    console.log('Password length:', process.env.SMTP_PASSWORD?.length || 0)
+    console.log('Password (no spaces):', process.env.SMTP_PASSWORD?.replace(/\s/g, '').length || 0)
+    console.log('Transporter initialized:', !!transporter)
+    console.log('========================')
+    
     if (!transporter) {
       console.log('📧 Transporter not initialized, initializing now...')
       const initResult = await initEmailService()
@@ -134,13 +153,70 @@ export async function sendEmail(
     }
 
     console.log(`📧 Sending email...`)
-    const result = await transporter.sendMail(mailOptions)
-    console.log(`✅ Email sent successfully:`, result.messageId)
-    console.log(`📧 ===== SEND EMAIL END =====`)
     
-    return true
+    // Try creating a fresh transporter to avoid connection reuse issues
+    try {
+      const freshTransporter = createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false, // TLS
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD?.replace(/\s/g, ''), // Remove spaces from App Password
+        },
+        connectionTimeout: 60000,
+        greetingTimeout: 30000,
+        socketTimeout: 60000,
+        debug: true,
+        logger: true,
+      })
+      
+      const result = await freshTransporter.sendMail(mailOptions)
+      console.log(`✅ Email sent successfully with fresh transporter:`, result.messageId)
+      console.log(`📧 ===== SEND EMAIL END =====`)
+      return true
+    } catch (freshError) {
+      console.warn('⚠️ Fresh transporter failed, trying existing transporter:', freshError)
+      
+      // Fallback to existing transporter
+      const result = await transporter.sendMail(mailOptions)
+      console.log(`✅ Email sent successfully with existing transporter:`, result.messageId)
+      console.log(`📧 ===== SEND EMAIL END =====`)
+      return true
+    }
+    
   } catch (error) {
     console.error('❌ Failed to send email:', error)
+    
+    // Provide specific troubleshooting based on error
+    if (error && typeof error === 'object' && 'code' in error) {
+      const errorWithCode = error as { code?: string; responseCode?: number; command?: string }
+      
+      if (errorWithCode.code === 'EAUTH') {
+        console.error('🔧 EMAIL TROUBLESHOOTING: Authentication failed')
+        console.error('   - Gmail requires App Passwords (not regular passwords)')
+        console.error('   - Enable 2FA and generate App Password at: https://myaccount.google.com/apppasswords')
+        console.error('   - Use the App Password as SMTP_PASSWORD')
+      } else if (errorWithCode.code === 'ECONNREFUSED') {
+        console.error('🔧 EMAIL TROUBLESHOOTING: Connection refused')
+        console.error('   - Check SMTP_HOST and SMTP_PORT settings')
+        console.error('   - For Gmail: use smtp.gmail.com:587')
+      } else if (errorWithCode.responseCode === 421) {
+        console.error('🔧 EMAIL TROUBLESHOOTING: Service not available')
+        console.error('   - Try different port (465 for SSL, 587 for TLS)')
+        console.error('   - Check with email provider')
+      } else if (errorWithCode.command === 'CONN') {
+        console.error('🔧 EMAIL TROUBLESHOOTING: Connection issue')
+        console.error('   - Network connectivity problem')
+        console.error('   - Firewall blocking SMTP port')
+      } else if (errorWithCode.message?.includes('socket close')) {
+        console.error('🔧 EMAIL TROUBLESHOOTING: Socket closed unexpectedly')
+        console.error('   - Gmail may be rejecting the connection')
+        console.error('   - Ensure App Password is exactly 16 characters (no spaces)')
+        console.error('   - Try regenerating the App Password')
+      }
+    }
+    
     console.log(`📧 ===== SEND EMAIL END (ERROR) =====`)
     return false
   }
@@ -1403,10 +1479,45 @@ export async function sendAttendanceCodeEmail(
 
   console.log('📧 About to send attendance code email...');
   
+  const text = `
+Your Attendance Code
+
+Hello ${userName},
+
+Here is your attendance code for the meeting:
+
+Meeting: ${meetingTitle}
+Room: ${roomName}
+Date: ${formattedDate}
+Time: ${formattedStartTime} - ${formattedEndTime}
+
+YOUR ATTENDANCE CODE: ${attendanceCode}
+
+Enter this code on the room display to mark your attendance.
+
+How to Mark Attendance:
+1. Scan the QR code displayed on the room screen
+2. Select your name from the attendee list
+3. Enter the 4-digit code above when prompted
+4. Your attendance will be marked automatically
+
+Important Notes:
+- This code is unique to you and this meeting
+- The code expires at the end of the meeting
+- You can only mark attendance during the meeting time
+- If you have issues, contact the meeting organizer
+
+Thank you for attending!
+
+Best regards,
+Conference Hub Team
+`;
+
   const emailResult = await sendEmail(
     userEmail,
     subject,
-    html
+    html,
+    text
   );
 
   console.log(`📧 Attendance code email result: ${emailResult ? '✅ SUCCESS' : '❌ FAILED'}`);

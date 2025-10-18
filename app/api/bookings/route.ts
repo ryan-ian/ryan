@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById } from "@/lib/supabase-data"
+import { getBookings, getBookingsByUserId, createBooking, getRoomById, checkBookingConflicts, getBookingsWithDetails, getUserById, getRoomAvailability } from "@/lib/supabase-data"
 import { getFacilityManagerByRoomId } from "@/lib/facility-manager-lookup"
 import { supabase } from "@/lib/supabase"
 import { createNotification } from "@/lib/notifications"
 import { sendBookingRequestSubmittedEmail, sendBookingCreationNotificationToManager } from "@/lib/email-service"
-import { format } from "date-fns"
+import { format, startOfWeek, endOfWeek } from "date-fns"
 
 export async function GET(request: NextRequest) {
   try {
@@ -143,12 +143,17 @@ async function createSingleBooking(bookingData: any, room: any) {
       return NextResponse.json({ error: "Room is already booked for this time slot" }, { status: 409 })
     }
 
-    // Check if user already has a booking on the same day
+    // Fetch room availability settings to get user booking limits
+    const roomAvailability = await getRoomAvailability(bookingData.room_id)
+    const maxBookingsPerDay = roomAvailability?.max_bookings_per_user_per_day || 1
+    const maxBookingsPerWeek = roomAvailability?.max_bookings_per_user_per_week || 5
+
+    // Check if user has exceeded daily booking limit
     const bookingDate = new Date(start_time).toISOString().split('T')[0]
     const startOfDay = `${bookingDate}T00:00:00.000Z`
     const endOfDay = `${bookingDate}T23:59:59.999Z`
     
-    const { data: existingBookings, error: bookingsError } = await supabase
+    const { data: dailyBookings, error: dailyBookingsError } = await supabase
       .from('bookings')
       .select('*')
       .eq('user_id', bookingData.user_id)
@@ -156,13 +161,39 @@ async function createSingleBooking(bookingData: any, room: any) {
       .lte('start_time', endOfDay)
       .in('status', ['confirmed', 'pending'])
     
-    if (bookingsError) {
-      console.error('Error checking existing bookings:', bookingsError)
+    if (dailyBookingsError) {
+      console.error('Error checking daily bookings:', dailyBookingsError)
       return NextResponse.json({ error: "Failed to check existing bookings" }, { status: 500 })
     }
     
-    if (existingBookings && existingBookings.length > 0) {
-      return NextResponse.json({ error: "You can only book one room per day" }, { status: 400 })
+    if (dailyBookings && dailyBookings.length >= maxBookingsPerDay) {
+      return NextResponse.json({ 
+        error: `You have reached the maximum of ${maxBookingsPerDay} booking${maxBookingsPerDay > 1 ? 's' : ''} per day for this room` 
+      }, { status: 400 })
+    }
+
+    // Check if user has exceeded weekly booking limit
+    const bookingDateTime = new Date(start_time)
+    const weekStart = startOfWeek(bookingDateTime, { weekStartsOn: 1 }) // Monday
+    const weekEnd = endOfWeek(bookingDateTime, { weekStartsOn: 1 })
+    
+    const { data: weeklyBookings, error: weeklyBookingsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', bookingData.user_id)
+      .gte('start_time', weekStart.toISOString())
+      .lte('start_time', weekEnd.toISOString())
+      .in('status', ['confirmed', 'pending'])
+    
+    if (weeklyBookingsError) {
+      console.error('Error checking weekly bookings:', weeklyBookingsError)
+      return NextResponse.json({ error: "Failed to check existing bookings" }, { status: 500 })
+    }
+    
+    if (weeklyBookings && weeklyBookings.length >= maxBookingsPerWeek) {
+      return NextResponse.json({ 
+        error: `You have reached the maximum of ${maxBookingsPerWeek} booking${maxBookingsPerWeek > 1 ? 's' : ''} per week for this room` 
+      }, { status: 400 })
     }
 
     // Create the booking - ALWAYS set to pending regardless of what was provided

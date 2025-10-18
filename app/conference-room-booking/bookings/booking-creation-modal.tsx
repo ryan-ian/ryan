@@ -762,6 +762,7 @@ export function BookingCreationModal({
                           onSelect={handleDateSelect}
                           className="rounded-md"
                           bookedDates={userBookedDates}
+                          roomId={room.id}
                         />
                       </PopoverContent>
                     </Popover>

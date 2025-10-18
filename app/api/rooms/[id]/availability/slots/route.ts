@@ -172,7 +172,31 @@ async function calculateAvailableSlots(roomId: string, selectedDate: Date): Prom
     }
 
     // Generate baseline time slots within operating hours
-    const timeSlots = generateTimeSlots(dayHours.start, dayHours.end)
+    let timeSlots = generateTimeSlots(dayHours.start, dayHours.end)
+
+    // Filter out past times if booking for today
+    if (isSameDay(selectedDate, today)) {
+      timeSlots = filterPastTimesForToday(timeSlots)
+      
+      // If no future slots available, return appropriate error
+      if (timeSlots.length === 0) {
+        return {
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          operatingHours: { enabled: true, start: dayHours.start, end: dayHours.end },
+          restrictions: {
+            minDuration: availability.min_booking_duration,
+            maxDuration: availability.max_booking_duration,
+            bufferTime: availability.buffer_time,
+            advanceBookingDays: availability.advance_booking_days,
+            sameDayBookingEnabled: availability.same_day_booking_enabled
+          },
+          startOptions: [],
+          endOptionsByStart: {},
+          unavailableReasons: {},
+          error: 'No future time slots available for today'
+        }
+      }
+    }
 
     // Get conflicts for this date
     const conflicts = await getConflictsForDate(roomId, selectedDate)
@@ -222,6 +246,18 @@ function generateTimeSlots(startTime: string, endTime: string): string[] {
   }
   
   return slots
+}
+
+/**
+ * Filter out past time slots for same-day bookings
+ */
+function filterPastTimesForToday(timeSlots: string[]): string[] {
+  const now = new Date()
+  const currentTime = format(now, 'HH:mm')
+  
+  return timeSlots.filter(slot => {
+    return slot > currentTime
+  })
 }
 
 /**

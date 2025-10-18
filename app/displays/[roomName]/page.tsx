@@ -494,39 +494,37 @@ export default function RoomDisplayPage() {
           </div>
         ) : (
           /* Enhanced Standard 2-zone Layout with Full Height Schedule and Centered Status */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
-            {/* Left: Main Status Area - Vertically Centered */}
-            <div className="order-1 flex flex-col items-center justify-center gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 h-full min-h-0">
+            {/* Left: Main Status Area - Better vertical distribution */}
+            <div className="order-1 flex flex-col items-center justify-start gap-4 py-6 overflow-y-auto">
               <StatusRing
                 status={roomStatus}
                 now={currentTime}
                 startTime={currentBooking?.start_time}
                 endTime={currentBooking?.end_time}
                 nextStartTime={nextBooking?.start_time}
-                size={480}
+                size={320}
+                className="mb-6"
               />
               
-              {/* Meeting Information Display */}
+              {/* Meeting Information and QR Code - Side by side when QR is available */}
               {currentBooking && (
-                <div className="w-full max-w-md">
-                  <Card className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300">
-                    <CardContent className="p-6 text-center">
-                      <h2 className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50 mb-2">
-                        {currentBooking.title}
-                      </h2>
+                <div className={`w-full max-w-2xl ${currentBooking.checked_in_at ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}`}>
+                  {/* Meeting Information */}
+                  <Card className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl rounded-2xl">
+                    <CardContent className="p-4">
+                      <h2 className="text-xl font-bold mb-2">{currentBooking.title}</h2>
                       {currentBooking.description && (
-                        <p className="text-brand-navy-700 dark:text-brand-navy-300 mb-4 leading-relaxed">
-                          {currentBooking.description}
-                        </p>
+                        <p className="text-sm mb-3 text-brand-navy-700 dark:text-brand-navy-300">{currentBooking.description}</p>
                       )}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center gap-2">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
                           <span className="font-semibold text-brand-navy-900 dark:text-brand-navy-100">
                             {currentBooking.users?.name || "Unknown Organizer"}
                           </span>
                         </div>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-brand-navy-500 dark:text-brand-navy-400" />
                           <span className="text-brand-navy-700 dark:text-brand-navy-300">
                             {formatTime(currentBooking.start_time)} - {formatTime(currentBooking.end_time)}
@@ -535,27 +533,27 @@ export default function RoomDisplayPage() {
                       </div>
                     </CardContent>
                   </Card>
-                </div>
-              )}
-              
-              {/* QR Attendance Component */}
-              {currentBooking && (
-                <div className="w-full max-w-md">
-                  <QRAttendance
-                    bookingId={currentBooking.id}
-                    meetingTitle={currentBooking.title}
-                    className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300"
-                  />
+                  
+                  {/* QR Attendance - Only show if checked in */}
+                  {currentBooking.checked_in_at && (
+                    <QRAttendance
+                      bookingId={currentBooking.id}
+                      meetingTitle={currentBooking.title}
+                      compact={true}
+                      className="backdrop-blur-md bg-white/95 dark:bg-brand-navy-800/95 border border-white/30 dark:border-brand-navy-700/50 shadow-xl rounded-2xl"
+                    />
+                  )}
                 </div>
               )}
               
               {/* Action Bar */}
-              <div className="w-full max-w-md">
+              <div className="w-full max-w-2xl">
                 <ActionBar
                   room={room}
                   currentBooking={currentBooking}
                   onCheckInSuccess={handleCheckInSuccess}
                   onAutoRelease={handleAutoRelease}
+                  compact={true}
                 />
               </div>
             </div>

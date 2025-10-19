@@ -59,6 +59,23 @@ export function StatusRing({
   }, [startTime, endTime, nextStartTime, now, status])
 
   const { trackColor, glowColor, fillColor } = useMemo(() => {
+    // Check if meeting is within 10 minutes of ending
+    const isNearEnd = startTime && endTime && (() => {
+      const end = new Date(endTime).getTime()
+      const currentTime = now.getTime()
+      const timeUntilEnd = end - currentTime
+      return timeUntilEnd <= 10 * 60 * 1000 && timeUntilEnd > 0 // Within 10 minutes but not ended
+    })()
+
+    // If meeting is near end, use red colors regardless of status
+    if (isNearEnd) {
+      return { 
+        trackColor: "stroke-red-500", 
+        glowColor: "drop-shadow-[0_0_20px_rgba(239,68,68,0.8)] drop-shadow-[0_0_40px_rgba(239,68,68,0.4)]",
+        fillColor: "fill-red-500"
+      }
+    }
+
     switch (status) {
       case "available":
         return { 
@@ -97,7 +114,7 @@ export function StatusRing({
           fillColor: "fill-emerald-500"
         }
     }
-  }, [status])
+  }, [status, startTime, endTime, now])
 
   const dash = useMemo(() => `${circumference} ${circumference}`, [circumference])
   const offset = useMemo(() => circumference - progress * circumference, [circumference, progress])

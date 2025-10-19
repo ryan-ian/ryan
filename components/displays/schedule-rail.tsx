@@ -68,10 +68,21 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
           const isPast = now > it.end
           const isCurrent = it.id === currentId
           const isReserved = it.id === reservedId
+          
+          // Check if current meeting is within 10 minutes of ending
+          const isNearEnd = isCurrent && (() => {
+            const end = it.end.getTime()
+            const nowTime = now.getTime()
+            const timeUntilEnd = end - nowTime
+            return timeUntilEnd <= 10 * 60 * 1000 && timeUntilEnd > 0 // Within 10 minutes but not ended
+          })()
+          
           return (
             <div key={it.id} className={cn(
               "rounded-xl p-3 border transition-all duration-200",
               "hover:translate-y-[-1px] hover:shadow-lg",
+              isNearEnd ?
+                "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 shadow-lg shadow-red-500/10" :
               isCurrent ?
                 "bg-brand-teal-50 dark:bg-brand-teal-900/20 border-brand-teal-200 dark:border-brand-teal-700 shadow-lg shadow-brand-teal-500/10" :
               isReserved ?
@@ -84,6 +95,7 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                 <div className="flex-1 min-w-0">
                   <div className={cn(
                     "font-semibold text-sm leading-tight",
+                    isNearEnd ? "text-red-700 dark:text-red-300" :
                     isCurrent ? "text-brand-teal-700 dark:text-brand-teal-300" :
                     isReserved ? "text-amber-700 dark:text-amber-300" :
                     isPast ? "text-brand-navy-500 dark:text-brand-navy-400" :
@@ -93,6 +105,7 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                   </div>
                   <div className={cn(
                     "text-xs mt-1 font-medium",
+                    isNearEnd ? "text-red-600 dark:text-red-400" :
                     isReserved ? "text-amber-600 dark:text-amber-400" :
                     isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
                     "text-brand-navy-600 dark:text-brand-navy-400"
@@ -102,6 +115,7 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                   {showDescription && it.description && (
                     <div className={cn(
                       "text-xs mt-2 leading-relaxed",
+                      isNearEnd ? "text-red-600 dark:text-red-400" :
                       isReserved ? "text-amber-600 dark:text-amber-400" :
                       isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
                       "text-brand-navy-600 dark:text-brand-navy-400"
@@ -112,6 +126,7 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                 </div>
                 <div className={cn(
                   "text-xs font-semibold whitespace-nowrap",
+                  isNearEnd ? "text-red-600 dark:text-red-400" :
                   isCurrent ? "text-brand-teal-600 dark:text-brand-teal-400" :
                   isReserved ? "text-amber-600 dark:text-amber-400" :
                   isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
@@ -123,7 +138,10 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
               {isCurrent && (
                 <div className="mt-2 w-full bg-brand-teal-200 dark:bg-brand-teal-800 rounded-full h-1">
                   <div 
-                    className="bg-brand-teal-500 h-1 rounded-full animate-pulse transition-all duration-1000 ease-out" 
+                    className={cn(
+                      "h-1 rounded-full animate-pulse transition-all duration-1000 ease-out",
+                      isNearEnd ? "bg-red-500" : "bg-brand-teal-500"
+                    )}
                     style={{ width: `${Math.max(0, Math.min(100, getCurrentProgress * 100))}%` }}
                   ></div>
                 </div>

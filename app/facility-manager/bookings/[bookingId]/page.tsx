@@ -38,6 +38,7 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
+import { FacilityManagerBookingDetailsModal } from "@/components/bookings/facility-manager-booking-details-modal"
 
 import type { BookingWithDetails, MeetingInvitation } from "@/types"
 import {
@@ -69,6 +70,7 @@ export default function BookingDetailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
+  const [isQuickPreviewOpen, setIsQuickPreviewOpen] = useState(false)
 
   const bookingId = params.bookingId as string
 
@@ -207,11 +209,7 @@ export default function BookingDetailsPage() {
   }
 
   const openQuickPreview = () => {
-    // TODO: Implement quick preview modal
-    toast({
-      title: "Quick Preview",
-      description: "Opening quick preview modal...",
-    })
+    setIsQuickPreviewOpen(true)
   }
 
   const exportReport = async () => {
@@ -666,7 +664,7 @@ export default function BookingDetailsPage() {
               {meetingInvitations.length > 0 ? (
                 <div className="space-y-6">
                   {/* Visual Progress Indicators */}
-                  <div className="grid gap-2 sm:gap-4 md:grid-cols-3">
+                  <div className="grid gap-2 sm:gap-4 md:grid-cols-2">
                     <div className="text-center p-3 sm:p-4 md:p-6 border border-brand-navy-200 dark:border-brand-navy-700 rounded-lg bg-blue-50 dark:bg-blue-950/20">
                       <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-2 sm:mb-3">
                         <svg className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 transform -rotate-90" viewBox="0 0 36 36">
@@ -692,32 +690,6 @@ export default function BookingDetailsPage() {
                       </div>
                       <div className="text-sm sm:text-lg font-bold text-blue-600 dark:text-blue-400">{analytics?.totalInvited || 0}</div>
                       <div className="text-xs sm:text-sm text-brand-navy-700 dark:text-brand-navy-300">Total Invited</div>
-                    </div>
-                    <div className="text-center p-3 sm:p-4 md:p-6 border border-brand-navy-200 dark:border-brand-navy-700 rounded-lg bg-green-50 dark:bg-green-950/20">
-                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-2 sm:mb-3">
-                        <svg className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 transform -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            className="text-green-200 dark:text-green-800"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="text-green-600 dark:text-green-400"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                            strokeDasharray={`${(analytics?.totalAccepted || 0) * 100 / Math.max(analytics?.totalInvited || 1, 1)}, 100`}
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-xs sm:text-sm font-bold text-green-600 dark:text-green-400">{analytics?.totalAccepted || 0}</span>
-                        </div>
-                      </div>
-                      <div className="text-sm sm:text-lg font-bold text-green-600 dark:text-green-400">{analytics?.totalAccepted || 0}</div>
-                      <div className="text-xs sm:text-sm text-brand-navy-700 dark:text-brand-navy-300">Accepted RSVP</div>
                     </div>
                     <div className="text-center p-3 sm:p-4 md:p-6 border border-brand-navy-200 dark:border-brand-navy-700 rounded-lg bg-orange-50 dark:bg-orange-950/20">
                       <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-2 sm:mb-3">
@@ -772,7 +744,6 @@ export default function BookingDetailsPage() {
                           <TableRow>
                             <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">Invitee</TableHead>
                             <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">Email</TableHead>
-                            <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">RSVP Status</TableHead>
                             <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">Attendance Status</TableHead>
                             <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">Check-in Time</TableHead>
                             <TableHead className="text-brand-navy-900 dark:text-brand-navy-50">Check-in Method</TableHead>
@@ -785,17 +756,6 @@ export default function BookingDetailsPage() {
                                 {invitation.invitee_name || "N/A"}
                               </TableCell>
                               <TableCell className="text-brand-navy-700 dark:text-brand-navy-300">{invitation.invitee_email}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={invitation.status === 'accepted' ? 'default' : 
-                                         invitation.status === 'declined' ? 'destructive' : 'secondary'}
-                                  className="shadow-sm"
-                                >
-                                  {invitation.status === 'pending' ? 'Invited' : 
-                                   invitation.status === 'accepted' ? 'Accepted' : 
-                                   invitation.status === 'declined' ? 'Declined' : invitation.status}
-                                </Badge>
-                              </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   {invitation.attendance_status === 'present' ? (
@@ -852,15 +812,6 @@ export default function BookingDetailsPage() {
                                 </div>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <Badge 
-                                  variant={invitation.status === 'accepted' ? 'default' : 
-                                         invitation.status === 'declined' ? 'destructive' : 'secondary'}
-                                  className="text-xs shadow-sm"
-                                >
-                                  {invitation.status === 'pending' ? 'Invited' : 
-                                   invitation.status === 'accepted' ? 'Accepted' : 
-                                   invitation.status === 'declined' ? 'Declined' : invitation.status}
-                                </Badge>
                                 {invitation.attendance_status === 'present' ? (
                                   <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white shadow-sm text-xs">
                                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -1110,6 +1061,34 @@ export default function BookingDetailsPage() {
 
 
       </Tabs>
+
+      {/* Quick Preview Modal */}
+      <FacilityManagerBookingDetailsModal
+        booking={booking}
+        isOpen={isQuickPreviewOpen}
+        onClose={() => setIsQuickPreviewOpen(false)}
+        onApprove={booking?.status === "pending" ? async (bookingId: string) => {
+          // Handle approval logic here if needed
+          toast({
+            title: "Booking Approved",
+            description: "The booking has been approved successfully.",
+          })
+          setIsQuickPreviewOpen(false)
+          // Reload booking details to reflect the change
+          await loadBookingDetails()
+        } : undefined}
+        onReject={booking?.status === "pending" ? async (bookingId: string, reason: string) => {
+          // Handle rejection logic here if needed
+          toast({
+            title: "Booking Rejected",
+            description: `The booking has been rejected. Reason: ${reason}`,
+            variant: "destructive"
+          })
+          setIsQuickPreviewOpen(false)
+          // Reload booking details to reflect the change
+          await loadBookingDetails()
+        } : undefined}
+      />
     </div>
   )
 }

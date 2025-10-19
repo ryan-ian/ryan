@@ -446,41 +446,12 @@ export function FacilityManagerBookingDetailsModal({
                           </div>
                         </div>
                         <div className="flex-shrink-0 ml-2">
-                          <Badge 
-                            variant={invitation.status === 'accepted' ? 'default' : invitation.status === 'declined' ? 'destructive' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {invitation.status === 'pending' ? 'Invited' : 
-                             invitation.status === 'accepted' ? 'Accepted' : 
-                             invitation.status === 'declined' ? 'Declined' : invitation.status}
+                          <Badge variant="secondary" className="text-xs">
+                            Invited
                           </Badge>
                         </div>
                       </div>
                     ))}
-                  </div>
-                  
-                  {/* Summary */}
-                  <div className="pt-2 border-t border-brand-navy-200 dark:border-brand-navy-700">
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="text-center">
-                        <div className="font-medium text-blue-600 dark:text-blue-400">
-                          {meetingInvitations.filter(inv => inv.status === 'pending').length}
-                        </div>
-                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Pending</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-green-600 dark:text-green-400">
-                          {meetingInvitations.filter(inv => inv.status === 'accepted').length}
-                        </div>
-                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Accepted</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-red-600 dark:text-red-400">
-                          {meetingInvitations.filter(inv => inv.status === 'declined').length}
-                        </div>
-                        <div className="text-brand-navy-500 dark:text-brand-navy-400">Declined</div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               ) : (

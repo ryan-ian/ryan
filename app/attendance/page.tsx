@@ -390,9 +390,9 @@ function AttendanceContent() {
                 </div>
               )}
 
-              <Button onClick={handleBack} variant="outline">
+              {/* <Button onClick={handleBack} variant="outline">
                 Mark Another Attendee
-              </Button>
+              </Button> */}
             </CardContent>
           </Card>
         )}

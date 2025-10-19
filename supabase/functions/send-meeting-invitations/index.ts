@@ -7,14 +7,77 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface Invitee {
+interface Invitation {
+  id: string
   name: string
   email: string
 }
 
 interface RequestBody {
   booking_id: string
-  invitees: Invitee[]
+  invitations: Invitation[]
+}
+
+// Email template utilities
+const EMAIL_COLORS = {
+  background: '#FFFFFF',
+  infoSection: '#F3F4F6',
+  border: '#E5E7EB',
+  primaryText: '#000000',
+  secondaryText: '#6B7280',
+  brandAccent: '#16A34A',
+  success: '#16A34A',
+  error: '#EF4444',
+  warning: '#F59E0B',
+} as const
+
+function generateEmailLogo(width: number = 150, height: number = 36): string {
+  const scale = width / 150
+  const scaledHeight = height
+  const scaledStrokeWidth = Math.max(6, 8 * scale)
+  
+  return `
+    <svg width="${width}" height="${scaledHeight}" viewBox="0 0 250 60" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+      <g id="Logomark">
+        <path 
+          d="M 45,30 A 20 20, 0, 1, 1, 25,10"
+          fill="none"
+          stroke="${EMAIL_COLORS.primaryText}"
+          stroke-width="${scaledStrokeWidth}"
+          stroke-linecap="round"
+        />
+        <line 
+          x1="25" 
+          y1="10" 
+          x2="25" 
+          y2="50" 
+          stroke="${EMAIL_COLORS.primaryText}" 
+          stroke-width="${scaledStrokeWidth}" 
+          stroke-linecap="round"
+        />
+        <path 
+          d="M 25 30 L 45 30"
+          fill="none"
+          stroke="${EMAIL_COLORS.brandAccent}"
+          stroke-width="${scaledStrokeWidth}"
+          stroke-linecap="round"
+        />
+      </g>
+      <g id="Logotype" transform="translate(70, 0)">
+        <text 
+          x="0" 
+          y="30" 
+          font-family="Arial, Helvetica, sans-serif" 
+          font-size="${22 * scale}" 
+          fill="${EMAIL_COLORS.primaryText}" 
+          dominant-baseline="middle"
+        >
+          <tspan font-weight="600">Conference</tspan>
+          <tspan font-weight="400">Hub</tspan>
+        </text>
+      </g>
+    </svg>
+  `
 }
 
 // ICS Generation Helpers
@@ -116,14 +179,16 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { booking_id, invitees }: RequestBody = await req.json()
+    const { booking_id, invitations }: RequestBody = await req.json()
 
-    if (!booking_id || !invitees || invitees.length === 0) {
+    if (!booking_id || !invitations || invitations.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'booking_id and invitees array are required' }),
+        JSON.stringify({ error: 'booking_id and invitations are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log(`📧 Sending emails for ${invitations.length} pre-created invitations`)
 
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseAdmin
@@ -169,33 +234,12 @@ Deno.serve(async (req) => {
     const formattedStartTime = format(startDate, 'h:mm a')
     const formattedEndTime = format(endDate, 'h:mm a')
 
-    // Process each invitee
+    // Process each invitation (email sending only)
     const results = []
     
-    for (const invitee of invitees) {
+    for (const invitation of invitations) {
       try {
-        // Insert invitation into database
-        const { data: invitation, error: invError } = await supabaseAdmin
-          .from('meeting_invitations')
-          .insert({
-            booking_id: booking_id,
-            organizer_id: booking.user_id,
-            invitee_email: invitee.email,
-            invitee_name: invitee.name,
-            status: 'pending',
-          })
-          .select()
-          .single()
-
-        if (invError) {
-          console.error(`Error inserting invitation for ${invitee.email}:`, invError)
-          results.push({
-            email: invitee.email,
-            success: false,
-            error: 'Failed to create invitation'
-          })
-          continue
-        }
+        console.log(`📧 Sending email to ${invitation.email} for invitation ${invitation.id}`)
 
         // Professional Email HTML with Conference Hub Branding
         const html = `
@@ -214,15 +258,14 @@ Deno.serve(async (req) => {
                     
                     <!-- Header with Logo -->
                     <tr>
-                      <td style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                        <div style="background-color: rgba(255,255,255,0.95); display: inline-block; padding: 15px 25px; border-radius: 8px; margin-bottom: 15px;">
-                          <h1 style="margin: 0; color: #2196F3; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
-                            📅 Conference Hub
-                          </h1>
-                        </div>
-                        <h2 style="margin: 15px 0 0 0; color: #ffffff; font-size: 20px; font-weight: 500;">
+                      <td style="background-color: #FFFFFF; padding: 24px 0; border-bottom: 1px solid #E5E7EB; text-align: center;">
+                        ${generateEmailLogo(150, 36)}
+                        <h1 style="margin: 16px 0 8px 0; font-size: 24px; font-weight: 600; color: #000000; font-family: Arial, Helvetica, sans-serif;">
                           Meeting Invitation
-                        </h2>
+                        </h1>
+                        <p style="margin: 0; font-size: 16px; color: #6B7280; font-family: Arial, Helvetica, sans-serif;">
+                          You're invited to join a meeting
+                        </p>
                       </td>
                     </tr>
 
@@ -230,71 +273,96 @@ Deno.serve(async (req) => {
                     <tr>
                       <td style="padding: 40px 40px 30px;">
                         <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #333333;">
-                          Hello <strong>${invitee.name}</strong>,
+                          Hello <strong>${invitation.name}</strong>,
                         </p>
                         <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #555555;">
                           You have been invited to attend the following meeting:
                         </p>
 
                         <!-- Meeting Details Card -->
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F3F4F6; border-radius: 6px; border: 1px solid #E5E7EB; margin-bottom: 20px;">
                           <tr>
-                            <td style="padding: 25px;">
-                              <h3 style="margin: 0 0 15px; color: #1976D2; font-size: 20px; font-weight: 600;">
-                                ${booking.title}
+                            <td style="padding: 20px;">
+                              <h3 style="margin: 0 0 12px; font-size: 18px; font-weight: 600; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+                                Meeting Details
                               </h3>
-                              ${booking.description ? `<p style="margin: 0 0 20px; color: #666; font-size: 15px; line-height: 1.6;">${booking.description}</p>` : ''}
-                              
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <span style="color: #888; font-size: 14px; font-weight: 500;">📍 LOCATION</span><br>
-                                    <span style="color: #333; font-size: 15px; font-weight: 600;">${room?.name || 'To be determined'}</span>
-                                    ${room?.location ? `<br><span style="color: #666; font-size: 14px;">${room.location}</span>` : ''}
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <span style="color: #888; font-size: 14px; font-weight: 500;">📅 DATE</span><br>
-                                    <span style="color: #333; font-size: 15px; font-weight: 600;">${formattedDate}</span>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <span style="color: #888; font-size: 14px; font-weight: 500;">🕐 TIME</span><br>
-                                    <span style="color: #333; font-size: 15px; font-weight: 600;">${formattedStartTime} - ${formattedEndTime}</span>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <span style="color: #888; font-size: 14px; font-weight: 500;">👤 ORGANIZER</span><br>
-                                    <span style="color: #333; font-size: 15px; font-weight: 600;">${organizer?.name || organizer?.email}</span>
-                                  </td>
-                                </tr>
-                              </table>
+                              <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Title</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${booking.title}</span>
+                                </div>
+                                
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Date</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${formattedDate}</span>
+                                </div>
+                                
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Time</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${formattedStartTime} - ${formattedEndTime}</span>
+                                </div>
+                                
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Location</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${room?.name || 'To be determined'}, ${room?.location || 'Conference Room'}</span>
+                                </div>
+                                
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Organizer</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${organizer?.name || organizer?.email}</span>
+                                </div>
+                                
+                                ${booking.description ? `
+                                <div>
+                                  <strong style="display: block; color: #6B7280; font-size: 13px; margin-bottom: 4px; font-family: Arial, Helvetica, sans-serif;">Description</strong>
+                                  <span style="display: block; color: #000000; font-size: 15px; font-family: Arial, Helvetica, sans-serif;">${booking.description}</span>
+                                </div>
+                                ` : ''}
+                              </div>
                             </td>
                           </tr>
                         </table>
 
-                        <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333; text-align: center; padding: 20px 0; background-color: #e3f2fd; border-radius: 6px;">
-                          <strong>We look forward to seeing you at this meeting!</strong>
+                        <!-- Attendance Instructions -->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F3F4F6; border-radius: 6px; border: 1px solid #E5E7EB; margin-bottom: 20px;">
+                          <tr>
+                            <td style="padding: 20px;">
+                              <h3 style="margin: 0 0 12px; font-size: 18px; font-weight: 600; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+                                Attendance Instructions
+                              </h3>
+                              <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;"><strong>Important:</strong> On arrival, scan the QR code on the room display to mark your attendance.</p>
+                            </td>
+                          </tr>
+                        </table>
+
+                        <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+                          If you have any questions about this meeting, please contact <strong>${organizer?.name || organizer?.email}</strong> at <a href="mailto:${organizer?.email}" style="color: #16A34A; text-decoration: none;">${organizer?.email}</a>.
                         </p>
 
-                        <p style="margin: 30px 0 20px; font-size: 14px; line-height: 1.6; color: #555555; background-color: #E3F2FD; padding: 15px; border-radius: 6px; border-left: 4px solid #2196F3;">
-                          📎 <strong>Calendar Invitation Attached</strong><br>
-                          This email includes a calendar file (.ics). Click or open the attachment to add this meeting to your calendar automatically.
+                        <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+                          We look forward to seeing you there!
                         </p>
+
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F3F4F6; border-radius: 6px; border: 1px solid #E5E7EB; margin-bottom: 20px;">
+                          <tr>
+                            <td style="padding: 20px;">
+                              <h3 style="margin: 0 0 12px; font-size: 18px; font-weight: 600; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+                                Calendar Invitation
+                              </h3>
+                              <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;">This email includes a calendar file (.ics). Click or open the attachment to add this meeting to your calendar automatically.</p>
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
-                      <td style="background-color: #fafafa; padding: 30px 40px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e0e0e0;">
-                        <p style="margin: 0 0 10px; font-size: 14px; color: #666;">
-                          Best regards,<br>
-                          <strong style="color: #2196F3;">Conference Hub Team</strong>
+                      <td style="background-color: #FFFFFF; padding: 24px 0; text-align: center; border-top: 1px solid #E5E7EB; margin-top: 32px;">
+                        <p style="margin: 0 0 8px; font-size: 14px; color: #6B7280; font-family: Arial, Helvetica, sans-serif;">
+                          This email was sent by Conference Hub
                         </p>
-                        <p style="margin: 10px 0 0; font-size: 12px; color: #999;">
+                        <p style="margin: 0; font-size: 12px; color: #6B7280; font-family: Arial, Helvetica, sans-serif;">
                           © ${new Date().getFullYear()} Conference Hub. All rights reserved.
                         </p>
                       </td>
@@ -310,7 +378,7 @@ Deno.serve(async (req) => {
         const text = `
 Meeting Invitation
 
-Hello ${invitee.name},
+Hello ${invitation.name},
 
 You have been invited to attend the following meeting:
 
@@ -338,14 +406,14 @@ Conference Hub Team
           booking.end_time,
           organizer.email,
           organizer.name,
-          invitee.email,
-          invitee.name
+          invitation.email,
+          invitation.name
         )
 
         // Send email with ICS attachment
         await transporter.sendMail({
           from: `Conference Hub <${Deno.env.get('SMTP_USER')}>`,
-          to: invitee.email,
+          to: invitation.email,
           subject: `Meeting Invitation: ${booking.title}`,
           html,
           text,
@@ -366,19 +434,29 @@ Conference Hub Team
           .eq('id', invitation.id)
 
         results.push({
-          email: invitee.email,
-          success: true,
-          invitation_id: invitation.id
+          invitation_id: invitation.id,
+          email: invitation.email,
+          success: true
         })
 
-        console.log(`✅ Invitation sent to ${invitee.email}`)
+        console.log(`✅ Email sent to ${invitation.email}`)
 
       } catch (error) {
-        console.error(`Error sending invitation to ${invitee.email}:`, error)
+        console.error(`❌ Error sending email to ${invitation.email}:`, error)
+        
+        // Update email status to failed
+        await supabaseAdmin
+          .from('meeting_invitations')
+          .update({
+            email_status: 'failed',
+          })
+          .eq('id', invitation.id)
+        
         results.push({
-          email: invitee.email,
+          invitation_id: invitation.id,
+          email: invitation.email,
           success: false,
-          error: error.message || 'Failed to send invitation'
+          error: error.message || 'Failed to send email'
         })
       }
     }
@@ -386,24 +464,13 @@ Conference Hub Team
     const successCount = results.filter(r => r.success).length
     const failureCount = results.filter(r => !r.success).length
 
-    // Get the created invitations to return
-    const createdInvitations = results
-      .filter(r => r.success && r.invitation_id)
-      .map(r => r.invitation_id)
-
-    const { data: invitations } = await supabaseAdmin
-      .from('meeting_invitations')
-      .select('*')
-      .in('id', createdInvitations)
-
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Sent ${successCount} of ${invitees.length} invitations`,
-        invitations: invitations || [],
+        message: `Sent ${successCount} of ${invitations.length} invitation emails`,
         results,
         summary: {
-          total: invitees.length,
+          total: invitations.length,
           successful: successCount,
           failed: failureCount
         }

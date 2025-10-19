@@ -31,6 +31,7 @@ import { RoomBanner } from "@/components/displays/room-banner"
 import { ActionBar } from "@/components/displays/action-bar"
 import { MeetingCarousel } from "@/components/displays/meeting-carousel"
 import { QRAttendance } from "@/components/displays/qr-attendance"
+import { TopBar } from "@/components/displays/top-bar"
 
 
 // Constants
@@ -67,7 +68,8 @@ export default function RoomDisplayPage() {
         if (roomsError) throw roomsError
 
         if (roomsData && roomsData.length > 0) {
-          setRoom(roomsData[0])
+          const roomData = roomsData[0] as Room
+          setRoom(roomData)
 
           // Get today's date in ISO format (YYYY-MM-DD)
           const today = new Date()
@@ -80,7 +82,7 @@ export default function RoomDisplayPage() {
               *,
               users:user_id (id, name, email)
             `)
-            .eq('room_id', roomsData[0].id)
+            .eq('room_id', roomData.id)
             .gte('start_time', `${dateString}T00:00:00.000Z`)
             .lte('end_time', `${dateString}T23:59:59.999Z`)
             .in('status', ['confirmed', 'pending'])
@@ -91,11 +93,11 @@ export default function RoomDisplayPage() {
           setBookings(bookingsData || [])
 
           // Fetch resources for this room
-          if (roomsData[0].room_resources && roomsData[0].room_resources.length > 0) {
+          if (roomData.room_resources && roomData.room_resources.length > 0) {
             const { data: resourcesData, error: resourcesError } = await supabase
               .from('resources')
               .select('*')
-              .in('id', roomsData[0].room_resources)
+              .in('id', roomData.room_resources)
 
             if (resourcesError) throw resourcesError
 
@@ -104,7 +106,7 @@ export default function RoomDisplayPage() {
 
           // Simulate occupancy sensor data
           // In a real app, this would come from an actual sensor
-          simulateOccupancySensor(roomsData[0])
+          simulateOccupancySensor(roomData)
         }
       } catch (error) {
         console.error("Error fetching room data:", error)
@@ -312,11 +314,22 @@ export default function RoomDisplayPage() {
           }}
         />
         
-        {/* Dark overlay for better readability */}
-        <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
-        
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-navy-900/20 via-brand-navy-800/30 to-brand-navy-900/20"></div>
+        {/* Dynamic overlay based on room status */}
+        {roomStatus === "meeting-in-progress" ? (
+          <>
+            {/* Meeting in progress - darker overlay for better contrast */}
+            <div className="absolute inset-0 bg-black/60 dark:bg-black/70"></div>
+            {/* Teal gradient overlay for meeting in progress */}
+            {/* <div className="absolute inset-0 bg-gradient-to-br from-brand-navy-900/40 via-brand-teal-900/30 to-brand-navy-900/40"></div> */}
+          </>
+        ) : (
+          <>
+            {/* Default overlay for other statuses */}
+            <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-navy-900/20 via-brand-navy-800/30 to-brand-navy-900/20"></div>
+          </>
+        )}
         
         {/* Subtle geometric shapes with brand colors */}
         <div className="absolute top-10 left-10 w-32 h-32 bg-brand-teal-200/20 dark:bg-brand-teal-500/10 rounded-full blur-2xl animate-float"></div>
@@ -337,111 +350,112 @@ export default function RoomDisplayPage() {
         />
       )}
 
-      {/* Modern Header with Enhanced Glassmorphism and Time */}
-      <header className="relative z-10 p-6">
-        <div className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 rounded-2xl border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30">
-          <div className="flex items-center justify-between gap-4 px-6 py-4">
-            <div className="flex items-center gap-4">
-              <RoomStatusIndicator status={roomStatus} size="sm" />
-              <div>
-                <div className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50 tracking-tight">{room.name}</div>
-                {room.location && <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400 font-medium">{room.location}</div>}
+      {/* Modern Header with Enhanced Glassmorphism and Time - Hidden for meeting-in-progress */}
+      
+        <header className="relative z-10 p-6">
+          <div className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 rounded-2xl border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30">
+            <div className="flex items-center justify-between gap-4 px-6 py-4">
+              <div className="flex items-center gap-4">
+                <RoomStatusIndicator status={roomStatus} size="sm" />
+                <div>
+                  <div className="text-2xl font-bold text-brand-navy-900 dark:text-brand-navy-50 tracking-tight">{room.name}</div>
+                  {room.location && <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400 font-medium">{room.location}</div>}
+                </div>
+                <div className="ml-2"><StatusBadge status={roomStatus} size="md" /></div>
+                {typeof room.capacity === 'number' && (
+                  <div className="ml-2 text-sm px-3 py-1.5 rounded-full bg-brand-teal-100 dark:bg-brand-teal-900/30 text-brand-teal-700 dark:text-brand-teal-300 font-semibold border border-brand-teal-200 dark:border-brand-teal-700">
+                    Capacity: {room.capacity}
+                  </div>
+                )}
               </div>
-              <div className="ml-2"><StatusBadge status={roomStatus} size="md" /></div>
-                             {typeof room.capacity === 'number' && (
-                 <div className="ml-2 text-sm px-3 py-1.5 rounded-full bg-brand-teal-100 dark:bg-brand-teal-900/30 text-brand-teal-700 dark:text-brand-teal-300 font-semibold border border-brand-teal-200 dark:border-brand-teal-700">
-                   Capacity: {room.capacity}
-                 </div>
-               )}
-            </div>
-            <div className="flex items-center gap-3">
-              {syncError && (
-                <div className="flex items-center text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800">
-                  <WifiOff className="h-4 w-4 mr-2" /> Offline
+              <div className="flex items-center gap-3">
+                {syncError && (
+                  <div className="flex items-center text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800">
+                    <WifiOff className="h-4 w-4 mr-2" /> Offline
+                  </div>
+                )}
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">
+                    {format(currentTime, 'HH:mm')}
+                  </div>
+                  <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400 font-medium">
+                    {format(currentTime, 'EEEE, MMMM d')}
+                  </div>
                 </div>
-              )}
-              <div className="text-right">
-                <div className="text-3xl font-bold text-brand-navy-900 dark:text-brand-navy-50">
-                  {format(currentTime, 'HH:mm')}
-                </div>
-                <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400 font-medium">
-                  {format(currentTime, 'EEEE, MMMM d')}
-                </div>
+                <FullscreenToggle />
               </div>
-              <FullscreenToggle />
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      
 
                            {/* Enhanced Main Content with Modern Styling */}
         <main className="relative z-10 flex-1 p-6 overflow-hidden">
           <div className="w-full h-full">
         {roomStatus === "meeting-in-progress" && currentBooking ? (
-          /* Meeting in Progress Layout - Circle Left, Schedule Right with Collapse */
-          <div className={`grid gap-8 h-full transition-all duration-700 ease-in-out ${
-            scheduleCollapsed ? 'grid-cols-1' : 'grid-cols-2'
-          }`}>
-            {/* Left Side: Meeting Status Circle with Info */}
-            <div className={`flex flex-col items-center justify-center gap-8 transition-all duration-700 ease-in-out ${
-              scheduleCollapsed ? 'col-span-1' : 'col-span-1'
-            }`}>
-              {/* Meeting Title Above Circle */}
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
-                  {currentBooking.title}
-                </h1>
-                <div className="flex items-center justify-center gap-2 text-white/90">
-                  <User className="h-5 w-5" />
-                  <span className="text-xl font-medium">
-                    {currentBooking.users?.name || "Unknown Organizer"}
-                  </span>
+          /* New Meeting in Progress Layout - Full Screen Design */
+          <div className="relative w-full ">
+           
+
+            {/* Main Content - Centered Meeting Info */}
+            <div className="flex-1 flex items-center justify-center pt-0 pb-0">
+              <div className="text-center space-y-2">
+                {/* Meeting Title */}
+                <div className="space-y-4">
+                  <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
+                    {currentBooking.title}
+                  </h1>
+                  <div className="flex items-center justify-center gap-2 text-white/90">
+                    <User className="h-6 w-6" />
+                    <span className="text-2xl font-medium">
+                       {currentBooking.users?.name || "Unknown Organizer"}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Status Ring with Timer */}
-              <StatusRing
-                status={roomStatus}
-                now={currentTime}
-                startTime={currentBooking?.start_time}
-                endTime={currentBooking?.end_time}
-                nextStartTime={nextBooking?.start_time}
-                size={scheduleCollapsed ? 480 : 400}
-                showTimer={true}
-              />
+                {/* Large Circular Timer */}
+                <div className="flex justify-center">
+                  <StatusRing
+                    status={roomStatus}
+                    now={currentTime}
+                    startTime={currentBooking?.start_time}
+                    endTime={currentBooking?.end_time}
+                    nextStartTime={nextBooking?.start_time}
+                    size={400}
+                    thickness={18}
+                    showTimer={true}
+                    className="drop-shadow-2xl"
+                  />
+                </div>
 
-              {/* Meeting Description Below Circle */}
-              {currentBooking.description && (
-                <div className="text-center max-w-md">
-                  <p className="text-xl text-white/90 leading-relaxed drop-shadow-md">
-                    {currentBooking.description}
+                {/* Meeting End Time */}
+                <div className="text-center">
+                  <p className="text-xl text-white/80 font-medium">
+                    Ends at {format(new Date(currentBooking.end_time), 'h:mm a')}
                   </p>
                 </div>
-              )}
 
-              {/* QR Attendance Component */}
-              <div className="w-full max-w-md">
-                <QRAttendance
-                  bookingId={currentBooking.id}
-                  meetingTitle={currentBooking.title}
-                  className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300"
-                />
-              </div>
-
-              {/* Action Bar */}
-              <div className="w-full max-w-md">
-                <ActionBar
-                  room={room}
-                  currentBooking={currentBooking}
-                  onCheckInSuccess={handleCheckInSuccess}
-                  onAutoRelease={handleAutoRelease}
-                />
+                {/* Meeting in Progress Badge */}
+                {/* <div className="flex justify-center">
+                  <Badge className="bg-brand-teal-500 text-white px-8 py-4 text-xl font-bold animate-pulse rounded-full shadow-xl border-2 border-white/30 backdrop-blur-sm bg-gradient-to-r from-brand-teal-500 to-brand-teal-600">
+                    Meeting in Progress
+                  </Badge>
+                </div> */}
               </div>
             </div>
 
-            {/* Right Side: Collapsible Schedule */}
+            {/* Bottom Left: QR Attendance */}
+            <div className="fixed bottom-6 left-6 z-30">
+              <QRAttendance
+                bookingId={currentBooking.id}
+                meetingTitle={currentBooking.title}
+                className="w-72"
+              />
+            </div>
+
+            {/* Right Side: Schedule Rail */}
             {!scheduleCollapsed && (
-              <div className="h-full">
+              <div className="fixed top-40 right-6 bottom-6 w-80 z-30">
                 <Card className="backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col">
                   <CardHeader className="pb-4 flex flex-row items-center justify-between">
                     <CardTitle className="text-brand-navy-900 dark:text-brand-navy-50 text-lg font-semibold flex items-center gap-2">
@@ -471,7 +485,7 @@ export default function RoomDisplayPage() {
 
             {/* Collapsed Schedule Button */}
             {scheduleCollapsed && (
-              <div className="fixed bottom-6 right-6">
+              <div className="fixed bottom-6 right-6 z-30">
                 <Button
                   onClick={() => setScheduleCollapsed(false)}
                   className="bg-brand-navy-800/90 hover:bg-brand-navy-700/90 text-white border border-white/20 backdrop-blur-md shadow-xl rounded-2xl px-6 py-4"

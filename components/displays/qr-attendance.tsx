@@ -130,11 +130,11 @@ export function QRAttendance({ bookingId, meetingTitle, className, compact = fal
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className={compact ? "pb-2" : "pb-3"}>
+    <Card className={`backdrop-blur-md bg-white/90 dark:bg-brand-navy-800/90 border border-white/30 dark:border-brand-navy-700/50 shadow-xl shadow-brand-navy-900/10 dark:shadow-brand-navy-950/30 rounded-2xl hover:shadow-2xl transition-all duration-300 ${className}`}>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className={`flex items-center gap-2 ${compact ? "text-base" : "text-lg"}`}>
-            <Users className={compact ? "h-4 w-4" : "h-5 w-5"} />
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-brand-navy-900 dark:text-brand-navy-50">
+            <Users className="h-5 w-5" />
             Meeting Attendance
           </CardTitle>
           <Button
@@ -142,79 +142,62 @@ export function QRAttendance({ bookingId, meetingTitle, className, compact = fal
             size="sm"
             onClick={handleRefresh}
             disabled={refreshing}
+            className="text-brand-navy-600 hover:text-brand-navy-800 dark:text-brand-navy-400 dark:hover:text-brand-navy-200"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>
-      <CardContent className={compact ? "space-y-3 p-3" : "space-y-4"}>
-        {/* Occupancy Display */}
-        <div className={`flex items-center justify-between ${compact ? "p-2" : "p-3"} bg-gray-50 rounded-lg`}>
-          <div>
-            <p className={`${compact ? "text-xs" : "text-sm"} font-medium text-gray-700`}>Current Occupancy</p>
-            <p className={`${compact ? "text-lg" : "text-2xl"} font-bold`}>
-              {context.occupancy.present}/{context.occupancy.capacity}
-            </p>
-          </div>
-          <div className="text-right">
-            <Badge 
-              variant={
-                context.occupancy.present > context.occupancy.capacity 
-                  ? 'destructive' 
-                  : context.occupancy.present / context.occupancy.capacity > 0.8 
-                    ? 'secondary' 
-                    : 'default'
-              }
-              className={compact ? "text-xs" : ""}
-            >
-              {context.occupancy.present > context.occupancy.capacity 
-                ? 'Over Capacity' 
-                : `${Math.round((context.occupancy.present / context.occupancy.capacity) * 100)}% Full`
-              }
-            </Badge>
-          </div>
-        </div>
-
+      <CardContent className="space-y-4">
         {/* QR Code Section */}
         {context.showQr && qrImage ? (
           <div className="text-center space-y-3">
-            <div className={`flex items-center justify-center gap-2 text-blue-600 ${compact ? "text-sm" : ""}`}>
-              <QrCode className={compact ? "h-4 w-4" : "h-5 w-5"} />
-              <span className="font-medium">Scan to Mark Attendance</span>
-            </div>
-            
-            <div className={`bg-white ${compact ? "p-2" : "p-4"} rounded-lg border-2 border-blue-200 inline-block`}>
+            <div className="bg-white dark:bg-brand-navy-700 p-4 rounded-lg border-2 border-brand-teal-200 dark:border-brand-teal-700 inline-block">
               <Image
                 src={qrImage}
                 alt="Attendance QR Code"
-                width={compact ? 128 : 200}
-                height={compact ? 128 : 200}
+                width={160}
+                height={160}
                 className="mx-auto"
               />
             </div>
-            
-            {!compact && (
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>1. Scan the QR code with your phone</p>
-                <p>2. Select your name from the list</p>
-                <p>3. Enter the code sent to your email</p>
-              </div>
-            )}
           </div>
         ) : (
-          <div className={`text-center ${compact ? "py-3" : "py-6"} text-gray-500`}>
-            <Clock className={`${compact ? "h-8 w-8" : "h-12 w-12"} mx-auto mb-3 opacity-50`} />
-            <p className={`${compact ? "text-sm" : "font-medium"}`}>Attendance marking not available</p>
-            {!compact && <p className="text-sm">QR code will appear when the meeting starts</p>}
+          <div className="text-center py-6 text-brand-navy-500 dark:text-brand-navy-400">
+            <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">Attendance marking not available</p>
+            <p className="text-sm">QR code will appear when the meeting starts</p>
           </div>
         )}
 
-        {/* Accepted Attendees Count */}
-        {context.occupancy.accepted > 0 && !compact && (
-          <div className="text-center pt-2 border-t">
-            <p className="text-sm text-gray-600">
-              {context.occupancy.accepted} attendee{context.occupancy.accepted !== 1 ? 's' : ''} expected
+        {/* Occupancy Display with Progress Bar */}
+        <div className="space-y-3">
+          <div className="text-center">
+            <p className="text-sm font-medium text-brand-navy-700 dark:text-brand-navy-300">Occupancy</p>
+          </div>
+          
+          {/* Horizontal Progress Bar */}
+          <div className="w-full bg-brand-navy-200 dark:bg-brand-navy-700 rounded-full h-3">
+            <div 
+              className="bg-brand-teal-500 h-3 rounded-full transition-all duration-500"
+              style={{ 
+                width: `${Math.min(100, (context.occupancy.present / context.occupancy.capacity) * 100)}%` 
+              }}
+            />
+          </div>
+          
+          <div className="text-center">
+            <p className="text-lg font-bold text-brand-navy-900 dark:text-brand-navy-50">
+              {context.occupancy.present}/{context.occupancy.capacity} Seats Filled
             </p>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        {context.showQr && qrImage && (
+          <div className="text-sm text-brand-navy-600 dark:text-brand-navy-400 space-y-1">
+            <p>1. Scan the QR code to check in.</p>
+            <p>2. Select your name from the list.</p>
           </div>
         )}
       </CardContent>

@@ -268,38 +268,6 @@ export function TimeSlotSelector({
   
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">
-          Select Time for {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-        </h3>
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground flex-wrap">
-          {availabilityData?.operatingHours && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>
-                Open {formatTimeDisplay(availabilityData.operatingHours.start)} - {formatTimeDisplay(availabilityData.operatingHours.end)}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <Info className="h-4 w-4" />
-            <span>30-minute intervals</span>
-          </div>
-          {availabilityData?.restrictions && (
-            <div className="flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" />
-              <span>
-                {availabilityData.restrictions.minDuration} - {availabilityData.restrictions.maxDuration} min duration
-              </span>
-            </div>
-          )}
-        </div>
-        {availabilityData?.restrictions?.bufferTime > 0 && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {availabilityData.restrictions.bufferTime} minute buffer required between bookings
-          </p>
-        )}
-      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Start Time Selection */}

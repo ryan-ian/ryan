@@ -186,7 +186,63 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Call Edge Function to send invitations (it handles DB insertion too)
+    // Insert invitations into database first
+    const insertedInvitations = []
+    for (const attendee of finalAttendees) {
+      try {
+        // Create a user-specific Supabase client with the user's token
+        const userSupabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+
+        await userSupabase.auth.setSession({
+          access_token: token,
+          refresh_token: '',
+        })
+
+        const { data: invitation, error: invError } = await userSupabase
+          .from('meeting_invitations')
+          .insert({
+            booking_id: bookingId,
+            organizer_id: user.id,
+            invitee_email: attendee.email,
+            invitee_name: attendee.name || attendee.email.split('@')[0],
+            status: 'pending',
+          })
+          .select()
+          .single()
+
+        if (invError) {
+          console.error(`❌ Failed to insert invitation for ${attendee.email}:`, invError)
+          continue
+        }
+
+        insertedInvitations.push({
+          ...invitation,
+          invitee_data: {
+            name: attendee.name || attendee.email.split('@')[0],
+            email: attendee.email
+          }
+        })
+
+        console.log(`✅ Invitation record created for ${attendee.email}: ${invitation.id}`)
+
+      } catch (error) {
+        console.error(`❌ Error inserting invitation for ${attendee.email}:`, error)
+      }
+    }
+
+    if (insertedInvitations.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to create any invitations in database' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✅ Inserted ${insertedInvitations.length} invitations into database`)
+
+    // Now call Edge Function to send emails for the inserted invitations
     const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-meeting-invitations`
     try {
       const response = await fetch(functionUrl, {
@@ -197,9 +253,10 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           booking_id: bookingId,
-          invitees: finalAttendees.map(attendee => ({
-            name: attendee.name || attendee.email.split('@')[0],
-            email: attendee.email
+          invitations: insertedInvitations.map(inv => ({
+            id: inv.id,
+            name: inv.invitee_data.name,
+            email: inv.invitee_data.email
           })),
         }),
       })
@@ -208,23 +265,27 @@ export async function POST(request: NextRequest) {
       
       if (!response.ok || !result.success) {
         console.error('❌ Edge function failed:', result)
-        return NextResponse.json(
-          { error: result.error || 'Failed to send invitations' },
-          { status: 500 }
-        )
+        // Invitations are already in DB, so return them even if email failed
+        return NextResponse.json({
+          invitations: insertedInvitations,
+          email_status: 'failed',
+          error: result.error || 'Failed to send invitation emails'
+        }, { status: 207 }) // 207 Multi-Status
       }
 
-      console.log(`✅ Invitations sent via Edge Function:`, result.summary)
+      console.log(`✅ Emails sent via Edge Function:`, result.summary)
       
-      // Return the invitations created by the Edge Function
-      return NextResponse.json(result.invitations || [], { status: 201 })
+      // Return the invitations we inserted
+      return NextResponse.json(insertedInvitations, { status: 201 })
 
     } catch (error) {
       console.error('❌ Error calling Edge Function:', error)
-      return NextResponse.json(
-        { error: 'Failed to send invitations' },
-        { status: 500 }
-      )
+      // Invitations are already in DB, so return them even if email failed
+      return NextResponse.json({
+        invitations: insertedInvitations,
+        email_status: 'failed',
+        error: 'Failed to send invitation emails'
+      }, { status: 207 }) // 207 Multi-Status
     }
 
   } catch (error) {

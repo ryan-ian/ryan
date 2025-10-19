@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { 
   Building, 
   Users, 
@@ -22,7 +23,9 @@ import {
   AlertCircle,
   CreditCard,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -125,10 +128,10 @@ const RoomSummaryCard = ({ room, loadingSource }: { room: Room; loadingSource: '
             </div>
             
             {/* Right side - Status */}
-            <div className="text-right">
+            {/* <div className="text-right">
               <div className="text-xs text-muted-foreground">Status</div>
               <div className="text-sm font-medium text-accent">Available</div>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>
@@ -154,6 +157,9 @@ const BookingForm = ({
   onChange: (data: Partial<BookingFormData>) => void
   room: Room 
 }) => {
+  // Calendar collapsible state
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false)
+
   // Calculate live cost as user selects times
   const calculateLiveCost = () => {
     if (!formData.startTime || !formData.endTime || !room.hourly_rate) return 0
@@ -172,9 +178,9 @@ const BookingForm = ({
   return (
     <div className="space-y-4">
       {/* Main Form Layout - Responsive Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Left Column - Meeting Details */}
-        <div className="md:col-span-1 lg:col-span-1 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left Column - Meeting Details + Calendar */}
+        <div className="lg:col-span-1 space-y-3">
           <div>
             <Label htmlFor="title">Meeting Title *</Label>
             <Input
@@ -196,25 +202,47 @@ const BookingForm = ({
               className="mt-1 resize-none h-20"
             />
           </div>
-        </div>
 
-        {/* Middle Column - Date Selection */}
-        <div className="md:col-span-1 lg:col-span-1 space-y-3">
+          {/* Calendar (always in this column, expands downward) */}
           <div>
-            <Label>Select Date *</Label>
-            <div className="mt-1">
-              <Calendar
-                selected={formData.date}
-                onSelect={(date) => onChange({ date })}
-                className="rounded-md border"
-                roomId={room.id}
-              />
-            </div>
+            <Collapsible open={isCalendarExpanded} onOpenChange={setIsCalendarExpanded}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  type="button"
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    <span>
+                      {formData.date 
+                        ? format(formData.date, 'EEEE, MMMM dd, yyyy')
+                        : 'Select Date *'
+                      }
+                    </span>
+                  </div>
+                  {isCalendarExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <Calendar
+                  selected={formData.date}
+                  onSelect={(date) => onChange({ date })}
+                  className="rounded-md border"
+                  roomId={room.id}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
 
-        {/* Right Column - Time Selection & Cost */}
-        <div className="md:col-span-2 lg:col-span-1 space-y-3">
+
+        {/* Middle and Right Columns - Time Selection & Cost */}
+        <div className="lg:col-span-2 space-y-3">
           {formData.date && (
             <>
               <div>
@@ -230,7 +258,7 @@ const BookingForm = ({
               </div>
               
               {/* Live Cost Calculator */}
-              {formData.startTime && formData.endTime && room.hourly_rate && room.hourly_rate > 0 && (
+              {formData.startTime && formData.endTime && room.hourly_rate && room.hourly_rate > 0 && liveCost > 0 && (
                 <div className="bg-accent/10 border border-accent/20 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -270,6 +298,7 @@ const ReviewAndPayment = ({
 }) => {
   const [paymentState, setPaymentState] = useState<'ready' | 'initializing' | 'processing' | 'verifying' | 'success' | 'error'>('ready')
   const [paymentError, setPaymentError] = useState<string>('')
+  const [isConfirming, setIsConfirming] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -395,6 +424,23 @@ const ReviewAndPayment = ({
         description: error.message || 'Failed to initialize payment. Please try again.',
         variant: "destructive"
       })
+    }
+  }
+
+  // Handle confirm booking for free rooms
+  const handleConfirmBooking = async () => {
+    setIsConfirming(true)
+    try {
+      await onPayment()
+    } catch (error) {
+      console.error('Booking confirmation error:', error)
+      toast({
+        title: "Booking Failed",
+        description: "Failed to confirm booking. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsConfirming(false)
     }
   }
 
@@ -614,24 +660,7 @@ const ReviewAndPayment = ({
             )}
           </CardContent>
         </Card>
-      ) : (
-        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Check className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-green-800 dark:text-green-300 mb-1">No Payment Required</h3>
-              <p className="text-sm text-green-600 dark:text-green-400 mb-4">This room is free to book</p>
-              <Button 
-                onClick={onPayment}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                size="lg"
-              >
-                Confirm Booking
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        ) : null}
     </div>
   )
 }
@@ -648,6 +677,7 @@ function BookingPageContent() {
   const [loading, setLoading] = useState(true)
   const [loadingSource, setLoadingSource] = useState<'session' | 'api' | 'error'>('session')
   const [submitting, setSubmitting] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   const [formData, setFormData] = useState<BookingFormData>({
@@ -760,6 +790,23 @@ function BookingPageContent() {
   const handlePayment = () => {
     // Free booking - create directly
     createBooking()
+  }
+
+  // Handle confirm booking for free rooms
+  const handleConfirmBooking = async () => {
+    setIsConfirming(true)
+    try {
+      await handlePayment()
+    } catch (error) {
+      console.error('Booking confirmation error:', error)
+      toast({
+        title: "Booking Failed",
+        description: "Failed to confirm booking. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsConfirming(false)
+    }
   }
 
   // Handle direct payment success
@@ -973,10 +1020,28 @@ function BookingPageContent() {
                     Next
                     <ArrowRight className="h-4 w-4" />
                   </Button>
-                ) : (
+                ) : room.hourly_rate && room.hourly_rate > 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    Ready to {room.hourly_rate && room.hourly_rate > 0 ? 'pay' : 'book'}
+                    Ready to pay
                   </div>
+                ) : (
+                  <Button 
+                    onClick={handleConfirmBooking}
+                    disabled={isConfirming}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isConfirming ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Confirming...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Confirm Booking
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
             </Card>

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "npm:@supabase/supabase-js@2": "npm:@supabase/supabase-js@2",
+    "npm:nodemailer@6.9.7": "npm:nodemailer@6.9.7",
+    "npm:date-fns@3.0.0": "npm:date-fns@3.0.0"
+  }
+}

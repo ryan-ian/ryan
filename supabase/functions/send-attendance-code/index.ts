@@ -13,6 +13,68 @@ interface RequestBody {
   booking_id: string
 }
 
+// Email template utilities
+const EMAIL_COLORS = {
+  background: '#FFFFFF',
+  infoSection: '#F3F4F6',
+  border: '#E5E7EB',
+  primaryText: '#000000',
+  secondaryText: '#6B7280',
+  brandAccent: '#16A34A',
+  success: '#16A34A',
+  error: '#EF4444',
+  warning: '#F59E0B',
+} as const
+
+function generateEmailLogo(width: number = 150, height: number = 36): string {
+  const scale = width / 150
+  const scaledHeight = height
+  const scaledStrokeWidth = Math.max(6, 8 * scale)
+  
+  return `
+    <svg width="${width}" height="${scaledHeight}" viewBox="0 0 250 60" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+      <g id="Logomark">
+        <path 
+          d="M 45,30 A 20 20, 0, 1, 1, 25,10"
+          fill="none"
+          stroke="${EMAIL_COLORS.primaryText}"
+          stroke-width="${scaledStrokeWidth}"
+          stroke-linecap="round"
+        />
+        <line 
+          x1="25" 
+          y1="10" 
+          x2="25" 
+          y2="50" 
+          stroke="${EMAIL_COLORS.primaryText}" 
+          stroke-width="${scaledStrokeWidth}" 
+          stroke-linecap="round"
+        />
+        <path 
+          d="M 25 30 L 45 30"
+          fill="none"
+          stroke="${EMAIL_COLORS.brandAccent}"
+          stroke-width="${scaledStrokeWidth}"
+          stroke-linecap="round"
+        />
+      </g>
+      <g id="Logotype" transform="translate(70, 0)">
+        <text 
+          x="0" 
+          y="30" 
+          font-family="Arial, Helvetica, sans-serif" 
+          font-size="${22 * scale}" 
+          fill="${EMAIL_COLORS.primaryText}" 
+          dominant-baseline="middle"
+        >
+          <tspan font-weight="600">Conference</tspan>
+          <tspan font-weight="400">Hub</tspan>
+        </text>
+      </g>
+    </svg>
+  `
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -121,29 +183,157 @@ Deno.serve(async (req) => {
 
     // Email HTML content
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2196F3;">Your Attendance Code</h2>
-        <p>Hello ${invitation.invitee_name || invitation.invitee_email.split('@')[0]},</p>
-        <p>Here is your attendance code for the meeting:</p>
-        
-        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
-          <p><strong>Meeting:</strong> ${booking.title}</p>
-          <p><strong>Room:</strong> ${room?.name || 'Meeting Room'}</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-        </div>
-
-        <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 25px 0; border: 2px solid #ff9800; text-align: center;">
-          <h3 style="margin: 0 0 10px 0; color: #e65100;">Your Attendance Code</h3>
-          <div style="font-size: 36px; font-weight: bold; color: #e65100; letter-spacing: 8px; font-family: 'Courier New', monospace;">
-            ${attendanceCode}
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Attendance Code</title>
+        <style>
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: Arial, Helvetica, sans-serif; 
+            line-height: 1.6; 
+            color: #000000;
+            background-color: #f9f9f9;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background-color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          .header { 
+            background-color: #FFFFFF; 
+            padding: 24px 0; 
+            border-bottom: 1px solid #E5E7EB; 
+            text-align: center; 
+          }
+          .content { 
+            padding: 24px; 
+          }
+          .info-section {
+            background-color: #F3F4F6;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #E5E7EB;
+          }
+          .info-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #000000;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          .detail-row {
+            margin-bottom: 12px;
+          }
+          .detail-label {
+            display: block;
+            color: #6B7280;
+            font-size: 13px;
+            margin-bottom: 4px;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          .detail-value {
+            display: block;
+            color: #000000;
+            font-size: 15px;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          .footer {
+            background-color: #FFFFFF;
+            padding: 24px 0;
+            border-top: 1px solid #E5E7EB;
+            text-align: center;
+            margin-top: 32px;
+          }
+          .footer p {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #6B7280;
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          h1, h2, h3, h4, h5, h6 { 
+            font-family: Arial, Helvetica, sans-serif; 
+            color: #000000;
+          }
+          p { 
+            font-family: Arial, Helvetica, sans-serif; 
+            color: #000000;
+            margin: 0 0 16px 0;
+          }
+          @media only screen and (max-width: 600px) {
+            .email-container { 
+              width: 100% !important; 
+              margin: 0 !important; 
+            }
+            .content { 
+              padding: 16px !important; 
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <div class="header">
+            ${generateEmailLogo(150, 36)}
+            <h1 style="margin: 16px 0 8px 0; font-size: 24px; font-weight: 600; color: #000000; font-family: Arial, Helvetica, sans-serif;">
+              Your Attendance Code
+            </h1>
           </div>
-          <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this code to mark your attendance</p>
-        </div>
 
-        <p>Thank you for attending!</p>
-        <p>Best regards,<br>Conference Hub Team</p>
-      </div>
+          <div class="content">
+            <p>Hello ${invitation.invitee_name || invitation.invitee_email.split('@')[0]},</p>
+            <p>Here is your attendance code for the meeting:</p>
+            
+            <div class="info-section">
+              <h3>Meeting Details</h3>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="detail-row">
+                  <strong class="detail-label">Meeting</strong>
+                  <span class="detail-value">${booking.title}</span>
+                </div>
+                <div class="detail-row">
+                  <strong class="detail-label">Room</strong>
+                  <span class="detail-value">${room?.name || 'Meeting Room'}</span>
+                </div>
+                <div class="detail-row">
+                  <strong class="detail-label">Date</strong>
+                  <span class="detail-value">${formattedDate}</span>
+                </div>
+                <div class="detail-row">
+                  <strong class="detail-label">Time</strong>
+                  <span class="detail-value">${formattedStartTime} - ${formattedEndTime}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <h3>Attendance Code</h3>
+              <div style="text-align: center; padding: 20px 0;">
+                <h3 style="margin: 0 0 16px 0; color: #000000; font-family: Arial, Helvetica, sans-serif;">Your Attendance Code</h3>
+                <div style="font-size: 36px; font-weight: bold; color: #16A34A; letter-spacing: 8px; font-family: 'Courier New', monospace; margin: 16px 0;">
+                  ${attendanceCode}
+                </div>
+                <p style="margin: 8px 0 0 0; font-size: 14px; color: #6B7280; font-family: Arial, Helvetica, sans-serif;">Enter this code on the room display to mark your attendance</p>
+              </div>
+            </div>
+            
+            <p>Thank you for attending!</p>
+          </div>
+
+          <div class="footer">
+            <p>This email was sent by Conference Hub</p>
+            <p style="margin: 0; font-size: 12px; color: #6B7280; font-family: Arial, Helvetica, sans-serif;">
+              © ${new Date().getFullYear()} Conference Hub. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
     `
 
     const text = `

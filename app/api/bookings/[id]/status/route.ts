@@ -1,17 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { updateBooking, getUserById, getRoomById, getMeetingInvitations } from "@/lib/supabase-data"
-import { 
-  sendBookingConfirmationEmail, 
-  sendBookingRejectionEmail,
-  sendBookingConfirmationEmailWithICS,
-  sendMeetingInvitationEmailWithICS,
-  sendBookingCancellationEmailWithICS
-} from "@/lib/email-service"
-import { 
-  generateBookingApprovalICS, 
-  generateBookingCancellationICS 
-} from "@/lib/ics-generator"
-import { getRoomTimezone, getDefaultReminderMinutes } from "@/lib/timezone-utils"
 
 export async function POST(
   request: NextRequest,
@@ -37,163 +25,63 @@ export async function POST(
     console.log(`✅ [API] Successfully updated booking ${id} status to ${status}`)
     console.log(`📋 [API] Updated booking result:`, updatedBooking)
 
-    // Send email notification to the user who created the booking
+    // Send email notification via edge function
     try {
-      console.log(`📧 [API] Attempting to send email notification for booking ${id}`)
+      console.log(`📧 [EDGE FUNCTIONS] Attempting to send email notification for booking ${id}`)
 
       // Get user details
       const user = await getUserById(updatedBooking.user_id)
       if (!user || !user.email || !user.name) {
-        console.warn(`⚠️ [API] Could not send email - user not found or missing email/name: ${updatedBooking.user_id}`)
+        console.warn(`⚠️ [EDGE FUNCTIONS] Could not send email - user not found or missing email/name: ${updatedBooking.user_id}`)
       } else {
-        // Get room details
-        const room = await getRoomById(updatedBooking.room_id)
-        if (!room) {
-          console.warn(`⚠️ [API] Could not send email - room not found: ${updatedBooking.room_id}`)
-        } else {
-          console.log(`📧 [API] Sending ${status} email to ${user.email}`)
+        console.log(`📧 [EDGE FUNCTIONS] Sending ${status} email to ${user.email}`)
 
-          if (status === "confirmed") {
-            // Get facility name for location
-            const facilityName = room.location || "Conference Hub"
-            
-            // Determine timezone and reminder settings
-            const timezone = getRoomTimezone(room, { name: facilityName, location: room.location })
-            const reminderMinutes = getDefaultReminderMinutes(timezone)
-            
-            console.log(`📅 [API] Using timezone ${timezone} with ${reminderMinutes}-minute reminder for booking ${id}`)
-            
-            // Generate ICS for the booking approval
-            const icsContent = generateBookingApprovalICS(
-              id,
-              updatedBooking.title,
-              updatedBooking.description,
-              room.name,
-              facilityName,
-              updatedBooking.start_time,
-              updatedBooking.end_time,
-              user.email,
-              user.name,
-              [], // No attendees for organizer's copy
-              reminderMinutes,
-              timezone
-            )
-            
-            // Send booking confirmation email with ICS
-            await sendBookingConfirmationEmailWithICS(
-              user.email,
-              user.name,
-              updatedBooking.title,
-              room.name,
-              facilityName,
-              updatedBooking.start_time,
-              updatedBooking.end_time,
-              updatedBooking.description,
-              icsContent
-            )
-            console.log(`✅ [API] Booking confirmation email with ICS sent successfully to ${user.email}`)
-            console.log(`📋 [API] Booking approved - organizer can now invite attendees through the system`)
-            
-          } else if (status === "cancelled") {
-            // Get facility name for location
-            const facilityName = room.location || "Conference Hub"
-            
-            // Determine timezone (same as approval)
-            const timezone = getRoomTimezone(room, { name: facilityName, location: room.location })
-            
-            console.log(`📅 [API] Using timezone ${timezone} for cancellation of booking ${id}`)
-            
-            // Generate cancellation ICS
-            const cancellationIcsContent = generateBookingCancellationICS(
-              id,
-              updatedBooking.title,
-              updatedBooking.description,
-              room.name,
-              facilityName,
-              updatedBooking.start_time,
-              updatedBooking.end_time,
-              user.email,
-              user.name,
-              [], // No attendees for organizer's copy initially
-              0, // Sequence 0 for now (should be incremented in real implementation)
-              timezone
-            )
-            
-            // Send booking cancellation email with ICS
-            const rejectionReasonText = rejection_reason || "No specific reason provided"
-            await sendBookingCancellationEmailWithICS(
-              user.email,
-              user.name,
-              updatedBooking.title,
-              room.name,
-              facilityName,
-              updatedBooking.start_time,
-              updatedBooking.end_time,
-              rejectionReasonText,
-              cancellationIcsContent
-            )
-            console.log(`✅ [API] Booking cancellation email with ICS sent successfully to ${user.email}`)
-            
-            // Send cancellation notices to attendees if any exist
-            try {
-              const invitations = await getMeetingInvitations(id)
-              console.log(`📧 [API] Found ${invitations.length} meeting invitations for cancelled booking ${id}`)
-              
-              if (invitations.length > 0) {
-                // Generate cancellation ICS with attendees for invitees
-                const attendees = invitations.map(inv => ({
-                  email: inv.invitee_email,
-                  name: inv.invitee_name || undefined
-                }))
-                
-                const inviteeCancellationIcs = generateBookingCancellationICS(
-                  id,
-                  updatedBooking.title,
-                  updatedBooking.description,
-                  room.name,
-                  facilityName,
-                  updatedBooking.start_time,
-                  updatedBooking.end_time,
-                  user.email,
-                  user.name,
-                  attendees,
-                  0, // Sequence 0 for now
-                  timezone
-                )
-                
-                // Send cancellation notices to all invitees
-                const cancellationPromises = invitations.map(async (invitation) => {
-                  try {
-                    await sendBookingCancellationEmailWithICS(
-                      invitation.invitee_email,
-                      invitation.invitee_name || "Attendee",
-                      updatedBooking.title,
-                      room.name,
-                      facilityName,
-                      updatedBooking.start_time,
-                      updatedBooking.end_time,
-                      `Meeting cancelled by organizer: ${rejectionReasonText}`,
-                      inviteeCancellationIcs
-                    )
-                    console.log(`✅ [API] Meeting cancellation notice with ICS sent to ${invitation.invitee_email}`)
-                  } catch (emailError) {
-                    console.error(`❌ [API] Failed to send cancellation email to ${invitation.invitee_email}:`, emailError)
-                  }
-                })
-                
-                await Promise.allSettled(cancellationPromises)
-                console.log(`✅ [API] All meeting cancellation emails processed for booking ${id}`)
-              }
-            } catch (invitationError) {
-              console.error(`❌ [API] Failed to process meeting cancellations for booking ${id}:`, invitationError)
-              // Don't fail the cancellation if invitations fail
-            }
+        if (status === "confirmed") {
+          // Send booking confirmation email via edge function
+          const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-booking-confirmation`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              booking_id: id,
+              send_ics: true
+            })
+          })
+
+          const result = await response.json()
+          if (response.ok && result.success) {
+            console.log(`✅ [EDGE FUNCTIONS] Booking confirmation email sent successfully to ${user.email}`)
+          } else {
+            console.error(`❌ [EDGE FUNCTIONS] Failed to send confirmation email:`, result.error)
+          }
+          
+        } else if (status === "cancelled") {
+          // Send booking rejection email via edge function
+          const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-booking-rejection`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              booking_id: id,
+              rejection_reason: rejection_reason || "No specific reason provided"
+            })
+          })
+
+          const result = await response.json()
+          if (response.ok && result.success) {
+            console.log(`✅ [EDGE FUNCTIONS] Booking rejection email sent successfully to ${user.email}`)
+          } else {
+            console.error(`❌ [EDGE FUNCTIONS] Failed to send rejection email:`, result.error)
           }
         }
       }
     } catch (emailError) {
-      console.error(`❌ [API] Failed to send email notification for booking ${id}:`, emailError)
-      // Don't fail the booking status update if email fails
+      console.error(`❌ [EDGE FUNCTIONS] Error sending email notification:`, emailError)
+      // Don't fail the entire request if email fails
     }
 
     console.log(`🔍 [API] updateBooking function completed, checking if email logs appeared above...`)

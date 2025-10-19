@@ -216,63 +216,74 @@ async function createSingleBooking(bookingData: any, room: any) {
     console.log(`🔍 [SINGLE BOOKING] Fetching facility manager for room ${room.id}`)
     const facilityManager = await getFacilityManagerByRoomId(room.id)
 
-    // Send dual email notifications simultaneously
-    console.log(`📧 [DUAL EMAIL] Starting dual email notification process for booking ${newBooking.id}`)
+    // Send email notifications via edge functions
+    console.log(`📧 [EDGE FUNCTIONS] Starting email notification process for booking ${newBooking.id}`)
 
-    // Prepare email promises for simultaneous sending
+    // Prepare edge function calls for simultaneous sending
     const emailPromises = []
 
-    // 1. User email notification
+    // 1. User email notification via edge function
     if (user && user.email && user.name) {
-      console.log(`📧 [DUAL EMAIL] Preparing user email to ${user.email}`)
-      const userEmailPromise = sendBookingRequestSubmittedEmail(
-        user.email,
-        user.name,
-        bookingData.title,
-        room.name,
-        start_time,
-        end_time
-      ).then(() => {
-        console.log(`✅ [DUAL EMAIL] User email sent successfully to ${user.email}`)
-        return { type: 'user', success: true, email: user.email }
+      console.log(`📧 [EDGE FUNCTIONS] Preparing user email to ${user.email}`)
+      const userEmailPromise = fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-booking-request-submitted`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          booking_id: newBooking.id
+        })
+      }).then(async (response) => {
+        const result = await response.json()
+        if (response.ok && result.success) {
+          console.log(`✅ [EDGE FUNCTIONS] User email sent successfully to ${user.email}`)
+          return { type: 'user', success: true, email: user.email }
+        } else {
+          throw new Error(result.error || 'Failed to send user email')
+        }
       }).catch((error) => {
-        console.error(`❌ [DUAL EMAIL] Failed to send user email to ${user.email}:`, error)
-        return { type: 'user', success: false, email: user.email, error }
+        console.error(`❌ [EDGE FUNCTIONS] Failed to send user email to ${user.email}:`, error)
+        return { type: 'user', success: false, email: user.email, error: error.message }
       })
       emailPromises.push(userEmailPromise)
     } else {
-      console.warn(`⚠️ [DUAL EMAIL] Cannot send user email - user not found or missing email/name: ${bookingData.user_id}`)
+      console.warn(`⚠️ [EDGE FUNCTIONS] Cannot send user email - user not found or missing email/name: ${bookingData.user_id}`)
     }
 
-    // 2. Facility manager email notification
+    // 2. Facility manager email notification via edge function
     if (facilityManager && facilityManager.email && facilityManager.name) {
-      console.log(`📧 [DUAL EMAIL] Preparing facility manager email to ${facilityManager.email}`)
-      const managerEmailPromise = sendBookingCreationNotificationToManager(
-        facilityManager.email,
-        facilityManager.name,
-        user?.name || 'Unknown User',
-        user?.email || 'unknown@email.com',
-        bookingData.title,
-        room.name,
-        facilityManager.facilityName,
-        start_time,
-        end_time
-      ).then(() => {
-        console.log(`✅ [DUAL EMAIL] Facility manager email sent successfully to ${facilityManager.email}`)
-        return { type: 'manager', success: true, email: facilityManager.email }
+      console.log(`📧 [EDGE FUNCTIONS] Preparing facility manager email to ${facilityManager.email}`)
+      const managerEmailPromise = fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-facility-manager-booking-notification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          booking_id: newBooking.id
+        })
+      }).then(async (response) => {
+        const result = await response.json()
+        if (response.ok && result.success) {
+          console.log(`✅ [EDGE FUNCTIONS] Facility manager email sent successfully to ${facilityManager.email}`)
+          return { type: 'manager', success: true, email: facilityManager.email }
+        } else {
+          throw new Error(result.error || 'Failed to send facility manager email')
+        }
       }).catch((error) => {
-        console.error(`❌ [DUAL EMAIL] Failed to send facility manager email to ${facilityManager.email}:`, error)
-        return { type: 'manager', success: false, email: facilityManager.email, error }
+        console.error(`❌ [EDGE FUNCTIONS] Failed to send facility manager email to ${facilityManager.email}:`, error)
+        return { type: 'manager', success: false, email: facilityManager.email, error: error.message }
       })
       emailPromises.push(managerEmailPromise)
     } else {
-      console.warn(`⚠️ [DUAL EMAIL] Cannot send facility manager email - manager not found or missing email/name for room ${room.id}`)
+      console.warn(`⚠️ [EDGE FUNCTIONS] Cannot send facility manager email - manager not found or missing email/name for room ${room.id}`)
     }
 
     // Send all emails simultaneously and wait for results
     if (emailPromises.length > 0) {
       try {
-        console.log(`📧 [DUAL EMAIL] Sending ${emailPromises.length} emails simultaneously...`)
+        console.log(`📧 [EDGE FUNCTIONS] Sending ${emailPromises.length} emails simultaneously...`)
         const emailResults = await Promise.allSettled(emailPromises)
 
         // Log results
@@ -280,21 +291,21 @@ async function createSingleBooking(bookingData: any, room: any) {
           if (result.status === 'fulfilled') {
             const emailResult = result.value
             if (emailResult.success) {
-              console.log(`✅ [DUAL EMAIL] ${emailResult.type} email completed successfully`)
+              console.log(`✅ [EDGE FUNCTIONS] ${emailResult.type} email completed successfully`)
             } else {
-              console.error(`❌ [DUAL EMAIL] ${emailResult.type} email failed:`, emailResult.error)
+              console.error(`❌ [EDGE FUNCTIONS] ${emailResult.type} email failed:`, emailResult.error)
             }
           } else {
-            console.error(`❌ [DUAL EMAIL] Email promise ${index} rejected:`, result.reason)
+            console.error(`❌ [EDGE FUNCTIONS] Email promise ${index} rejected:`, result.reason)
           }
         })
 
-        console.log(`📧 [DUAL EMAIL] Dual email notification process completed`)
+        console.log(`📧 [EDGE FUNCTIONS] Email notification process completed`)
       } catch (error) {
-        console.error(`❌ [DUAL EMAIL] Unexpected error in dual email process:`, error)
+        console.error(`❌ [EDGE FUNCTIONS] Unexpected error in email process:`, error)
       }
     } else {
-      console.warn(`⚠️ [DUAL EMAIL] No emails to send - both user and facility manager emails unavailable`)
+      console.warn(`⚠️ [EDGE FUNCTIONS] No emails to send - both user and facility manager emails unavailable`)
     }
     
     return NextResponse.json(newBooking, { status: 201 })
@@ -432,63 +443,74 @@ async function createMultipleBookings(bookingData: any, room: any) {
         
         createdBookings.push(newBooking)
         
-        // Send dual email notifications simultaneously for this booking
-        console.log(`📧 [DUAL EMAIL] Starting dual email notification for booking ${newBooking.id} on ${bookingDate}`)
+        // Send email notifications via edge functions for this booking
+        console.log(`📧 [EDGE FUNCTIONS] Starting email notification for booking ${newBooking.id} on ${bookingDate}`)
 
-        // Prepare email promises for simultaneous sending
+        // Prepare edge function calls for simultaneous sending
         const emailPromises = []
 
-        // 1. User email notification
+        // 1. User email notification via edge function
         if (user && user.email && user.name) {
-          console.log(`📧 [DUAL EMAIL] Preparing user email to ${user.email} for ${bookingDate}`)
-          const userEmailPromise = sendBookingRequestSubmittedEmail(
-            user.email,
-            user.name,
-            bookingData.title,
-            room.name,
-            start_time,
-            end_time
-          ).then(() => {
-            console.log(`✅ [DUAL EMAIL] User email sent successfully to ${user.email} for ${bookingDate}`)
-            return { type: 'user', success: true, email: user.email, date: bookingDate }
+          console.log(`📧 [EDGE FUNCTIONS] Preparing user email to ${user.email} for ${bookingDate}`)
+          const userEmailPromise = fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-booking-request-submitted`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              booking_id: newBooking.id
+            })
+          }).then(async (response) => {
+            const result = await response.json()
+            if (response.ok && result.success) {
+              console.log(`✅ [EDGE FUNCTIONS] User email sent successfully to ${user.email} for ${bookingDate}`)
+              return { type: 'user', success: true, email: user.email, date: bookingDate }
+            } else {
+              throw new Error(result.error || 'Failed to send user email')
+            }
           }).catch((error) => {
-            console.error(`❌ [DUAL EMAIL] Failed to send user email to ${user.email} for ${bookingDate}:`, error)
-            return { type: 'user', success: false, email: user.email, date: bookingDate, error }
+            console.error(`❌ [EDGE FUNCTIONS] Failed to send user email to ${user.email} for ${bookingDate}:`, error)
+            return { type: 'user', success: false, email: user.email, date: bookingDate, error: error.message }
           })
           emailPromises.push(userEmailPromise)
         } else {
-          console.warn(`⚠️ [DUAL EMAIL] Cannot send user email for ${bookingDate} - user not found or missing email/name: ${bookingData.user_id}`)
+          console.warn(`⚠️ [EDGE FUNCTIONS] Cannot send user email for ${bookingDate} - user not found or missing email/name: ${bookingData.user_id}`)
         }
 
-        // 2. Facility manager email notification
+        // 2. Facility manager email notification via edge function
         if (facilityManager && facilityManager.email && facilityManager.name) {
-          console.log(`📧 [DUAL EMAIL] Preparing facility manager email to ${facilityManager.email} for ${bookingDate}`)
-          const managerEmailPromise = sendBookingCreationNotificationToManager(
-            facilityManager.email,
-            facilityManager.name,
-            user?.name || 'Unknown User',
-            user?.email || 'unknown@email.com',
-            bookingData.title,
-            room.name,
-            facilityManager.facilityName,
-            start_time,
-            end_time
-          ).then(() => {
-            console.log(`✅ [DUAL EMAIL] Facility manager email sent successfully to ${facilityManager.email} for ${bookingDate}`)
-            return { type: 'manager', success: true, email: facilityManager.email, date: bookingDate }
+          console.log(`📧 [EDGE FUNCTIONS] Preparing facility manager email to ${facilityManager.email} for ${bookingDate}`)
+          const managerEmailPromise = fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-facility-manager-booking-notification`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              booking_id: newBooking.id
+            })
+          }).then(async (response) => {
+            const result = await response.json()
+            if (response.ok && result.success) {
+              console.log(`✅ [EDGE FUNCTIONS] Facility manager email sent successfully to ${facilityManager.email} for ${bookingDate}`)
+              return { type: 'manager', success: true, email: facilityManager.email, date: bookingDate }
+            } else {
+              throw new Error(result.error || 'Failed to send facility manager email')
+            }
           }).catch((error) => {
-            console.error(`❌ [DUAL EMAIL] Failed to send facility manager email to ${facilityManager.email} for ${bookingDate}:`, error)
-            return { type: 'manager', success: false, email: facilityManager.email, date: bookingDate, error }
+            console.error(`❌ [EDGE FUNCTIONS] Failed to send facility manager email to ${facilityManager.email} for ${bookingDate}:`, error)
+            return { type: 'manager', success: false, email: facilityManager.email, date: bookingDate, error: error.message }
           })
           emailPromises.push(managerEmailPromise)
         } else {
-          console.warn(`⚠️ [DUAL EMAIL] Cannot send facility manager email for ${bookingDate} - manager not found or missing email/name for room ${room.id}`)
+          console.warn(`⚠️ [EDGE FUNCTIONS] Cannot send facility manager email for ${bookingDate} - manager not found or missing email/name for room ${room.id}`)
         }
 
         // Send all emails simultaneously and wait for results
         if (emailPromises.length > 0) {
           try {
-            console.log(`📧 [DUAL EMAIL] Sending ${emailPromises.length} emails simultaneously for ${bookingDate}...`)
+            console.log(`📧 [EDGE FUNCTIONS] Sending ${emailPromises.length} emails simultaneously for ${bookingDate}...`)
             const emailResults = await Promise.allSettled(emailPromises)
 
             // Log results
@@ -496,19 +518,19 @@ async function createMultipleBookings(bookingData: any, room: any) {
               if (result.status === 'fulfilled') {
                 const emailResult = result.value
                 if (emailResult.success) {
-                  console.log(`✅ [DUAL EMAIL] ${emailResult.type} email completed successfully for ${emailResult.date}`)
+                  console.log(`✅ [EDGE FUNCTIONS] ${emailResult.type} email completed successfully for ${emailResult.date}`)
                 } else {
-                  console.error(`❌ [DUAL EMAIL] ${emailResult.type} email failed for ${emailResult.date}:`, emailResult.error)
+                  console.error(`❌ [EDGE FUNCTIONS] ${emailResult.type} email failed for ${emailResult.date}:`, emailResult.error)
                 }
               } else {
-                console.error(`❌ [DUAL EMAIL] Email promise ${index} rejected for ${bookingDate}:`, result.reason)
+                console.error(`❌ [EDGE FUNCTIONS] Email promise ${index} rejected for ${bookingDate}:`, result.reason)
               }
             })
           } catch (error) {
-            console.error(`❌ [DUAL EMAIL] Unexpected error in dual email process for ${bookingDate}:`, error)
+            console.error(`❌ [EDGE FUNCTIONS] Unexpected error in email process for ${bookingDate}:`, error)
           }
         } else {
-          console.warn(`⚠️ [DUAL EMAIL] No emails to send for ${bookingDate} - both user and facility manager emails unavailable`)
+          console.warn(`⚠️ [EDGE FUNCTIONS] No emails to send for ${bookingDate} - both user and facility manager emails unavailable`)
         }
       } catch (error) {
         console.error("Error creating booking:", error)

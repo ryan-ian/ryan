@@ -29,8 +29,8 @@ export function StatusRing({
   startTime,
   endTime,
   nextStartTime,
-  size = 280,
-  thickness = 14,
+  size = 480,
+  thickness = 20,
   className,
   showTimer = false,
 }: StatusRingProps) {
@@ -74,9 +74,9 @@ export function StatusRing({
         }
       case "meeting-in-progress":
         return { 
-          trackColor: "stroke-brand-navy-600", 
-          glowColor: "drop-shadow-[0_0_16px_rgba(71,85,105,0.7)]",
-          fillColor: "fill-brand-navy-600"
+          trackColor: "stroke-brand-teal-500", 
+          glowColor: "drop-shadow-[0_0_20px_rgba(0,196,154,0.8)] drop-shadow-[0_0_40px_rgba(0,196,154,0.4)]",
+          fillColor: "fill-brand-teal-500"
         }
       case "reserved":
         return { 
@@ -105,7 +105,7 @@ export function StatusRing({
   return (
     <div
       className={cn(
-        "relative select-none flex items-center justify-center p-4",
+        "relative select-none flex items-center justify-center p-4 transition-all duration-300",
         className
       )}
       style={{ width: size + 32, height: size + 32 }}
@@ -177,11 +177,11 @@ export function StatusRing({
         {status === 'available' ? (
           <>
             <div className="text-6xl font-bold text-white mb-2">✓</div>
-            <div className="text-2xl font-bold text-white">Available</div>
+            <div className="text-3xl font-bold text-white">Available</div>
           </>
         ) : status === 'meeting-in-progress' && startTime && endTime ? (
           <>
-            <div className={`font-bold text-white mb-2 ${showTimer ? 'text-6xl' : 'text-lg'}`}>
+            <div className={`font-bold text-white mb-2 ${showTimer ? 'text-8xl' : 'text-lg'}`}>
               {(() => {
                 const end = new Date(endTime).getTime()
                 const n = now.getTime()
@@ -195,13 +195,13 @@ export function StatusRing({
                 return `${minutes}:${seconds.toString().padStart(2, '0')}`
               })()}
             </div>
-            <div className={`font-medium text-white/80 ${showTimer ? 'text-xl' : 'text-sm'}`}>
+            <div className={`font-medium text-white/80 ${showTimer ? 'text-2xl' : 'text-sm'}`}>
               until {new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </>
         ) : status === 'occupied' && startTime && endTime ? (
           <>
-            <div className="text-lg font-bold text-brand-teal-700 dark:text-brand-teal-300 mb-2">
+            <div className="text-4xl font-bold text-brand-teal-700 dark:text-brand-teal-300 mb-3">
               {(() => {
                 const end = new Date(endTime).getTime()
                 const n = now.getTime()
@@ -215,27 +215,27 @@ export function StatusRing({
                 return `${minutes}:${seconds.toString().padStart(2, '0')}`
               })()}
             </div>
-            <div className="text-sm font-medium text-brand-teal-600 dark:text-brand-teal-400">
+            <div className="text-lg font-medium text-brand-teal-600 dark:text-brand-teal-400">
               until {new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </>
         ) : status === 'reserved' && nextStartTime ? (
           <>
-            <div className="text-4xl font-bold text-amber-500 mb-2">⏳</div>
-            <div className="text-lg font-bold text-amber-700 dark:text-amber-300">Reserved</div>
-            <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            <div className="text-8xl font-bold text-amber-500 mb-4">⏳</div>
+            <div className="text-3xl font-bold text-amber-700 dark:text-amber-300">Reserved</div>
+            <div className="text-xl font-medium text-amber-600 dark:text-amber-400">
               Starts {new Date(nextStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </>
         ) : status === 'maintenance' ? (
           <>
-            <div className="text-4xl font-bold text-red-500 mb-2">🔧</div>
-            <div className="text-lg font-bold text-red-700 dark:text-red-300">Maintenance</div>
+            <div className="text-8xl font-bold text-red-500 mb-4">🔧</div>
+            <div className="text-3xl font-bold text-red-700 dark:text-red-300">Maintenance</div>
           </>
         ) : (
           <>
-            <div className="text-sm font-semibold text-brand-navy-600 dark:text-brand-navy-400">Status</div>
-            <div className="text-lg font-bold text-brand-navy-700 dark:text-brand-navy-300 capitalize">{status}</div>
+            <div className="text-xl font-semibold text-brand-navy-600 dark:text-brand-navy-400">Status</div>
+            <div className="text-3xl font-bold text-brand-navy-700 dark:text-brand-navy-300 capitalize">{status}</div>
           </>
         )}
       </div>

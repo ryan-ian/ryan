@@ -1,5 +1,13 @@
 import { createTransport, Transporter } from 'nodemailer'
 import { format } from 'date-fns'
+import { 
+  wrapEmailContent, 
+  createBookingDetailsSection, 
+  createUserInfoSection, 
+  createInfoSection,
+  createStatusIndicator,
+  EMAIL_COLORS 
+} from './email-templates'
 
 // Email configuration
 let transporter: Transporter | null = null
@@ -287,23 +295,26 @@ export async function sendBookingRequestSubmittedEmail(
   }
 
   const subject = `Booking Request Submitted: ${bookingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2196F3;">Booking Request Received</h2>
-      <p>Hello ${userName},</p>
-      <p>Thank you for submitting your booking request. We have received your request and it is now pending approval from the facility manager.</p>
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>Title:</strong> ${bookingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-        <p><strong>Status:</strong> <span style="color: #FF9800; font-weight: bold;">Pending Approval</span></p>
-      </div>
-      <p>You will receive another email notification once your booking has been reviewed. You can also check the status of your booking by logging into the Conference Hub application.</p>
-      <p>If you have any questions or need to make changes to your request, please contact your facility manager.</p>
-      <p>Thank you for using Conference Hub!</p>
-    </div>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>Thank you for submitting your booking request. We have received your request and it is now pending approval from the facility manager.</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Pending Approval',
+      statusType: 'warning'
+    })}
+    
+    <p>You will receive another email notification once your booking has been reviewed. You can also check the status of your booking by logging into the Conference Hub application.</p>
+    <p>If you have any questions or need to make changes to your request, please contact your facility manager.</p>
+    <p>Thank you for using Conference Hub!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Request Received');
 
   const text = `
     Booking Request Received
@@ -355,32 +366,35 @@ export async function sendBookingConfirmationEmail(
   const formattedEndTime = format(endDate, 'h:mm a');
 
   const subject = `Booking Confirmed: ${bookingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4CAF50;">Booking Confirmed!</h2>
-      <p>Hello ${userName},</p>
-      <p>Great news! Your booking request has been approved and confirmed.</p>
-      <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4CAF50;">
-        <p><strong>Title:</strong> ${bookingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-        <p><strong>Status:</strong> <span style="color: #4CAF50; font-weight: bold;">✅ Confirmed</span></p>
-      </div>
-      <p>Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.</p>
-      <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
-        <h4 style="margin-top: 0; color: #2196F3;">Important Reminders:</h4>
-        <ul style="margin-bottom: 0;">
-          <li>Please arrive on time for your meeting</li>
-          <li>Ensure you have all necessary materials and equipment</li>
-          <li>If you need to make changes or cancel, contact your facility manager as soon as possible</li>
-          <li>Please leave the room clean and ready for the next user</li>
-        </ul>
-      </div>
-      <p>Thank you for using Conference Hub!</p>
-      <p>Best regards,<br>Conference Hub Team</p>
-    </div>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>Great news! Your booking request has been approved and confirmed.</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Confirmed',
+      statusType: 'success'
+    })}
+    
+    <p>Your room is now reserved for the specified time. Please arrive on time and ensure you have everything needed for your meeting.</p>
+    
+    ${createInfoSection(`
+      <ul style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        <li>Please arrive on time for your meeting</li>
+        <li>Ensure you have all necessary materials and equipment</li>
+        <li>If you need to make changes or cancel, contact your facility manager as soon as possible</li>
+        <li>Please leave the room clean and ready for the next user</li>
+      </ul>
+    `, 'Important Reminders')}
+    
+    <p>Thank you for using Conference Hub!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Confirmed!');
 
   const text = `
     Booking Confirmed!
@@ -467,22 +481,29 @@ export async function sendBookingRejectionEmail(
   }
 
   const subject = `Booking Request Update: ${bookingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #f44336;">Booking Request Update</h2>
-      <p>Hello ${userName},</p>
-      <p>We regret to inform you that your booking request could not be approved at this time.</p>
-      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
-        <p><strong>Title:</strong> ${bookingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>${dateTimeSection}
-        <p><strong>Status:</strong> <span style="color: #f44336; font-weight: bold;">❌ Not Approved</span></p>
-        <p><strong>Reason:</strong> ${rejectionReason}</p>
-      </div>
-      <p>Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.</p>
-      <p>Thank you for your understanding.</p>
-      <p>Best regards,<br>Conference Hub Team</p>
-    </div>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>We regret to inform you that your booking request could not be approved at this time.</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      date: formattedDate || 'N/A',
+      time: startTime && endTime ? `${formattedStartTime} - ${formattedEndTime}` : 'N/A',
+      status: 'Not Approved',
+      statusType: 'error'
+    })}
+    
+    ${createInfoSection(`
+      <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;"><strong>Reason:</strong> ${rejectionReason}</p>
+    `, 'Rejection Details')}
+    
+    <p>Please feel free to submit a new booking request for a different time or room, or contact your facility manager for assistance in finding an alternative solution.</p>
+    <p>Thank you for your understanding.</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Request Update');
 
   const textDateTimeSection = startTime && endTime ? `
     Date: ${formattedDate}
@@ -539,22 +560,25 @@ export async function sendUserBookingCancellationEmail(
   const formattedEndTime = format(endDate, 'h:mm a');
 
   const subject = `Booking Cancelled: ${bookingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #f44336;">Booking Cancelled</h2>
-      <p>Hello ${userName},</p>
-      <p>This email confirms that you have successfully cancelled your booking.</p>
-      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
-        <p><strong>Title:</strong> ${bookingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-        <p><strong>Status:</strong> <span style="color: #f44336; font-weight: bold;">❌ Cancelled</span></p>
-      </div>
-      <p>If you need to book another room or time slot, please visit the Conference Hub application to make a new reservation.</p>
-      <p>Thank you for using Conference Hub!</p>
-    </div>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>This email confirms that you have successfully cancelled your booking.</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Cancelled',
+      statusType: 'error'
+    })}
+    
+    <p>If you need to book another room or time slot, please visit the Conference Hub application to make a new reservation.</p>
+    <p>Thank you for using Conference Hub!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Cancelled');
 
   const text = `
     Booking Cancelled
@@ -611,44 +635,35 @@ export async function sendBookingCreationNotificationToManager(
   const formattedEndTime = format(new Date(endTime), 'h:mm a');
 
   const subject = `New Booking Request: ${bookingTitle} - ${roomName}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h2 style="margin: 0; font-size: 24px;">📅 New Booking Request</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub - ${facilityName}</p>
-      </div>
-
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
-        <p>Hello ${managerName},</p>
-        <p>A new booking request has been submitted for your facility and requires your review.</p>
-
-        <div style="background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
-          <h3 style="margin-top: 0; color: #0284c7;">📋 Booking Details</h3>
-          <p><strong>Title:</strong> ${bookingTitle}</p>
-          <p><strong>Room:</strong> ${roomName}</p>
-          <p><strong>Facility:</strong> ${facilityName}</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-          <p><strong>Status:</strong> <span style="color: #f59e0b; font-weight: bold;">⏳ Pending Approval</span></p>
-        </div>
-
-        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <h4 style="margin-top: 0; color: #92400e;">👤 Requested By</h4>
-          <p><strong>Name:</strong> ${userName}</p>
-          <p><strong>Email:</strong> ${userEmail}</p>
-        </div>
-
-        <div style="background-color: #dcfce7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
-          <h4 style="margin-top: 0; color: #16a34a;">🎯 Next Steps</h4>
-          <p>Please log into the Conference Hub facility manager dashboard to review and approve or reject this booking request.</p>
-          <p>The user will be notified automatically once you make a decision.</p>
-        </div>
-
-        <p>Thank you for managing your facility efficiently!</p>
-        <p>Best regards,<br>Conference Hub Team</p>
-      </div>
-    </div>
+  
+  const content = `
+    <p>Hello ${managerName},</p>
+    <p>A new booking request has been submitted for your facility and requires your review.</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      facility: facilityName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Pending Approval',
+      statusType: 'warning'
+    })}
+    
+    ${createUserInfoSection({
+      name: userName,
+      email: userEmail
+    })}
+    
+    ${createInfoSection(`
+      <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;">Please log into the Conference Hub facility manager dashboard to review and approve or reject this booking request.</p>
+      <p style="margin: 8px 0 0 0; font-family: Arial, Helvetica, sans-serif;">The user will be notified automatically once you make a decision.</p>
+    `, 'Next Steps')}
+    
+    <p>Thank you for managing your facility efficiently!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'New Booking Request', `Conference Hub - ${facilityName}`);
 
   const text = `
     New Booking Request - Conference Hub
@@ -712,49 +727,39 @@ export async function sendBookingModificationConfirmationToUser(
   const formattedEndTime = format(new Date(endTime), 'h:mm a');
 
   const subject = `Booking Updated: ${bookingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h2 style="margin: 0; font-size: 24px;">✅ Booking Updated Successfully</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub</p>
-      </div>
-
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
-        <p>Hello ${userName},</p>
-        <p>Your booking has been successfully updated. Here are the current details:</p>
-
-        <div style="background-color: #dcfce7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
-          <h3 style="margin-top: 0; color: #16a34a;">📋 Updated Booking Details</h3>
-          <p><strong>Title:</strong> ${bookingTitle}</p>
-          <p><strong>Room:</strong> ${roomName}</p>
-          <p><strong>Facility:</strong> ${facilityName}</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-        </div>
-
-        ${changes.length > 0 ? `
-        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <h4 style="margin-top: 0; color: #92400e;">📝 Changes Made</h4>
-          <ul style="margin-bottom: 0;">
-            ${changes.map(change => `<li>${change}</li>`).join('')}
-          </ul>
-        </div>
-        ` : ''}
-
-        <div style="background-color: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
-          <h4 style="margin-top: 0; color: #0284c7;">ℹ️ Important Notes</h4>
-          <ul style="margin-bottom: 0;">
-            <li>Your booking is confirmed and the room is reserved</li>
-            <li>Please arrive on time for your meeting</li>
-            <li>If you need to make further changes, please contact your facility manager</li>
-          </ul>
-        </div>
-
-        <p>Thank you for using Conference Hub!</p>
-        <p>Best regards,<br>Conference Hub Team</p>
-      </div>
-    </div>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>Your booking has been successfully updated. Here are the current details:</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      facility: facilityName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Updated',
+      statusType: 'success'
+    })}
+    
+    ${changes.length > 0 ? createInfoSection(`
+      <ul style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        ${changes.map(change => `<li>${change}</li>`).join('')}
+      </ul>
+    `, 'Changes Made') : ''}
+    
+    ${createInfoSection(`
+      <ul style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        <li>Your booking is confirmed and the room is reserved</li>
+        <li>Please arrive on time for your meeting</li>
+        <li>If you need to make further changes, please contact your facility manager</li>
+      </ul>
+    `, 'Important Notes')}
+    
+    <p>Thank you for using Conference Hub!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Updated Successfully');
 
   const text = `
     Booking Updated Successfully - Conference Hub
@@ -823,51 +828,41 @@ export async function sendBookingModificationNotificationToManager(
   const formattedEndTime = format(new Date(endTime), 'h:mm a');
 
   const subject = `Booking Modified: ${bookingTitle} - ${roomName}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h2 style="margin: 0; font-size: 24px;">📝 Booking Modified</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Conference Hub - ${facilityName}</p>
-      </div>
-
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px;">
-        <p>Hello ${managerName},</p>
-        <p>A booking in your facility has been modified by the user. Here are the updated details:</p>
-
-        <div style="background-color: #e0f2fe; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
-          <h3 style="margin-top: 0; color: #0284c7;">📋 Current Booking Details</h3>
-          <p><strong>Title:</strong> ${bookingTitle}</p>
-          <p><strong>Room:</strong> ${roomName}</p>
-          <p><strong>Facility:</strong> ${facilityName}</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
-          <p><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">✅ Confirmed</span></p>
-        </div>
-
-        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <h4 style="margin-top: 0; color: #92400e;">📝 Changes Made</h4>
-          <ul style="margin-bottom: 0;">
-            ${changes.map(change => `<li>${change}</li>`).join('')}
-          </ul>
-        </div>
-
-        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <h4 style="margin-top: 0; color: #92400e;">👤 Modified By</h4>
-          <p><strong>Name:</strong> ${userName}</p>
-          <p><strong>Email:</strong> ${userEmail}</p>
-        </div>
-
-        <div style="background-color: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0284c7;">
-          <h4 style="margin-top: 0; color: #0284c7;">ℹ️ Information</h4>
-          <p>This is a notification for your records. The booking has been automatically updated and no action is required from you unless there are any conflicts or concerns.</p>
-          <p>You can view all bookings in your facility manager dashboard.</p>
-        </div>
-
-        <p>Thank you for managing your facility!</p>
-        <p>Best regards,<br>Conference Hub Team</p>
-      </div>
-    </div>
+  
+  const content = `
+    <p>Hello ${managerName},</p>
+    <p>A booking in your facility has been modified by the user. Here are the updated details:</p>
+    
+    ${createBookingDetailsSection({
+      title: bookingTitle,
+      room: roomName,
+      facility: facilityName,
+      date: formattedDate,
+      time: `${formattedStartTime} - ${formattedEndTime}`,
+      status: 'Confirmed',
+      statusType: 'success'
+    })}
+    
+    ${createInfoSection(`
+      <ul style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        ${changes.map(change => `<li>${change}</li>`).join('')}
+      </ul>
+    `, 'Changes Made')}
+    
+    ${createUserInfoSection({
+      name: userName,
+      email: userEmail
+    })}
+    
+    ${createInfoSection(`
+      <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;">This is a notification for your records. The booking has been automatically updated and no action is required from you unless there are any conflicts or concerns.</p>
+      <p style="margin: 8px 0 0 0; font-family: Arial, Helvetica, sans-serif;">You can view all bookings in your facility manager dashboard.</p>
+    `, 'Information')}
+    
+    <p>Thank you for managing your facility!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Booking Modified', `Conference Hub - ${facilityName}`);
 
   const text = `
     Booking Modified - Conference Hub
@@ -951,92 +946,52 @@ export async function sendMeetingInvitationEmail(
   // Create personalized greeting
   const greeting = inviteeName ? `Dear ${inviteeName},` : `Hello,`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Meeting Invitation</title>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-        .meeting-details { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }
-        .detail-row { display: flex; margin-bottom: 12px; }
-        .detail-label { font-weight: bold; min-width: 120px; color: #374151; }
-        .detail-value { color: #1f2937; }
-        .invitation-note { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 15px; margin: 20px 0; }
-        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px; }
-        .btn { display: inline-block; background: #0f766e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 10px 5px; }
-        .btn:hover { background: #0d5d56; }
-        .btn-secondary { background: #6b7280; }
-        .btn-secondary:hover { background: #4b5563; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1 style="margin: 0; font-size: 28px;">Meeting Invitation</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">You're invited to join a meeting</p>
+  const content = `
+    <p>${greeting}</p>
+    <p><strong>${organizerName}</strong> has invited you to join the following meeting:</p>
+    
+    ${createInfoSection(`
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <h3 style="margin: 0 0 16px 0; color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${meetingTitle}</h3>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Date:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${dateStr}</span>
         </div>
-
-        <div class="content">
-          <p>${greeting}</p>
-
-          <p><strong>${organizerName}</strong> has invited you to join the following meeting:</p>
-
-          <div class="meeting-details">
-            <h3 style="margin-top: 0; color: #1e3a8a;">${meetingTitle}</h3>
-
-            <div class="detail-row">
-              <span class="detail-label">📅 Date:</span>
-              <span class="detail-value">${dateStr}</span>
-            </div>
-
-            <div class="detail-row">
-              <span class="detail-label">🕒 Time:</span>
-              <span class="detail-value">${timeStr}</span>
-            </div>
-
-            <div class="detail-row">
-              <span class="detail-label">📍 Location:</span>
-              <span class="detail-value">${roomName}, ${facilityName}</span>
-            </div>
-
-            <div class="detail-row">
-              <span class="detail-label">👤 Organizer:</span>
-              <span class="detail-value">${organizerName} (${organizerEmail})</span>
-            </div>
-
-            ${meetingDescription ? `
-            <div class="detail-row">
-              <span class="detail-label">📝 Description:</span>
-              <span class="detail-value">${meetingDescription}</span>
-            </div>
-            ` : ''}
-          </div>
-
-          <div class="invitation-note">
-            <p style="margin: 0;"><strong>📌 Important:</strong> On arrival, scan the QR code on the room display to mark your attendance.</p>
-          </div>
-
-          <p>If you have any questions about this meeting, please contact <strong>${organizerName}</strong> at <a href="mailto:${organizerEmail}">${organizerEmail}</a>.</p>
-
-          <p>We look forward to seeing you there!</p>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Time:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${timeStr}</span>
         </div>
-
-        <div class="footer">
-          <p>This invitation was sent through Conference Hub</p>
-          <p style="margin: 5px 0 0 0; font-size: 12px;">
-            If you believe you received this email in error, please contact the organizer directly.
-          </p>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Location:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${roomName}, ${facilityName}</span>
         </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Organizer:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${organizerName} (${organizerEmail})</span>
+        </div>
+        
+        ${meetingDescription ? `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 8px;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Description:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif; text-align: right; max-width: 60%;">${meetingDescription}</span>
+        </div>
+        ` : ''}
       </div>
-    </body>
-    </html>
+    `, 'Meeting Details')}
+    
+    ${createInfoSection(`
+      <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;"><strong>Important:</strong> On arrival, scan the QR code on the room display to mark your attendance.</p>
+    `, 'Attendance Instructions')}
+    
+    <p>If you have any questions about this meeting, please contact <strong>${organizerName}</strong> at <a href="mailto:${organizerEmail}">${organizerEmail}</a>.</p>
+    <p>We look forward to seeing you there!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Meeting Invitation');
 
   const text = `
     Meeting Invitation: ${meetingTitle}
@@ -1431,51 +1386,64 @@ export async function sendAttendanceCodeEmail(
   const formattedEndTime = format(endDate, 'h:mm a');
 
   const subject = `Your Attendance Code: ${meetingTitle}`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2196F3;">Your Attendance Code</h2>
-      <p>Hello ${userName},</p>
-      <p>Here is your attendance code for the meeting:</p>
-      
-      <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
-        <p><strong>Meeting:</strong> ${meetingTitle}</p>
-        <p><strong>Room:</strong> ${roomName}</p>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+  
+  const content = `
+    <p>Hello ${userName},</p>
+    <p>Here is your attendance code for the meeting:</p>
+    
+    ${createInfoSection(`
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Meeting:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${meetingTitle}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Room:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${roomName}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Date:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${formattedDate}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Time:</strong>
+          <span style="color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">${formattedStartTime} - ${formattedEndTime}</span>
+        </div>
       </div>
-
-      <div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 25px 0; border: 2px solid #ff9800; text-align: center;">
-        <h3 style="margin: 0 0 10px 0; color: #e65100;">Your Attendance Code</h3>
-        <div style="font-size: 36px; font-weight: bold; color: #e65100; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+    `, 'Meeting Details')}
+    
+    ${createInfoSection(`
+      <div style="text-align: center; padding: 20px 0;">
+        <h3 style="margin: 0 0 16px 0; color: ${EMAIL_COLORS.primaryText}; font-family: Arial, Helvetica, sans-serif;">Your Attendance Code</h3>
+        <div style="font-size: 36px; font-weight: bold; color: ${EMAIL_COLORS.brandAccent}; letter-spacing: 8px; font-family: 'Courier New', monospace; margin: 16px 0;">
           ${attendanceCode}
         </div>
-        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this code on the room display to mark your attendance</p>
+        <p style="margin: 8px 0 0 0; font-size: 14px; color: ${EMAIL_COLORS.secondaryText}; font-family: Arial, Helvetica, sans-serif;">Enter this code on the room display to mark your attendance</p>
       </div>
-
-      <div style="background-color: #f3e5f5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #9c27b0;">
-        <h4 style="margin-top: 0; color: #9c27b0;">How to Mark Attendance:</h4>
-        <ol style="margin-bottom: 0;">
-          <li>Scan the QR code displayed on the room screen</li>
-          <li>Select your name from the attendee list</li>
-          <li>Enter the 4-digit code above when prompted</li>
-          <li>Your attendance will be marked automatically</li>
-        </ol>
-      </div>
-
-      <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
-        <h4 style="margin-top: 0; color: #f44336;">Important Notes:</h4>
-        <ul style="margin-bottom: 0;">
-          <li>This code is unique to you and this meeting</li>
-          <li>The code expires at the end of the meeting</li>
-          <li>You can only mark attendance during the meeting time</li>
-          <li>If you have issues, contact the meeting organizer</li>
-        </ul>
-      </div>
-
-      <p>Thank you for attending!</p>
-      <p>Best regards,<br>Conference Hub Team</p>
-    </div>
+    `, 'Attendance Code')}
+    
+    ${createInfoSection(`
+      <ol style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        <li>Scan the QR code displayed on the room screen</li>
+        <li>Select your name from the attendee list</li>
+        <li>Enter the 4-digit code above when prompted</li>
+        <li>Your attendance will be marked automatically</li>
+      </ol>
+    `, 'How to Mark Attendance')}
+    
+    ${createInfoSection(`
+      <ul style="margin: 0; padding-left: 20px; font-family: Arial, Helvetica, sans-serif;">
+        <li>This code is unique to you and this meeting</li>
+        <li>The code expires at the end of the meeting</li>
+        <li>You can only mark attendance during the meeting time</li>
+        <li>If you have issues, contact the meeting organizer</li>
+      </ul>
+    `, 'Important Notes')}
+    
+    <p>Thank you for attending!</p>
   `;
+  
+  const html = wrapEmailContent(content, 'Your Attendance Code');
 
   console.log('📧 About to send attendance code email...');
   

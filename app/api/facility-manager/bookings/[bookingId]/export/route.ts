@@ -2,6 +2,15 @@ import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { getBookingByIdWithDetails } from "@/lib/supabase-data"
 import puppeteer from 'puppeteer'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -90,7 +99,7 @@ export async function POST(
       duration: booking.duration || 0
     }
 
-    // Generate PDF
+    // Generate PDF using appropriate method based on environment
     const pdfBuffer = await generateBookingPDFReport({
       booking,
       invitations: invitations || [],
@@ -124,37 +133,33 @@ export async function POST(
 }
 
 async function generateBookingPDFReport(data: any): Promise<Buffer> {
-  // Check if we're in production (Vercel) or development
   const isProduction = process.env.NODE_ENV === 'production'
   
-  let browserConfig: any
-  
   if (isProduction) {
-    // Production: Use @sparticuz/chromium for Vercel
-    const chromium = require('@sparticuz/chromium')
-    browserConfig = {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    }
+    // Production: Use jsPDF for reliable serverless generation
+    return generateBookingPDFWithJsPDF(data)
   } else {
-    // Development: Use regular puppeteer with local Chrome
-    browserConfig = {
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    // Development: Use Puppeteer for better formatting
+    try {
+      return await generateBookingPDFWithPuppeteer(data)
+    } catch (error) {
+      console.warn('Puppeteer failed, falling back to jsPDF:', error)
+      return generateBookingPDFWithJsPDF(data)
     }
   }
+}
 
-  const browser = await puppeteer.launch(browserConfig)
+async function generateBookingPDFWithPuppeteer(data: any): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  })
+
   const page = await browser.newPage()
-
-  // Generate HTML content for the booking report
   const htmlContent = generateBookingReportHTML(data)
 
   await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
 
-  // Generate PDF
   const pdfBuffer = await page.pdf({
     format: 'A4',
     printBackground: true,
@@ -167,8 +172,176 @@ async function generateBookingPDFReport(data: any): Promise<Buffer> {
   })
 
   await browser.close()
-
   return pdfBuffer
+}
+
+function generateBookingPDFWithJsPDF(data: any): Buffer {
+  const { booking, invitations, analytics, generatedBy } = data
+
+  const doc = new jsPDF()
+  
+  // Helper functions
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  let yPosition = 20
+
+  // Header
+  doc.setFontSize(20)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Meeting Report', 20, yPosition)
+  yPosition += 10
+  
+  doc.setFontSize(12)
+  doc.setTextColor(107, 114, 128)
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
+    year: 'numeric',
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}`, 20, yPosition)
+  yPosition += 20
+
+  // Booking Information
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Meeting Information', 20, yPosition)
+  yPosition += 10
+
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Meeting Title: ${booking.title || 'Meeting'}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Status: ${booking.status}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Booking ID: ${booking.id}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Room: ${booking.rooms?.name || 'Unknown Room'}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Location: ${booking.rooms?.location || 'Not specified'}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Capacity: ${booking.rooms?.capacity ? `Up to ${booking.rooms.capacity} people` : 'Not specified'}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Date: ${formatDate(booking.start_time)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Time: ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Duration: ${analytics.duration} minutes`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Organizer: ${booking.users?.name || 'Unknown'} (${booking.users?.email || 'Unknown'})`, 20, yPosition)
+  yPosition += 10
+
+  if (booking.description) {
+    doc.text(`Description: ${booking.description}`, 20, yPosition)
+    yPosition += 10
+  }
+
+  // Meeting Analytics
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Meeting Analytics', 20, yPosition)
+  yPosition += 10
+
+  const analyticsData = [
+    ['Total Invited', analytics.totalInvited.toString()],
+    ['Attended', analytics.totalAttended.toString()],
+    ['Attendance Rate', `${analytics.attendanceRate.toFixed(1)}%`],
+    ['Avg Check-in Time', analytics.averageCheckInTime]
+  ]
+
+  doc.autoTable({
+    startY: yPosition,
+    head: [['Metric', 'Value']],
+    body: analyticsData,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [248, 250, 252] }
+  })
+
+  yPosition = (doc as any).lastAutoTable.finalY + 15
+
+  // Invitations table
+  if (invitations.length > 0) {
+    doc.setFontSize(16)
+    doc.setTextColor(30, 64, 175)
+    doc.text('Meeting Invitations & Attendance', 20, yPosition)
+    yPosition += 10
+
+    const invitationData = invitations.map(invitation => [
+      invitation.invitee_name || 'Unknown',
+      invitation.invitee_email,
+      invitation.attendance_status === 'present' ? 'Present' : 'Not Present',
+      invitation.attended_at ? formatDateTime(invitation.attended_at) : 'N/A'
+    ])
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Name', 'Email', 'Attendance', 'Check-in Time']],
+      body: invitationData,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [248, 250, 252] }
+    })
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15
+  }
+
+  // Summary
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Summary', 20, yPosition)
+  yPosition += 10
+
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Meeting Overview: ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${analytics.duration} minutes in ${booking.rooms?.name || 'Unknown Room'}.`, 20, yPosition)
+  yPosition += 6
+
+  if (analytics.totalInvited > 0) {
+    doc.text(`Attendance: ${analytics.totalInvited} people were invited and ${analytics.totalAttended} actually attended (${analytics.attendanceRate.toFixed(1)}% attendance rate).`, 20, yPosition)
+    yPosition += 6
+  }
+
+  if (analytics.averageCheckInTime !== 'N/A') {
+    doc.text(`Average Check-in Time: ${analytics.averageCheckInTime}`, 20, yPosition)
+    yPosition += 6
+  }
+
+  if (booking.status === 'cancelled' && booking.rejection_reason) {
+    doc.setTextColor(153, 27, 27)
+    doc.text(`Cancellation Reason: ${booking.rejection_reason}`, 20, yPosition)
+    yPosition += 6
+  }
+
+  // Footer
+  doc.setFontSize(10)
+  doc.setTextColor(107, 114, 128)
+  doc.text('This report was generated by Conference Hub - Room Booking System', 20, doc.internal.pageSize.height - 20)
+  doc.text(`Generated by: ${generatedBy} | Report ID: ${booking.id.slice(0, 8)}`, 20, doc.internal.pageSize.height - 10)
+
+  return Buffer.from(doc.output('arraybuffer'))
 }
 
 function generateBookingReportHTML(data: any): string {

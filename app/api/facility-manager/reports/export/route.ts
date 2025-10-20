@@ -8,6 +8,15 @@ import {
   type DateRange
 } from "@/lib/facility-analytics"
 import puppeteer from 'puppeteer'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
       getAttendanceAnalytics(user.id, dateRange)
     ])
 
-    // Generate PDF
+    // Generate PDF using appropriate method based on environment
     const pdfBuffer = await generatePDFReport({
       facilityInfo,
       managerName: userProfile.name,
@@ -122,37 +131,33 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePDFReport(data: any): Promise<Buffer> {
-  // Check if we're in production (Vercel) or development
   const isProduction = process.env.NODE_ENV === 'production'
   
-  let browserConfig: any
-  
   if (isProduction) {
-    // Production: Use @sparticuz/chromium for Vercel
-    const chromium = require('@sparticuz/chromium')
-    browserConfig = {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    }
+    // Production: Use jsPDF for reliable serverless generation
+    return generatePDFWithJsPDF(data)
   } else {
-    // Development: Use regular puppeteer with local Chrome
-    browserConfig = {
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    // Development: Use Puppeteer for better formatting
+    try {
+      return await generatePDFWithPuppeteer(data)
+    } catch (error) {
+      console.warn('Puppeteer failed, falling back to jsPDF:', error)
+      return generatePDFWithJsPDF(data)
     }
   }
+}
 
-  const browser = await puppeteer.launch(browserConfig)
+async function generatePDFWithPuppeteer(data: any): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  })
+
   const page = await browser.newPage()
-
-  // Generate HTML content for the report
   const htmlContent = generateReportHTML(data)
 
   await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
 
-  // Generate PDF
   const pdfBuffer = await page.pdf({
     format: 'A4',
     printBackground: true,
@@ -165,8 +170,155 @@ async function generatePDFReport(data: any): Promise<Buffer> {
   })
 
   await browser.close()
-
   return pdfBuffer
+}
+
+function generatePDFWithJsPDF(data: any): Buffer {
+  const {
+    facilityInfo,
+    managerName,
+    dateRange,
+    dashboardMetrics,
+    utilizationAnalytics,
+    attendanceAnalytics
+  } = data
+
+  const doc = new jsPDF()
+  
+  // Helper functions
+  const formatPercentage = (value: number) => `${value.toFixed(1)}%`
+  const formatHours = (hours: number) => `${hours.toFixed(1)}h`
+  const formatTime = (hour: number) => {
+    if (hour === 0) return "12 AM"
+    if (hour < 12) return `${hour} AM`
+    if (hour === 12) return "12 PM"
+    return `${hour - 12} PM`
+  }
+  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+
+  let yPosition = 20
+
+  // Header
+  doc.setFontSize(20)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Facility Management Report', 20, yPosition)
+  yPosition += 10
+  
+  doc.setFontSize(12)
+  doc.setTextColor(107, 114, 128)
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}`, 20, yPosition)
+  yPosition += 20
+
+  // Facility Information
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Facility Information', 20, yPosition)
+  yPosition += 10
+
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Facility Name: ${facilityInfo.name}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Location: ${facilityInfo.location || 'Not specified'}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Manager: ${managerName}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Report Period: ${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`, 20, yPosition)
+  yPosition += 15
+
+  // Executive Summary
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Executive Summary', 20, yPosition)
+  yPosition += 10
+
+  // Metrics table
+  const metricsData = [
+    ['Room Utilization Rate', formatPercentage(dashboardMetrics.roomUtilizationRate.current), `${dashboardMetrics.roomUtilizationRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.roomUtilizationRate.changePercent.toFixed(1)}%`],
+    ['Total Bookings', dashboardMetrics.totalBookings.current.toString(), `${dashboardMetrics.totalBookings.changePercent >= 0 ? '+' : ''}${dashboardMetrics.totalBookings.changePercent.toFixed(1)}%`],
+    ['Attendance Rate', formatPercentage(dashboardMetrics.attendanceRate.current), `${dashboardMetrics.attendanceRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.attendanceRate.changePercent.toFixed(1)}%`],
+    ['No-Show Rate', formatPercentage(dashboardMetrics.noShowRate.current), `${dashboardMetrics.noShowRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.noShowRate.changePercent.toFixed(1)}%`],
+    ['Peak Hour Usage', formatTime(dashboardMetrics.peakHourUsage.current), 'Most popular time'],
+    ['Avg Meeting Duration', formatHours(dashboardMetrics.averageMeetingDuration.current), `${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '+' : ''}${dashboardMetrics.averageMeetingDuration.changePercent.toFixed(1)}%`]
+  ]
+
+  doc.autoTable({
+    startY: yPosition,
+    head: [['Metric', 'Current Value', 'Change from Previous Period']],
+    body: metricsData,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [248, 250, 252] }
+  })
+
+  yPosition = (doc as any).lastAutoTable.finalY + 15
+
+  // Room Utilization Analysis
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Room Utilization Performance', 20, yPosition)
+  yPosition += 10
+
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Overall Utilization: ${formatPercentage(utilizationAnalytics.overallUtilization)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Average Booking Duration: ${formatHours(utilizationAnalytics.averageBookingDuration)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Peak Utilization Hour: ${formatTime(utilizationAnalytics.peakUtilizationHour)}`, 20, yPosition)
+  yPosition += 10
+
+  // Room utilization table
+  const roomData = utilizationAnalytics.utilizationByRoom.slice(0, 5).map(room => [
+    room.roomName,
+    formatPercentage(room.utilizationRate),
+    room.bookingCount.toString(),
+    formatHours(room.bookedHours)
+  ])
+
+  doc.autoTable({
+    startY: yPosition,
+    head: [['Room Name', 'Utilization Rate', 'Bookings', 'Hours Used']],
+    body: roomData,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [248, 250, 252] }
+  })
+
+  yPosition = (doc as any).lastAutoTable.finalY + 15
+
+  // Attendance Analysis
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Attendance & No-Show Analysis', 20, yPosition)
+  yPosition += 10
+
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Total Meetings: ${attendanceAnalytics.totalMeetings}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Check-in Rate: ${formatPercentage(attendanceAnalytics.checkInRate)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`No-Show Rate: ${formatPercentage(attendanceAnalytics.noShowRate)}`, 20, yPosition)
+  yPosition += 6
+  doc.text(`Punctuality Rate: ${formatPercentage(attendanceAnalytics.punctualityRate)}`, 20, yPosition)
+  yPosition += 15
+
+  // Footer
+  doc.setFontSize(10)
+  doc.setTextColor(107, 114, 128)
+  doc.text('This report was generated automatically by the Conference Hub Facility Management System.', 20, doc.internal.pageSize.height - 20)
+  doc.text('For questions about this report, please contact your system administrator.', 20, doc.internal.pageSize.height - 10)
+
+  return Buffer.from(doc.output('arraybuffer'))
 }
 
 function generateReportHTML(data: any): string {

@@ -369,17 +369,7 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
       alternateRowStyles: {
         fillColor: [249, 250, 251]
       },
-      margin: { left: 20, right: 20 },
-      didDrawCell: (data: any) => {
-        // Color attendance status
-        if (data.column.index === 2) {
-          const isPresent = data.cell.text[0] === 'Present'
-          doc.setTextColor(isPresent ? 34 : 239, isPresent ? 197 : 68, isPresent ? 94 : 68)
-          doc.setFontSize(8)
-          doc.text(data.cell.text[0], data.cell.x + 2, data.cell.y + 5)
-          return false // Prevent default text rendering
-        }
-      }
+      margin: { left: 20, right: 20 }
     })
 
     yPosition = (doc as any).lastAutoTable.finalY + 20

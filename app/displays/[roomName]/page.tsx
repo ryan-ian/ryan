@@ -421,7 +421,7 @@ export default function RoomDisplayPage() {
                     startTime={currentBooking?.start_time}
                     endTime={currentBooking?.end_time}
                     nextStartTime={nextBooking?.start_time}
-                    size={400}
+                    size={roomStatus === "reserved" ? 400 : 400}
                     thickness={18}
                     showTimer={true}
                     className="drop-shadow-2xl"
@@ -517,8 +517,8 @@ export default function RoomDisplayPage() {
                 startTime={currentBooking?.start_time}
                 endTime={currentBooking?.end_time}
                 nextStartTime={nextBooking?.start_time}
-                size={320}
-                className="mb-6"
+                size={roomStatus === "reserved" ? 480 : 320}
+                className="mt-10"
               />
               
               {/* Meeting Information and QR Code - Side by side when QR is available */}

@@ -110,7 +110,7 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                     isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
                     "text-brand-navy-600 dark:text-brand-navy-400"
                   )}>
-                    {it.organizer}
+                    Organizer: {it.organizer}
                   </div>
                   {showDescription && it.description && (
                     <div className={cn(
@@ -123,17 +123,18 @@ export function ScheduleRail({ bookings, now, currentId, reservedId, className, 
                       {it.description}
                     </div>
                   )}
-                </div>
-                <div className={cn(
-                  "text-xs font-semibold whitespace-nowrap",
+                  <div className={cn(
+                  "text-xs font-semibold whitespace-nowrap pt-2",
                   isNearEnd ? "text-red-600 dark:text-red-400" :
                   isCurrent ? "text-brand-teal-600 dark:text-brand-teal-400" :
                   isReserved ? "text-amber-600 dark:text-amber-400" :
                   isPast ? "text-brand-navy-400 dark:text-brand-navy-500" :
                   "text-brand-navy-700 dark:text-brand-navy-300"
-                )}>
-                  {it.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {it.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  )}>
+                    {it.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {it.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
+                
               </div>
               {isCurrent && (
                 <div className="mt-2 w-full bg-brand-teal-200 dark:bg-brand-teal-800 rounded-full h-1">

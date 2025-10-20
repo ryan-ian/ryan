@@ -36,8 +36,8 @@ export function RealtimeNotifications({
   // User realtime updates
   const userRealtime = useUserRealtime()
   
-  // Facility manager realtime updates (only for admins)
-  const facilityManagerRealtime = user?.role === 'admin' ? useFacilityManagerRealtime() : null
+  // Facility manager realtime updates (always call the hook to preserve hook order)
+  const facilityManagerRealtime = useFacilityManagerRealtime()
 
   // Add notification helper
   const addNotification = (notification: Omit<RealtimeNotification, 'id' | 'timestamp' | 'read'>) => {

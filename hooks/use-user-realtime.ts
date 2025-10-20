@@ -31,10 +31,22 @@ export function useUserRealtime({
   const subscriptionRef = useRef<any>(null)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isConnectedRef = useRef(false)
+  const isBrowser = typeof window !== 'undefined'
 
   const setupRealtimeSubscription = useCallback(() => {
+    if (!isBrowser) {
+      // SSR/no window: no-op
+      return
+    }
+
     if (!user || !enabled) {
       console.log('👤 [User Realtime] Skipping subscription setup - user or enabled check failed:', { user: !!user, enabled })
+      return
+    }
+
+    // Do not run user realtime subscriptions for admin (admin uses facility manager realtime instead)
+    if ((user as any).role === 'admin') {
+      console.log('👤 [User Realtime] Skipping subscription setup for admin role (handled by facility manager realtime)')
       return
     }
 
@@ -63,7 +75,9 @@ export function useUserRealtime({
 
     console.log('👤 [User Realtime] Setting up subscription for user:', user.id)
 
-    const subscription = supabase
+    let subscription
+    try {
+      subscription = supabase
       .channel(`user_updates_${user.id}`)
       .on(
         'postgres_changes',
@@ -305,7 +319,7 @@ export function useUserRealtime({
           }
 
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ [User Realtime] Error subscribing to user updates:', err)
+          console.error('❌ [User Realtime] Error subscribing to user updates:', err?.message || err || 'Unknown channel error')
           isConnectedRef.current = false
 
           // Implement retry logic for connection errors
@@ -337,6 +351,10 @@ export function useUserRealtime({
           }, 3000) // Retry after 3 seconds
         }
       })
+    } catch (e: any) {
+      console.error('❌ [User Realtime] Exception creating subscription:', e?.message || e)
+      return
+    }
 
     subscriptionRef.current = subscription
   }, [user, enabled, showToasts, onBookingStatusChange, onBookingUpdate, onMeetingInvitationUpdate, onNotificationReceived])

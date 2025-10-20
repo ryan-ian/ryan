@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/auth-context'
@@ -22,7 +22,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const [isConnected, setIsConnected] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected')
-  const [channels, setChannels] = useState<Map<string, RealtimeChannel>>(new Map())
+  const channelsRef = useRef<Map<string, RealtimeChannel>>(new Map())
+  const lastStatusRef = useRef<'connecting' | 'connected' | 'disconnected' | 'error'>(connectionStatus)
+  const isBrowser = typeof window !== 'undefined'
 
   // Create a subscription function factory
   const createSubscription = useCallback((
@@ -30,6 +32,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     callback: (payload: any) => void,
     filter?: string
   ) => {
+    if (!isBrowser) {
+      // SSR/no window: return no-op unsubscribe
+      return () => {}
+    }
+
     const channelName = `${table}_${Date.now()}_${Math.random()}`
     
     console.log(`📡 Creating realtime subscription for ${table}`)
@@ -52,45 +59,35 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       callback(payload)
     })
     
-    // Handle connection status
-    channel.on('system', {}, (payload) => {
-      if (payload.status === 'SUBSCRIBED') {
-        console.log(`✅ Successfully subscribed to ${table}`)
-        setIsConnected(true)
-        setConnectionStatus('connected')
-      } else if (payload.status === 'CHANNEL_ERROR') {
-        console.error(`❌ Error subscribing to ${table}:`, payload)
-        setConnectionStatus('error')
-      }
-    })
-    
     // Subscribe to the channel
-    channel.subscribe((status) => {
-      console.log(`📡 Subscription status for ${table}:`, status)
-      
-      if (status === 'SUBSCRIBED') {
-        setIsConnected(true)
-        setConnectionStatus('connected')
-      } else if (status === 'CHANNEL_ERROR') {
-        setConnectionStatus('error')
-      } else if (status === 'CLOSED') {
-        setIsConnected(false)
-        setConnectionStatus('disconnected')
+    channel.subscribe((status, err) => {
+      console.log(`📡 Subscription status for ${table}:`, status, err ? { error: err } : '')
+      const next: 'connecting' | 'connected' | 'disconnected' | 'error' =
+        status === 'SUBSCRIBED' ? 'connected'
+        : status === 'CHANNEL_ERROR' ? 'error'
+        : status === 'CLOSED' ? 'disconnected'
+        : connectionStatus
+
+      if (next !== lastStatusRef.current) {
+        lastStatusRef.current = next
+        if (next === 'connected') setIsConnected(true)
+        if (next === 'disconnected' || next === 'error') setIsConnected(false)
+        setConnectionStatus(next)
       }
     })
     
-    // Store the channel
-    setChannels(prev => new Map(prev).set(channelName, channel))
+    // Store the channel (no state to avoid render loops)
+    channelsRef.current.set(channelName, channel)
     
     // Return cleanup function
     return () => {
       console.log(`🧹 Cleaning up subscription for ${table}`)
-      supabase.removeChannel(channel)
-      setChannels(prev => {
-        const newChannels = new Map(prev)
-        newChannels.delete(channelName)
-        return newChannels
-      })
+      try {
+        supabase.removeChannel(channel)
+      } catch (e) {
+        console.error('❌ Error removing channel', e)
+      }
+      channelsRef.current.delete(channelName)
     }
   }, [])
 
@@ -125,19 +122,20 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return () => {
       console.log('🧹 Cleaning up all realtime channels')
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel)
+      channelsRef.current.forEach((channel) => {
+        try { supabase.removeChannel(channel) } catch {}
       })
+      channelsRef.current.clear()
     }
-  }, [channels])
+  }, [])
 
   // Monitor overall connection status
   useEffect(() => {
-    if (channels.size === 0) {
+    if (channelsRef.current.size === 0 && connectionStatus === 'connected') {
       setConnectionStatus('disconnected')
       setIsConnected(false)
     }
-  }, [channels.size])
+  }, [connectionStatus])
 
   const value: RealtimeContextType = {
     isConnected,

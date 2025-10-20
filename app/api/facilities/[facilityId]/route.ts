@@ -19,7 +19,7 @@ export async function GET(
       .from('facilities')
       .select(`
         *,
-        facility_manager:manager_id(id, name, email, role, department, last_login)
+        facility_manager:manager_id(id, name, email, role, position, organization, last_login)
       `)
       .eq('id', facilityId)
       .single()

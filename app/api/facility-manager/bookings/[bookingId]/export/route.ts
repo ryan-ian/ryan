@@ -86,12 +86,26 @@ export async function POST(
       averageCheckInTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
     }
 
+    // Calculate duration from start and end times
+    const startTime = new Date(booking.start_time)
+    const endTime = new Date(booking.end_time)
+    const durationMs = endTime.getTime() - startTime.getTime()
+    const durationMinutes = Math.round(durationMs / (1000 * 60)) // Convert to minutes
+
+    console.log('📊 [Booking PDF] Duration calculation:', {
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationMs,
+      durationMinutes,
+      originalDuration: booking.duration
+    })
+
     const analytics = {
       totalInvited,
       totalAttended,
       attendanceRate,
       averageCheckInTime,
-      duration: booking.duration || 0
+      duration: durationMinutes
     }
 
     // Generate PDF using appropriate method based on environment
@@ -230,12 +244,17 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
     })
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return [34, 197, 94] // Green
-      case 'pending': return [245, 158, 11] // Yellow
-      case 'cancelled': return [239, 68, 68] // Red
-      default: return [107, 114, 128] // Gray
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} minutes`
+    } else {
+      const hours = Math.floor(minutes / 60)
+      const remainingMinutes = minutes % 60
+      if (remainingMinutes === 0) {
+        return `${hours} hour${hours > 1 ? 's' : ''}`
+      } else {
+        return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes`
+      }
     }
   }
 
@@ -287,7 +306,7 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
   doc.text(`Location: ${booking.rooms?.location || 'Not specified'}`, 110, yPosition)
   yPosition += 6
   doc.text(`Capacity: ${booking.rooms?.capacity ? `Up to ${booking.rooms.capacity} people` : 'Not specified'}`, 20, yPosition)
-  doc.text(`Duration: ${analytics.duration} minutes`, 110, yPosition)
+  doc.text(`Duration: ${formatDuration(analytics.duration)}`, 110, yPosition)
   yPosition += 6
   doc.text(`Date: ${formatDate(booking.start_time)}`, 20, yPosition)
   doc.text(`Time: ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`, 110, yPosition)
@@ -386,7 +405,7 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
   
   doc.setFontSize(10)
   doc.setTextColor(0, 0, 0)
-  doc.text(`Meeting Overview: ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${analytics.duration} minutes in ${booking.rooms?.name || 'Unknown Room'}.`, 25, yPosition + 8)
+  doc.text(`Meeting Overview: ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${formatDuration(analytics.duration)} in ${booking.rooms?.name || 'Unknown Room'}.`, 25, yPosition + 8)
   yPosition += 15
 
   if (analytics.totalInvited > 0) {
@@ -440,6 +459,20 @@ function generateBookingReportHTML(data: any): string {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} minutes`
+    } else {
+      const hours = Math.floor(minutes / 60)
+      const remainingMinutes = minutes % 60
+      if (remainingMinutes === 0) {
+        return `${hours} hour${hours > 1 ? 's' : ''}`
+      } else {
+        return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes`
+      }
+    }
   }
 
   const getStatusBadgeClass = (status: string) => {
@@ -696,7 +729,7 @@ function generateBookingReportHTML(data: any): string {
             </div>
             <div class="info-item">
                 <div class="info-label">Duration</div>
-                <div class="info-value">${analytics.duration} minutes</div>
+                <div class="info-value">${formatDuration(analytics.duration)}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Organizer</div>
@@ -766,7 +799,7 @@ function generateBookingReportHTML(data: any): string {
     <div class="section">
         <h2>Summary</h2>
         <div style="background: #f8fafc; padding: 20px; border-radius: 8px;">
-            <p><strong>Meeting Overview:</strong> ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${analytics.duration} minutes in ${booking.rooms?.name || 'Unknown Room'}.</p>
+            <p><strong>Meeting Overview:</strong> ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${formatDuration(analytics.duration)} in ${booking.rooms?.name || 'Unknown Room'}.</p>
             
             ${analytics.totalInvited > 0 ? `
             <p style="margin-top: 10px;"><strong>Attendance:</strong> ${analytics.totalInvited} people were invited and ${analytics.totalAttended} actually attended (${analytics.attendanceRate.toFixed(1)}% attendance rate).</p>

@@ -178,11 +178,11 @@ function AttendanceContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-950 p-4">
       <div className="max-w-md mx-auto">
         {/* Meeting Info Header */}
         {context && (
-          <Card className="mb-6">
+          <Card className="mb-6 bg-white dark:bg-brand-navy-900 border border-gray-200 dark:border-brand-navy-700">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="h-5 w-5 text-blue-600" />
@@ -236,7 +236,7 @@ function AttendanceContent() {
 
         {/* Step 1: Select Attendee */}
         {step === 'select' && (
-          <Card>
+          <Card className="bg-white dark:bg-brand-navy-900 border border-gray-200 dark:border-brand-navy-700">
             <CardHeader>
               <CardTitle>Select Your Name</CardTitle>
               <CardDescription>
@@ -255,7 +255,7 @@ function AttendanceContent() {
                   {attendees.map((attendee) => (
                     <div
                       key={attendee.invitation_id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-brand-navy-800 border-gray-200 dark:border-brand-navy-700"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -283,6 +283,7 @@ function AttendanceContent() {
                         onClick={() => handleSendCode(attendee)}
                         disabled={sendingCodeForIds.has(attendee.invitation_id) || attendee.attendance_status === 'present'}
                         size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-70"
                       >
                         {sendingCodeForIds.has(attendee.invitation_id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -302,7 +303,7 @@ function AttendanceContent() {
 
         {/* Step 2: Enter Code */}
         {step === 'code' && selectedAttendee && (
-          <Card>
+          <Card className="bg-white dark:bg-brand-navy-900 border border-gray-200 dark:border-brand-navy-700">
             <CardHeader>
               <CardTitle>Enter Attendance Code</CardTitle>
               <CardDescription>
@@ -331,19 +332,19 @@ function AttendanceContent() {
                   value={attendanceCode}
                   onChange={(e) => setAttendanceCode(e.target.value)}
                   maxLength={4}
-                  className="text-center text-lg tracking-widest"
+                  className="text-center text-lg tracking-widest bg-white dark:bg-brand-navy-800 border-gray-300 dark:border-brand-navy-700 text-gray-900 dark:text-brand-navy-50 placeholder:text-gray-400 dark:placeholder:text-brand-navy-300 focus-visible:ring-blue-500 dark:focus-visible:ring-brand-teal-500"
                   autoFocus
                 />
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleBack} className="flex-1">
+                <Button variant="outline" onClick={handleBack} className="flex-1 dark:bg-transparent dark:border-brand-navy-700 dark:text-brand-navy-200 dark:hover:bg-brand-navy-800">
                   Back
                 </Button>
                 <Button
                   onClick={handleVerifyCode}
                   disabled={submitting || attendanceCode.length !== 4}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-70"
                 >
                   {submitting ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -368,7 +369,7 @@ function AttendanceContent() {
 
         {/* Step 3: Success */}
         {step === 'success' && (
-          <Card>
+          <Card className="bg-white dark:bg-brand-navy-900 border border-gray-200 dark:border-brand-navy-700">
             <CardContent className="text-center py-8">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="h-10 w-10 text-green-600" />

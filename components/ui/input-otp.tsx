@@ -16,7 +16,16 @@ const InputOTP = React.forwardRef<
       "flex items-center gap-2 has-[:disabled]:opacity-50",
       containerClassName
     )}
-    className={cn("disabled:cursor-not-allowed", className)}
+    className={cn(
+      "disabled:cursor-not-allowed",
+      // Light mode base styles
+      "[&>div>div]:bg-white [&>div>div]:text-gray-900 [&>div>div]:border-gray-300",
+      // Dark mode consistent styles
+      "dark:[&>div>div]:bg-brand-navy-800 dark:[&>div>div]:text-brand-navy-50 dark:[&>div>div]:border-brand-navy-700",
+      // Focus rings
+      "[&>div>div]:ring-offset-0 [&>div>div]:focus-visible:ring-2 [&>div>div]:focus-visible:ring-blue-500 dark:[&>div>div]:focus-visible:ring-brand-teal-500",
+      className
+    )}
     {...props}
   />
 ))
@@ -41,8 +50,13 @@ const InputOTPSlot = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-        isActive && "z-10 ring-2 ring-ring ring-offset-background",
+        "relative flex h-12 w-12 items-center justify-center border-y border-r text-base transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+        // Light theme
+        "bg-white text-gray-900 border-gray-300",
+        // Dark theme
+        "dark:bg-brand-navy-800 dark:text-brand-navy-50 dark:border-brand-navy-700",
+        // Active/focus ring
+        isActive && "z-10 ring-2 ring-blue-500 dark:ring-brand-teal-500",
         className
       )}
       {...props}

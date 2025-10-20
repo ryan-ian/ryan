@@ -518,7 +518,7 @@ export default function RoomDisplayPage() {
                 endTime={currentBooking?.end_time}
                 nextStartTime={nextBooking?.start_time}
                 size={roomStatus === "reserved" ? 480 : 320}
-                className="mt-4"
+                className=""
               />
               
               {/* Meeting Information and QR Code - Side by side when QR is available */}

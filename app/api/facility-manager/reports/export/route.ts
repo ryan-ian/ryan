@@ -122,11 +122,29 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePDFReport(data: any): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  })
+  // Check if we're in production (Vercel) or development
+  const isProduction = process.env.NODE_ENV === 'production'
+  
+  let browserConfig: any
+  
+  if (isProduction) {
+    // Production: Use @sparticuz/chromium for Vercel
+    const chromium = require('@sparticuz/chromium')
+    browserConfig = {
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    }
+  } else {
+    // Development: Use regular puppeteer with local Chrome
+    browserConfig = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
+  }
 
+  const browser = await puppeteer.launch(browserConfig)
   const page = await browser.newPage()
 
   // Generate HTML content for the report

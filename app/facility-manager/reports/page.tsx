@@ -361,14 +361,14 @@ export default function FacilityManagerReportsPage() {
           </Select>
         </div>
         
-        <div className="space-y-1">
+        {/* <div className="space-y-1">
           <label className="text-sm font-medium">Custom Range</label>
           <DatePickerWithRange
             date={customDateRange}
             onDateChange={setCustomDateRange}
             className="w-60"
           />
-        </div>
+        </div> */}
       </div>
       
           {/* KPI Cards */}

@@ -3,14 +3,7 @@ import { supabase } from "@/lib/supabase"
 import { getBookingByIdWithDetails } from "@/lib/supabase-data"
 import puppeteer from 'puppeteer'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF
-  }
-}
+import autoTable from 'jspdf-autotable'
 
 export async function POST(
   request: NextRequest,
@@ -273,7 +266,7 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
     ['Avg Check-in Time', analytics.averageCheckInTime]
   ]
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPosition,
     head: [['Metric', 'Value']],
     body: analyticsData,
@@ -297,7 +290,7 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
       invitation.attended_at ? formatDateTime(invitation.attended_at) : 'N/A'
     ])
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPosition,
       head: [['Name', 'Email', 'Attendance', 'Check-in Time']],
       body: invitationData,

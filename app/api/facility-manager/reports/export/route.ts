@@ -9,14 +9,7 @@ import {
 } from "@/lib/facility-analytics"
 import puppeteer from 'puppeteer'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF
-  }
-}
+import autoTable from 'jspdf-autotable'
 
 export async function POST(request: NextRequest) {
   try {
@@ -252,7 +245,7 @@ function generatePDFWithJsPDF(data: any): Buffer {
     ['Avg Meeting Duration', formatHours(dashboardMetrics.averageMeetingDuration.current), `${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '+' : ''}${dashboardMetrics.averageMeetingDuration.changePercent.toFixed(1)}%`]
   ]
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPosition,
     head: [['Metric', 'Current Value', 'Change from Previous Period']],
     body: metricsData,
@@ -285,7 +278,7 @@ function generatePDFWithJsPDF(data: any): Buffer {
     formatHours(room.bookedHours)
   ])
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPosition,
     head: [['Room Name', 'Utilization Rate', 'Bookings', 'Hours Used']],
     body: roomData,

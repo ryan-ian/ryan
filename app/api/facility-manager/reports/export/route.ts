@@ -130,6 +130,10 @@ async function generatePDFReport(data: any): Promise<Buffer> {
   // Dynamic imports based on environment as per Vercel guide
   const isVercel = !!process.env.VERCEL_ENV
   
+  console.log(`🔍 [PDF Generation] Environment: ${isVercel ? 'Vercel Production' : 'Development'}`)
+  console.log(`🔍 [PDF Generation] VERCEL_ENV: ${process.env.VERCEL_ENV}`)
+  console.log(`🔍 [PDF Generation] NODE_ENV: ${process.env.NODE_ENV}`)
+  
   let puppeteer: any
   let launchOptions: any = {
     headless: true,
@@ -137,44 +141,67 @@ async function generatePDFReport(data: any): Promise<Buffer> {
 
   try {
     if (isVercel) {
+      console.log('📦 [PDF Generation] Loading @sparticuz/chromium and puppeteer-core for Vercel...')
       // Production: Use @sparticuz/chromium for Vercel
       const chromium = (await import("@sparticuz/chromium")).default
       puppeteer = await import("puppeteer-core")
+      
+      const executablePath = await chromium.executablePath()
+      console.log(`🔍 [PDF Generation] Chromium executable path: ${executablePath}`)
+      
       launchOptions = {
         ...launchOptions,
         args: chromium.args,
-        executablePath: await chromium.executablePath(),
+        executablePath: executablePath,
       }
+      console.log('✅ [PDF Generation] Successfully loaded Chromium and Puppeteer-core')
     } else {
+      console.log('📦 [PDF Generation] Loading regular puppeteer for development...')
       // Development: Use regular puppeteer
       puppeteer = await import("puppeteer")
+      console.log('✅ [PDF Generation] Successfully loaded regular Puppeteer')
     }
 
+    console.log('🚀 [PDF Generation] Launching browser with options:', launchOptions)
     const browser = await puppeteer.launch(launchOptions)
-    const page = await browser.newPage()
+    console.log('✅ [PDF Generation] Browser launched successfully')
 
-    // Generate HTML content for the report
-    const htmlContent = generateReportHTML(data)
+  const page = await browser.newPage()
+    console.log('📄 [PDF Generation] Created new page')
 
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+  // Generate HTML content for the report
+  const htmlContent = generateReportHTML(data)
+    console.log('📝 [PDF Generation] Generated HTML content')
 
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '1in',
-        right: '1in',
-        bottom: '1in',
-        left: '1in'
-      }
-    })
+  await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+    console.log('📄 [PDF Generation] Set page content')
 
-    await browser.close()
+  // Generate PDF
+    console.log('🖨️ [PDF Generation] Generating PDF...')
+  const pdfBuffer = await page.pdf({
+    format: 'A4',
+    printBackground: true,
+    margin: {
+      top: '1in',
+      right: '1in',
+      bottom: '1in',
+      left: '1in'
+    }
+  })
+    console.log('✅ [PDF Generation] PDF generated successfully with Puppeteer')
+
+  await browser.close()
+    console.log('🔒 [PDF Generation] Browser closed')
     return pdfBuffer
 
   } catch (error) {
-    console.error('Puppeteer PDF generation failed:', error)
+    console.error('❌ [PDF Generation] Puppeteer failed:', error)
+    console.error('❌ [PDF Generation] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
+    console.log('🔄 [PDF Generation] Falling back to jsPDF...')
     // Fallback to jsPDF if Puppeteer fails
     return generatePDFWithJsPDF(data)
   }

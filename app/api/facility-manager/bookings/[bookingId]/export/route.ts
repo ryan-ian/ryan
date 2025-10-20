@@ -132,6 +132,8 @@ async function generateBookingPDFReport(data: any): Promise<Buffer> {
   // Dynamic imports based on environment as per Vercel guide
   const isVercel = !!process.env.VERCEL_ENV
   
+  console.log(`🔍 [Booking PDF Generation] Environment: ${isVercel ? 'Vercel Production' : 'Development'}`)
+  
   let puppeteer: any
   let launchOptions: any = {
     headless: true,
@@ -139,6 +141,7 @@ async function generateBookingPDFReport(data: any): Promise<Buffer> {
 
   try {
     if (isVercel) {
+      console.log('📦 [Booking PDF Generation] Loading @sparticuz/chromium and puppeteer-core for Vercel...')
       // Production: Use @sparticuz/chromium for Vercel
       const chromium = (await import("@sparticuz/chromium")).default
       puppeteer = await import("puppeteer-core")
@@ -147,36 +150,49 @@ async function generateBookingPDFReport(data: any): Promise<Buffer> {
         args: chromium.args,
         executablePath: await chromium.executablePath(),
       }
+      console.log('✅ [Booking PDF Generation] Successfully loaded Chromium and Puppeteer-core')
     } else {
+      console.log('📦 [Booking PDF Generation] Loading regular puppeteer for development...')
       // Development: Use regular puppeteer
       puppeteer = await import("puppeteer")
+      console.log('✅ [Booking PDF Generation] Successfully loaded regular Puppeteer')
     }
 
+    console.log('🚀 [Booking PDF Generation] Launching browser...')
     const browser = await puppeteer.launch(launchOptions)
-    const page = await browser.newPage()
+    console.log('✅ [Booking PDF Generation] Browser launched successfully')
 
-    // Generate HTML content for the booking report
-    const htmlContent = generateBookingReportHTML(data)
+  const page = await browser.newPage()
+    console.log('📄 [Booking PDF Generation] Created new page')
 
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+  // Generate HTML content for the booking report
+  const htmlContent = generateBookingReportHTML(data)
+    console.log('📝 [Booking PDF Generation] Generated HTML content')
 
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '1in',
-        right: '1in',
-        bottom: '1in',
-        left: '1in'
-      }
-    })
+  await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+    console.log('📄 [Booking PDF Generation] Set page content')
 
-    await browser.close()
+  // Generate PDF
+    console.log('🖨️ [Booking PDF Generation] Generating PDF...')
+  const pdfBuffer = await page.pdf({
+    format: 'A4',
+    printBackground: true,
+    margin: {
+      top: '1in',
+      right: '1in',
+      bottom: '1in',
+      left: '1in'
+    }
+  })
+    console.log('✅ [Booking PDF Generation] PDF generated successfully with Puppeteer')
+
+  await browser.close()
+    console.log('🔒 [Booking PDF Generation] Browser closed')
     return pdfBuffer
 
   } catch (error) {
-    console.error('Puppeteer PDF generation failed:', error)
+    console.error('❌ [Booking PDF Generation] Puppeteer failed:', error)
+    console.log('🔄 [Booking PDF Generation] Falling back to jsPDF...')
     // Fallback to jsPDF if Puppeteer fails
     return generateBookingPDFWithJsPDF(data)
   }

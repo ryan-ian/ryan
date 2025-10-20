@@ -173,9 +173,6 @@ importers:
       path:
         specifier: latest
         version: 0.12.7
-      puppeteer:
-        specifier: ^22.15.0
-        version: 22.15.0(typescript@5.9.2)
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -240,6 +237,9 @@ importers:
       postcss:
         specifier: ^8.5
         version: 8.5.6
+      puppeteer:
+        specifier: ^22.15.0
+        version: 22.15.0(typescript@5.9.2)
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.17

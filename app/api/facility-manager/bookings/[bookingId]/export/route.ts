@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { getBookingByIdWithDetails } from "@/lib/supabase-data"
-import puppeteer from 'puppeteer'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+
+// Increase timeout for PDF generation
+export const maxDuration = 30
 
 export async function POST(
   request: NextRequest,
@@ -126,46 +128,58 @@ export async function POST(
 }
 
 async function generateBookingPDFReport(data: any): Promise<Buffer> {
-  const isProduction = process.env.NODE_ENV === 'production'
+  // Always use Puppeteer for consistent high-quality PDFs
+  // Dynamic imports based on environment as per Vercel guide
+  const isVercel = !!process.env.VERCEL_ENV
   
-  if (isProduction) {
-    // Production: Use jsPDF for reliable serverless generation
-    return generateBookingPDFWithJsPDF(data)
-  } else {
-    // Development: Use Puppeteer for better formatting
-    try {
-      return await generateBookingPDFWithPuppeteer(data)
-    } catch (error) {
-      console.warn('Puppeteer failed, falling back to jsPDF:', error)
-      return generateBookingPDFWithJsPDF(data)
-    }
-  }
-}
-
-async function generateBookingPDFWithPuppeteer(data: any): Promise<Buffer> {
-  const browser = await puppeteer.launch({
+  let puppeteer: any
+  let launchOptions: any = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  })
+  }
 
-  const page = await browser.newPage()
-  const htmlContent = generateBookingReportHTML(data)
-
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
-
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: {
-      top: '1in',
-      right: '1in',
-      bottom: '1in',
-      left: '1in'
+  try {
+    if (isVercel) {
+      // Production: Use @sparticuz/chromium for Vercel
+      const chromium = (await import("@sparticuz/chromium")).default
+      puppeteer = await import("puppeteer-core")
+      launchOptions = {
+        ...launchOptions,
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+      }
+    } else {
+      // Development: Use regular puppeteer
+      puppeteer = await import("puppeteer")
     }
-  })
 
-  await browser.close()
-  return pdfBuffer
+    const browser = await puppeteer.launch(launchOptions)
+    const page = await browser.newPage()
+
+    // Generate HTML content for the booking report
+    const htmlContent = generateBookingReportHTML(data)
+
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '1in',
+        right: '1in',
+        bottom: '1in',
+        left: '1in'
+      }
+    })
+
+    await browser.close()
+    return pdfBuffer
+
+  } catch (error) {
+    console.error('Puppeteer PDF generation failed:', error)
+    // Fallback to jsPDF if Puppeteer fails
+    return generateBookingPDFWithJsPDF(data)
+  }
 }
 
 function generateBookingPDFWithJsPDF(data: any): Buffer {

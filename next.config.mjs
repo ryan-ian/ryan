@@ -19,6 +19,8 @@ const nextConfig = {
     NEXT_FONT_GOOGLE_TIMEOUT: '30000', // 30 seconds timeout
     NEXT_FONT_GOOGLE_RETRIES: '3',     // 3 retry attempts
   },
+  // External packages for Puppeteer on Vercel
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   // Webpack configuration for font handling
   webpack: (config, { isServer }) => {
     // Add fallback for font loading failures

@@ -7,9 +7,11 @@ import {
   getDateRanges,
   type DateRange
 } from "@/lib/facility-analytics"
-import puppeteer from 'puppeteer'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+
+// Increase timeout for PDF generation
+export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   try {
@@ -124,46 +126,58 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePDFReport(data: any): Promise<Buffer> {
-  const isProduction = process.env.NODE_ENV === 'production'
+  // Always use Puppeteer for consistent high-quality PDFs
+  // Dynamic imports based on environment as per Vercel guide
+  const isVercel = !!process.env.VERCEL_ENV
   
-  if (isProduction) {
-    // Production: Use jsPDF for reliable serverless generation
-    return generatePDFWithJsPDF(data)
-  } else {
-    // Development: Use Puppeteer for better formatting
-    try {
-      return await generatePDFWithPuppeteer(data)
-    } catch (error) {
-      console.warn('Puppeteer failed, falling back to jsPDF:', error)
-      return generatePDFWithJsPDF(data)
-    }
-  }
-}
-
-async function generatePDFWithPuppeteer(data: any): Promise<Buffer> {
-  const browser = await puppeteer.launch({
+  let puppeteer: any
+  let launchOptions: any = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  })
+  }
 
-  const page = await browser.newPage()
-  const htmlContent = generateReportHTML(data)
-
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
-
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: {
-      top: '1in',
-      right: '1in',
-      bottom: '1in',
-      left: '1in'
+  try {
+    if (isVercel) {
+      // Production: Use @sparticuz/chromium for Vercel
+      const chromium = (await import("@sparticuz/chromium")).default
+      puppeteer = await import("puppeteer-core")
+      launchOptions = {
+        ...launchOptions,
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+      }
+    } else {
+      // Development: Use regular puppeteer
+      puppeteer = await import("puppeteer")
     }
-  })
 
-  await browser.close()
-  return pdfBuffer
+    const browser = await puppeteer.launch(launchOptions)
+    const page = await browser.newPage()
+
+    // Generate HTML content for the report
+    const htmlContent = generateReportHTML(data)
+
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '1in',
+        right: '1in',
+        bottom: '1in',
+        left: '1in'
+      }
+    })
+
+    await browser.close()
+    return pdfBuffer
+
+  } catch (error) {
+    console.error('Puppeteer PDF generation failed:', error)
+    // Fallback to jsPDF if Puppeteer fails
+    return generatePDFWithJsPDF(data)
+  }
 }
 
 function generatePDFWithJsPDF(data: any): Buffer {

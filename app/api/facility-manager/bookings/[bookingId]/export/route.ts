@@ -200,81 +200,112 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
     })
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return [34, 197, 94] // Green
+      case 'pending': return [245, 158, 11] // Yellow
+      case 'cancelled': return [239, 68, 68] // Red
+      default: return [107, 114, 128] // Gray
+    }
+  }
+
   let yPosition = 20
 
-  // Header
-  doc.setFontSize(20)
-  doc.setTextColor(30, 64, 175)
-  doc.text('Meeting Report', 20, yPosition)
-  yPosition += 10
+  // Header with blue accent line
+  doc.setFillColor(37, 99, 235) // Blue color
+  doc.rect(0, 0, 210, 8, 'F') // Blue header bar
+  
+  doc.setFontSize(24)
+  doc.setTextColor(30, 64, 175) // Blue text
+  doc.text('Meeting Report', 20, 25)
   
   doc.setFontSize(12)
-  doc.setTextColor(107, 114, 128)
+  doc.setTextColor(107, 114, 128) // Gray text
   doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
     year: 'numeric',
     month: 'long', 
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  })}`, 20, yPosition)
-  yPosition += 20
+  })}`, 20, 32)
+  yPosition = 45
 
-  // Booking Information
+  // Meeting Information Card
+  doc.setFillColor(248, 250, 252) // Light gray background
+  doc.roundedRect(15, yPosition - 5, 180, 50, 3, 3, 'F')
+  
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Meeting Information', 20, yPosition)
-  yPosition += 10
+  
+  // Status badge
+  const statusColor = getStatusColor(booking.status)
+  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2])
+  doc.roundedRect(150, yPosition - 8, 40, 12, 6, 6, 'F')
+  doc.setFontSize(8)
+  doc.setTextColor(255, 255, 255)
+  doc.text(booking.status.toUpperCase(), 155, yPosition - 1)
+  
+  yPosition += 8
 
   doc.setFontSize(10)
   doc.setTextColor(0, 0, 0)
   doc.text(`Meeting Title: ${booking.title || 'Meeting'}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Status: ${booking.status}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Booking ID: ${booking.id}`, 20, yPosition)
+  doc.text(`Booking ID: ${booking.id}`, 110, yPosition)
   yPosition += 6
   doc.text(`Room: ${booking.rooms?.name || 'Unknown Room'}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Location: ${booking.rooms?.location || 'Not specified'}`, 20, yPosition)
+  doc.text(`Location: ${booking.rooms?.location || 'Not specified'}`, 110, yPosition)
   yPosition += 6
   doc.text(`Capacity: ${booking.rooms?.capacity ? `Up to ${booking.rooms.capacity} people` : 'Not specified'}`, 20, yPosition)
+  doc.text(`Duration: ${analytics.duration} minutes`, 110, yPosition)
   yPosition += 6
   doc.text(`Date: ${formatDate(booking.start_time)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Time: ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Duration: ${analytics.duration} minutes`, 20, yPosition)
+  doc.text(`Time: ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`, 110, yPosition)
   yPosition += 6
   doc.text(`Organizer: ${booking.users?.name || 'Unknown'} (${booking.users?.email || 'Unknown'})`, 20, yPosition)
-  yPosition += 10
+  yPosition += 15
 
   if (booking.description) {
     doc.text(`Description: ${booking.description}`, 20, yPosition)
     yPosition += 10
   }
 
-  // Meeting Analytics
+  // Meeting Analytics Cards
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Meeting Analytics', 20, yPosition)
-  yPosition += 10
+  yPosition += 15
 
-  const analyticsData = [
-    ['Total Invited', analytics.totalInvited.toString()],
-    ['Attended', analytics.totalAttended.toString()],
-    ['Attendance Rate', `${analytics.attendanceRate.toFixed(1)}%`],
-    ['Avg Check-in Time', analytics.averageCheckInTime]
+  // Analytics cards in 2x2 grid
+  const analyticsCards = [
+    { label: 'Total Invited', value: analytics.totalInvited.toString(), color: [30, 64, 175] },
+    { label: 'Attended', value: analytics.totalAttended.toString(), color: [34, 197, 94] },
+    { label: 'Attendance Rate', value: `${analytics.attendanceRate.toFixed(1)}%`, color: [59, 130, 246] },
+    { label: 'Avg Check-in Time', value: analytics.averageCheckInTime, color: [168, 85, 247] }
   ]
 
-  autoTable(doc, {
-    startY: yPosition,
-    head: [['Metric', 'Value']],
-    body: analyticsData,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [248, 250, 252] }
-  })
+  for (let i = 0; i < analyticsCards.length; i++) {
+    const row = Math.floor(i / 2)
+    const col = i % 2
+    const cardX = 20 + (col * 90)
+    const cardY = yPosition + (row * 35)
+    
+    // Card background
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(229, 231, 235)
+    doc.roundedRect(cardX, cardY, 85, 30, 3, 3, 'FD')
+    
+    // Card content
+    doc.setFontSize(8)
+    doc.setTextColor(107, 114, 128)
+    doc.text(analyticsCards[i].label.toUpperCase(), cardX + 5, cardY + 8)
+    
+    doc.setFontSize(18)
+    doc.setTextColor(analyticsCards[i].color[0], analyticsCards[i].color[1], analyticsCards[i].color[2])
+    doc.text(analyticsCards[i].value, cardX + 5, cardY + 20)
+  }
 
-  yPosition = (doc as any).lastAutoTable.finalY + 15
+  yPosition += 80
 
   // Invitations table
   if (invitations.length > 0) {
@@ -294,42 +325,67 @@ function generateBookingPDFWithJsPDF(data: any): Buffer {
       startY: yPosition,
       head: [['Name', 'Email', 'Attendance', 'Check-in Time']],
       body: invitationData,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [248, 250, 252] }
+      styles: { 
+        fontSize: 9,
+        cellPadding: 5,
+        lineColor: [229, 231, 235],
+        lineWidth: 0.5
+      },
+      headStyles: { 
+        fillColor: [248, 250, 252],
+        textColor: [55, 65, 81],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      margin: { left: 20, right: 20 },
+      didDrawCell: (data: any) => {
+        // Color attendance status
+        if (data.column.index === 2) {
+          const isPresent = data.cell.text[0] === 'Present'
+          doc.setTextColor(isPresent ? 34 : 239, isPresent ? 197 : 68, isPresent ? 94 : 68)
+          doc.setFontSize(8)
+          doc.text(data.cell.text[0], data.cell.x + 2, data.cell.y + 5)
+          return false // Prevent default text rendering
+        }
+      }
     })
 
-    yPosition = (doc as any).lastAutoTable.finalY + 15
+    yPosition = (doc as any).lastAutoTable.finalY + 20
   }
 
-  // Summary
+  // Summary Card
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Summary', 20, yPosition)
   yPosition += 10
 
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(20, yPosition, 170, 50, 3, 3, 'F')
+  
   doc.setFontSize(10)
   doc.setTextColor(0, 0, 0)
-  doc.text(`Meeting Overview: ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${analytics.duration} minutes in ${booking.rooms?.name || 'Unknown Room'}.`, 20, yPosition)
-  yPosition += 6
+  doc.text(`Meeting Overview: ${booking.title || 'Meeting'} was ${booking.status} and scheduled for ${analytics.duration} minutes in ${booking.rooms?.name || 'Unknown Room'}.`, 25, yPosition + 8)
+  yPosition += 15
 
   if (analytics.totalInvited > 0) {
-    doc.text(`Attendance: ${analytics.totalInvited} people were invited and ${analytics.totalAttended} actually attended (${analytics.attendanceRate.toFixed(1)}% attendance rate).`, 20, yPosition)
-    yPosition += 6
+    doc.text(`Attendance: ${analytics.totalInvited} people were invited and ${analytics.totalAttended} actually attended (${analytics.attendanceRate.toFixed(1)}% attendance rate).`, 25, yPosition + 8)
+    yPosition += 12
   }
 
   if (analytics.averageCheckInTime !== 'N/A') {
-    doc.text(`Average Check-in Time: ${analytics.averageCheckInTime}`, 20, yPosition)
-    yPosition += 6
+    doc.text(`Average Check-in Time: ${analytics.averageCheckInTime}`, 25, yPosition + 8)
+    yPosition += 12
   }
 
   if (booking.status === 'cancelled' && booking.rejection_reason) {
     doc.setTextColor(153, 27, 27)
-    doc.text(`Cancellation Reason: ${booking.rejection_reason}`, 20, yPosition)
-    yPosition += 6
+    doc.text(`Cancellation Reason: ${booking.rejection_reason}`, 25, yPosition + 8)
   }
 
   // Footer
-  doc.setFontSize(10)
+  doc.setFontSize(9)
   doc.setTextColor(107, 114, 128)
   doc.text('This report was generated by Conference Hub - Room Booking System', 20, doc.internal.pageSize.height - 20)
   doc.text(`Generated by: ${generatedBy} | Report ID: ${booking.id.slice(0, 8)}`, 20, doc.internal.pageSize.height - 10)

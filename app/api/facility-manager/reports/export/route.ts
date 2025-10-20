@@ -195,65 +195,86 @@ function generatePDFWithJsPDF(data: any): Buffer {
 
   let yPosition = 20
 
-  // Header
-  doc.setFontSize(20)
-  doc.setTextColor(30, 64, 175)
-  doc.text('Facility Management Report', 20, yPosition)
-  yPosition += 10
+  // Header with blue accent line
+  doc.setFillColor(37, 99, 235) // Blue color
+  doc.rect(0, 0, 210, 8, 'F') // Blue header bar
+  
+  doc.setFontSize(24)
+  doc.setTextColor(30, 64, 175) // Blue text
+  doc.text('Facility Management Report', 20, 25)
   
   doc.setFontSize(12)
-  doc.setTextColor(107, 114, 128)
+  doc.setTextColor(107, 114, 128) // Gray text
   doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  })}`, 20, yPosition)
-  yPosition += 20
+  })}`, 20, 32)
+  yPosition = 45
 
-  // Facility Information
+  // Facility Information Card
+  doc.setFillColor(248, 250, 252) // Light gray background
+  doc.roundedRect(15, yPosition - 5, 180, 35, 3, 3, 'F')
+  
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Facility Information', 20, yPosition)
-  yPosition += 10
+  yPosition += 8
 
   doc.setFontSize(10)
   doc.setTextColor(0, 0, 0)
   doc.text(`Facility Name: ${facilityInfo.name}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Location: ${facilityInfo.location || 'Not specified'}`, 20, yPosition)
+  doc.text(`Location: ${facilityInfo.location || 'Not specified'}`, 110, yPosition)
   yPosition += 6
   doc.text(`Manager: ${managerName}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Report Period: ${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`, 20, yPosition)
-  yPosition += 15
+  doc.text(`Report Period: ${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`, 110, yPosition)
+  yPosition += 20
 
-  // Executive Summary
+  // Executive Summary with Cards
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Executive Summary', 20, yPosition)
-  yPosition += 10
+  yPosition += 15
 
-  // Metrics table
-  const metricsData = [
-    ['Room Utilization Rate', formatPercentage(dashboardMetrics.roomUtilizationRate.current), `${dashboardMetrics.roomUtilizationRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.roomUtilizationRate.changePercent.toFixed(1)}%`],
-    ['Total Bookings', dashboardMetrics.totalBookings.current.toString(), `${dashboardMetrics.totalBookings.changePercent >= 0 ? '+' : ''}${dashboardMetrics.totalBookings.changePercent.toFixed(1)}%`],
-    ['Attendance Rate', formatPercentage(dashboardMetrics.attendanceRate.current), `${dashboardMetrics.attendanceRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.attendanceRate.changePercent.toFixed(1)}%`],
-    ['No-Show Rate', formatPercentage(dashboardMetrics.noShowRate.current), `${dashboardMetrics.noShowRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.noShowRate.changePercent.toFixed(1)}%`],
-    ['Peak Hour Usage', formatTime(dashboardMetrics.peakHourUsage.current), 'Most popular time'],
-    ['Avg Meeting Duration', formatHours(dashboardMetrics.averageMeetingDuration.current), `${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '+' : ''}${dashboardMetrics.averageMeetingDuration.changePercent.toFixed(1)}%`]
+  // Create metric cards
+  const metrics = [
+    { title: 'Room Utilization Rate', value: formatPercentage(dashboardMetrics.roomUtilizationRate.current), change: `${dashboardMetrics.roomUtilizationRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.roomUtilizationRate.changePercent.toFixed(1)}%` },
+    { title: 'Total Bookings', value: dashboardMetrics.totalBookings.current.toString(), change: `${dashboardMetrics.totalBookings.changePercent >= 0 ? '+' : ''}${dashboardMetrics.totalBookings.changePercent.toFixed(1)}%` },
+    { title: 'Attendance Rate', value: formatPercentage(dashboardMetrics.attendanceRate.current), change: `${dashboardMetrics.attendanceRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.attendanceRate.changePercent.toFixed(1)}%` },
+    { title: 'No-Show Rate', value: formatPercentage(dashboardMetrics.noShowRate.current), change: `${dashboardMetrics.noShowRate.changePercent >= 0 ? '+' : ''}${dashboardMetrics.noShowRate.changePercent.toFixed(1)}%` },
+    { title: 'Peak Hour Usage', value: formatTime(dashboardMetrics.peakHourUsage.current), change: 'Most popular time' },
+    { title: 'Avg Meeting Duration', value: formatHours(dashboardMetrics.averageMeetingDuration.current), change: `${dashboardMetrics.averageMeetingDuration.changePercent >= 0 ? '+' : ''}${dashboardMetrics.averageMeetingDuration.changePercent.toFixed(1)}%` }
   ]
 
-  autoTable(doc, {
-    startY: yPosition,
-    head: [['Metric', 'Current Value', 'Change from Previous Period']],
-    body: metricsData,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [248, 250, 252] }
-  })
+  // Draw metric cards in 3x2 grid
+  for (let i = 0; i < metrics.length; i++) {
+    const row = Math.floor(i / 3)
+    const col = i % 3
+    const cardX = 20 + (col * 60)
+    const cardY = yPosition + (row * 35)
+    
+    // Card background
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(229, 231, 235)
+    doc.roundedRect(cardX, cardY, 55, 30, 2, 2, 'FD')
+    
+    // Card content
+    doc.setFontSize(8)
+    doc.setTextColor(107, 114, 128)
+    doc.text(metrics[i].title.toUpperCase(), cardX + 3, cardY + 8)
+    
+    doc.setFontSize(16)
+    doc.setTextColor(30, 64, 175)
+    doc.text(metrics[i].value, cardX + 3, cardY + 18)
+    
+    doc.setFontSize(7)
+    doc.setTextColor(5, 150, 105)
+    doc.text(metrics[i].change, cardX + 3, cardY + 25)
+  }
 
-  yPosition = (doc as any).lastAutoTable.finalY + 15
+  yPosition += 80
 
   // Room Utilization Analysis
   doc.setFontSize(16)
@@ -261,16 +282,27 @@ function generatePDFWithJsPDF(data: any): Buffer {
   doc.text('Room Utilization Performance', 20, yPosition)
   yPosition += 10
 
-  doc.setFontSize(10)
-  doc.setTextColor(0, 0, 0)
-  doc.text(`Overall Utilization: ${formatPercentage(utilizationAnalytics.overallUtilization)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Average Booking Duration: ${formatHours(utilizationAnalytics.averageBookingDuration)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Peak Utilization Hour: ${formatTime(utilizationAnalytics.peakUtilizationHour)}`, 20, yPosition)
-  yPosition += 10
+  // Stats boxes
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(20, yPosition, 85, 25, 2, 2, 'F')
+  doc.setFontSize(14)
+  doc.setTextColor(30, 64, 175)
+  doc.text(formatPercentage(utilizationAnalytics.overallUtilization), 25, yPosition + 8)
+  doc.setFontSize(8)
+  doc.setTextColor(107, 114, 128)
+  doc.text('OVERALL UTILIZATION', 25, yPosition + 15)
+  
+  doc.roundedRect(110, yPosition, 85, 25, 2, 2, 'F')
+  doc.setFontSize(14)
+  doc.setTextColor(30, 64, 175)
+  doc.text(formatHours(utilizationAnalytics.averageBookingDuration), 115, yPosition + 8)
+  doc.setFontSize(8)
+  doc.setTextColor(107, 114, 128)
+  doc.text('AVG BOOKING DURATION', 115, yPosition + 15)
+  
+  yPosition += 35
 
-  // Room utilization table
+  // Room utilization table with enhanced styling
   const roomData = utilizationAnalytics.utilizationByRoom.slice(0, 5).map(room => [
     room.roomName,
     formatPercentage(room.utilizationRate),
@@ -282,31 +314,78 @@ function generatePDFWithJsPDF(data: any): Buffer {
     startY: yPosition,
     head: [['Room Name', 'Utilization Rate', 'Bookings', 'Hours Used']],
     body: roomData,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [248, 250, 252] }
+    styles: { 
+      fontSize: 10,
+      cellPadding: 6,
+      lineColor: [229, 231, 235],
+      lineWidth: 0.5
+    },
+    headStyles: { 
+      fillColor: [248, 250, 252],
+      textColor: [55, 65, 81],
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [249, 250, 251]
+    },
+    margin: { left: 20, right: 20 }
   })
 
-  yPosition = (doc as any).lastAutoTable.finalY + 15
+  yPosition = (doc as any).lastAutoTable.finalY + 20
 
   // Attendance Analysis
   doc.setFontSize(16)
   doc.setTextColor(30, 64, 175)
   doc.text('Attendance & No-Show Analysis', 20, yPosition)
-  yPosition += 10
-
-  doc.setFontSize(10)
-  doc.setTextColor(0, 0, 0)
-  doc.text(`Total Meetings: ${attendanceAnalytics.totalMeetings}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Check-in Rate: ${formatPercentage(attendanceAnalytics.checkInRate)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`No-Show Rate: ${formatPercentage(attendanceAnalytics.noShowRate)}`, 20, yPosition)
-  yPosition += 6
-  doc.text(`Punctuality Rate: ${formatPercentage(attendanceAnalytics.punctualityRate)}`, 20, yPosition)
   yPosition += 15
 
-  // Footer
+  // Attendance stats in 2x2 grid
+  const attendanceStats = [
+    { label: 'Total Meetings', value: attendanceAnalytics.totalMeetings.toString() },
+    { label: 'Check-in Rate', value: formatPercentage(attendanceAnalytics.checkInRate) },
+    { label: 'No-Show Rate', value: formatPercentage(attendanceAnalytics.noShowRate) },
+    { label: 'Punctuality Rate', value: formatPercentage(attendanceAnalytics.punctualityRate) }
+  ]
+
+  for (let i = 0; i < attendanceStats.length; i++) {
+    const row = Math.floor(i / 2)
+    const col = i % 2
+    const boxX = 20 + (col * 90)
+    const boxY = yPosition + (row * 20)
+    
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(boxX, boxY, 85, 15, 2, 2, 'F')
+    
+    doc.setFontSize(12)
+    doc.setTextColor(30, 64, 175)
+    doc.text(attendanceStats[i].value, boxX + 5, boxY + 7)
+    
+    doc.setFontSize(7)
+    doc.setTextColor(107, 114, 128)
+    doc.text(attendanceStats[i].label.toUpperCase(), boxX + 5, boxY + 12)
+  }
+
+  yPosition += 50
+
+  // Operational Insights
+  doc.setFontSize(16)
+  doc.setTextColor(30, 64, 175)
+  doc.text('Operational Insights & Recommendations', 20, yPosition)
+  yPosition += 10
+
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(20, yPosition, 170, 40, 3, 3, 'F')
+  
   doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text('Key Findings:', 25, yPosition + 8)
+  doc.text(`• Overall facility utilization is ${formatPercentage(utilizationAnalytics.overallUtilization)}`, 25, yPosition + 15)
+  doc.text(`• ${formatPercentage(attendanceAnalytics.checkInRate)} of bookings result in successful check-ins`, 25, yPosition + 22)
+  doc.text(`• ${formatPercentage(attendanceAnalytics.noShowRate)} of confirmed bookings are no-shows`, 25, yPosition + 29)
+  doc.text(`• Most bookings occur at ${formatTime(utilizationAnalytics.peakUtilizationHour)}`, 25, yPosition + 36)
+
+  // Footer
+  doc.setFontSize(9)
   doc.setTextColor(107, 114, 128)
   doc.text('This report was generated automatically by the Conference Hub Facility Management System.', 20, doc.internal.pageSize.height - 20)
   doc.text('For questions about this report, please contact your system administrator.', 20, doc.internal.pageSize.height - 10)
